@@ -1,0 +1,15 @@
+{
+  "database": {
+    "host": "localhost",
+    "name": "qr_attendance",
+    "username": "root",
+    "password": ""
+  },
+  "api": {
+    "key": "attendance_2025_xyz789_secure",
+    "endpoint": "/api_attendance.php"
+  },
+  "website": {
+    "url": "http://localhost/qr_attendance/public"
+  }
+}

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students Sync API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Students Sync API Test</h1>
+        
+        <div class="section">
+            <h2>API Configuration</h2>
+            <label>API URL:</label>
+            <input type="text" id="apiUrl" value="api/students_sync.php" placeholder="api/students_sync.php">
+            
+            <label>API Key:</label>
+            <input type="text" id="apiKey" value="your-secret-api-key-123" placeholder="your-secret-api-key-123">
+        </div>
+        
+        <div class="section">
+            <h2>Test API Endpoints</h2>
+            <button onclick="testGetStudents()">📥 Get All Students</button>
+            <button onclick="testAddStudent()">➕ Add Test Student</button>
+            <button onclick="testUpdateStudent()">✏️ Update Student</button>
+        </div>
+        
+        <div class="section">
+            <h2>API Response</h2>
+            <pre id="response">Click a button above to test the API...</pre>
+        </div>
+        
+        <div class="section">
+            <h2>Instructions</h2>
+            <ol>
+                <li>Make sure your API key matches in both the PHP file and this test page</li>
+                <li>Update the API URL to point to your hosting server</li>
+                <li>Test the "Get All Students" button first</li>
+                <li>If successful, run the Python sync script: <code>python sync_from_api.py</code></li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'your-secret-api-key-123';
+        
+        async function makeAPICall(action, method = 'GET', data = null) {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const apiKey = document.getElementById('apiKey').value;
+            
+            const url = `${apiUrl}?action=${action}&api_key=${apiKey}`;
+            
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+            
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
+                document.getElementById('response').textContent = JSON.stringify(result, null, 2);
+                
+                if (result.success) {
+                    document.getElementById('response').className = 'success';
+                } else {
+                    document.getElementById('response').className = 'error';
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = `Error: ${error.message}`;
+                document.getElementById('response').className = 'error';
+            }
+        }
+        
+        function testGetStudents() {
+            makeAPICall('get_students');
+        }
+        
+        function testAddStudent() {
+            const testData = {
+                student_id: 'TEST-' + Date.now(),
+                name: 'Test Student',
+                email: 'test@example.com',
+                phone: '1234567890',
+                program: 'SWT',
+                shift: 'Morning',
+                year_level: '1st',
+                section: 'A',
+                admission_year: '2025'
+            };
+            
+            makeAPICall('add_student', 'POST', testData);
+        }
+        
+        function testUpdateStudent() {
+            const testData = {
+                student_id: '25-SWT-25',
+                name: 'Updated Name',
+                email: 'updated@example.com',
+                phone: '9876543210'
+            };
+            
+            makeAPICall('update_student', 'POST', testData);
+        }
+    </script>
+</body>
+</html>

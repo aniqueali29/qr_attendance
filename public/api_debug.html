@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Debugger - QR Attendance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+        
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        }
+        
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .loading {
+            background: #e2e3e5;
+            color: #6c757d;
+            border: 1px solid #d6d8db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 API Debugger</h1>
+            <p>Test and debug API endpoints</p>
+        </div>
+
+        <div class="content">
+            <div class="test-section">
+                <h2>🔧 Basic API Tests</h2>
+                <button class="btn" onclick="testBasicAPI()">Test Basic API</button>
+                <button class="btn btn-secondary" onclick="testDatabase()">Test Database</button>
+                <button class="btn btn-danger" onclick="testConfig()">Test Config</button>
+                <div id="basicResult" class="result" style="display: none;"></div>
+            </div>
+
+            <div class="test-section">
+                <h2>🔐 Authentication Tests</h2>
+                <button class="btn" onclick="testAuth()">Test Authentication</button>
+                <button class="btn btn-secondary" onclick="quickLogin()">Quick Login</button>
+                <button class="btn btn-danger" onclick="testAdminAPI()">Test Admin API</button>
+                <div id="authResult" class="result" style="display: none;"></div>
+            </div>
+
+            <div class="test-section">
+                <h2>📊 Data Tests</h2>
+                <button class="btn" onclick="testStudents()">Test Students API</button>
+                <button class="btn btn-secondary" onclick="testAttendance()">Test Attendance API</button>
+                <button class="btn btn-danger" onclick="testSyncStatus()">Test Sync Status</button>
+                <div id="dataResult" class="result" style="display: none;"></div>
+            </div>
+
+            <div class="test-section">
+                <h2>🌐 Raw Response Tests</h2>
+                <button class="btn" onclick="testRawResponse('api/test_api.php')">Test Raw API</button>
+                <button class="btn btn-secondary" onclick="testRawResponse('api/admin_api.php?action=students')">Test Raw Students</button>
+                <button class="btn btn-danger" onclick="testRawResponse('api/admin_api.php?action=sync_status')">Test Raw Sync</button>
+                <div id="rawResult" class="result" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function testBasicAPI() {
+            const resultDiv = document.getElementById('basicResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing basic API...';
+            
+            try {
+                const response = await fetch('api/test_api.php');
+                const text = await response.text();
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `JSON Parse Error: ${e.message}\n\nRaw Response:\n${text}`;
+                    return;
+                }
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ API Working!\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ API Error:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Network Error: ${error.message}`;
+            }
+        }
+
+        async function testDatabase() {
+            const resultDiv = document.getElementById('basicResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing database connection...';
+            
+            try {
+                const response = await fetch('api/test_api.php');
+                const data = await response.json();
+                
+                if (data.success && data.data.database_connected) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Database Connected!\n\nStats:\n- Students: ${data.data.students_count}\n- Attendance: ${data.data.attendance_count}\n- Users: ${data.data.users_count}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Database Error:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Database Test Failed: ${error.message}`;
+            }
+        }
+
+        async function testConfig() {
+            const resultDiv = document.getElementById('basicResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing configuration...';
+            
+            try {
+                const response = await fetch('api/test_api.php');
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Config Working!\n\nPHP Version: ${data.data.php_version}\nServer Time: ${data.data.server_time}\nTimestamp: ${data.data.timestamp}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Config Error:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Config Test Failed: ${error.message}`;
+            }
+        }
+
+        async function testAuth() {
+            const resultDiv = document.getElementById('authResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing authentication...';
+            
+            try {
+                const response = await fetch('api/dev_auth.php?action=check');
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Authentication Working!\n\nUser: ${data.user.username}\nRole: ${data.user.role}\nID: ${data.user.id}`;
+                } else {
+                    resultDiv.className = 'result warning';
+                    resultDiv.textContent = `⚠️ Not Logged In\n\nMessage: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Auth Test Failed: ${error.message}`;
+            }
+        }
+
+        async function quickLogin() {
+            const resultDiv = document.getElementById('authResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Logging in as admin...';
+            
+            try {
+                const response = await fetch('api/dev_auth.php?action=login_admin');
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Login Successful!\n\nUser: ${data.user.username}\nRole: ${data.user.role}\nID: ${data.user.id}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Login Failed:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Login Error: ${error.message}`;
+            }
+        }
+
+        async function testAdminAPI() {
+            const resultDiv = document.getElementById('authResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing admin API...';
+            
+            try {
+                const response = await fetch('api/admin_api.php?action=students');
+                const text = await response.text();
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ JSON Parse Error: ${e.message}\n\nRaw Response:\n${text}`;
+                    return;
+                }
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Admin API Working!\n\nFound ${data.data.length} students\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Admin API Error:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Admin API Test Failed: ${error.message}`;
+            }
+        }
+
+        async function testStudents() {
+            const resultDiv = document.getElementById('dataResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing students API...';
+            
+            try {
+                const response = await fetch('api/admin_api.php?action=students');
+                const text = await response.text();
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ JSON Parse Error: ${e.message}\n\nRaw Response:\n${text}`;
+                    return;
+                }
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Students API Working!\n\nFound ${data.data.length} students\n\nFirst few students:\n${JSON.stringify(data.data.slice(0, 3), null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Students API Error:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Students API Test Failed: ${error.message}`;
+            }
+        }
+
+        async function testAttendance() {
+            const resultDiv = document.getElementById('dataResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing attendance API...';
+            
+            try {
+                const response = await fetch('api/admin_api.php?action=attendance');
+                const text = await response.text();
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ JSON Parse Error: ${e.message}\n\nRaw Response:\n${text}`;
+                    return;
+                }
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Attendance API Working!\n\nFound ${data.data.length} attendance records\n\nFirst few records:\n${JSON.stringify(data.data.slice(0, 3), null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Attendance API Error:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Attendance API Test Failed: ${error.message}`;
+            }
+        }
+
+        async function testSyncStatus() {
+            const resultDiv = document.getElementById('dataResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing sync status API...';
+            
+            try {
+                const response = await fetch('api/admin_api.php?action=sync_status');
+                const text = await response.text();
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ JSON Parse Error: ${e.message}\n\nRaw Response:\n${text}`;
+                    return;
+                }
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Sync Status API Working!\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Sync Status API Error:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Sync Status API Test Failed: ${error.message}`;
+            }
+        }
+
+        async function testRawResponse(url) {
+            const resultDiv = document.getElementById('rawResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = `Testing raw response from ${url}...`;
+            
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+                
+                resultDiv.className = 'result info';
+                resultDiv.textContent = `Raw Response from ${url}:\n\nStatus: ${response.status}\nHeaders: ${JSON.stringify([...response.headers.entries()], null, 2)}\n\nContent:\n${text}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Raw Response Test Failed: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

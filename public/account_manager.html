@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Manager - QR Attendance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .form-section {
+            margin-bottom: 40px;
+            padding: 30px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+
+        .form-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #4facfe;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .message {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .account-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .account-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #4facfe;
+        }
+
+        .account-info {
+            flex: 1;
+        }
+
+        .account-info h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .account-info p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .role-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .role-admin {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .role-student {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            border-bottom-color: #4facfe;
+            color: #4facfe;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .form-section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Account Manager</h1>
+            <p>Add and manage admin and student accounts</p>
+        </div>
+
+        <div class="content">
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('create')">Create Account</div>
+                <div class="tab" onclick="showTab('view')">View Accounts</div>
+            </div>
+
+            <div id="create-tab" class="tab-content active">
+                <div class="form-section">
+                    <h2>Create New Account</h2>
+                    <form id="accountForm" onsubmit="createAccount(event)">
+                        <div class="form-group">
+                            <label for="accountType">Account Type</label>
+                            <select id="accountType" name="accountType" required onchange="toggleStudentFields()">
+                                <option value="">Select Account Type</option>
+                                <option value="admin">Admin</option>
+                                <option value="student">Student</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" name="username" required placeholder="Enter username">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email" required placeholder="Enter email address">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" required placeholder="Enter password (min 8 characters)">
+                        </div>
+
+                        <div class="form-group" id="studentIdGroup" style="display: none;">
+                            <label for="studentId">Student ID</label>
+                            <input type="text" id="studentId" name="studentId" placeholder="Enter student ID (e.g., 24-SWT-01)" disabled>
+                            <small style="color: #ef4444; font-size: 12px;">Student accounts can only be created by administrators</small>
+                        </div>
+
+                        <div class="form-group" id="studentNameGroup" style="display: none;">
+                            <label for="studentName">Student Name</label>
+                            <input type="text" id="studentName" name="studentName" placeholder="Enter full name" disabled>
+                            <small style="color: #ef4444; font-size: 12px;">Student accounts can only be created by administrators</small>
+                        </div>
+
+                        <button type="submit" class="btn">Create Account</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="view-tab" class="tab-content">
+                <div class="form-section">
+                    <h2>Existing Accounts</h2>
+                    <button class="btn btn-secondary" onclick="loadAccounts()">Refresh Accounts</button>
+                    <div id="accountsList" class="account-list">
+                        <p>Click "Refresh Accounts" to load existing accounts.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="message"></div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+
+            // Load accounts if viewing tab
+            if (tabName === 'view') {
+                loadAccounts();
+            }
+        }
+
+        function toggleStudentFields() {
+            const accountType = document.getElementById('accountType').value;
+            const studentIdGroup = document.getElementById('studentIdGroup');
+            const studentNameGroup = document.getElementById('studentNameGroup');
+            
+            if (accountType === 'student') {
+                studentIdGroup.style.display = 'block';
+                studentNameGroup.style.display = 'block';
+                document.getElementById('studentId').required = true;
+                document.getElementById('studentName').required = true;
+            } else {
+                studentIdGroup.style.display = 'none';
+                studentNameGroup.style.display = 'none';
+                document.getElementById('studentId').required = false;
+                document.getElementById('studentName').required = false;
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        function createAccount(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData);
+            
+            // Validate password length
+            if (data.password.length < 8) {
+                showMessage('Password must be at least 8 characters long.', 'error');
+                return;
+            }
+
+            // Show loading
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Creating...';
+            submitBtn.disabled = true;
+
+            fetch('api/account_manager.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    event.target.reset();
+                    toggleStudentFields(); // Reset form state
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error creating account: ' + error.message, 'error');
+            })
+            .finally(() => {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+        }
+
+        function loadAccounts() {
+            const accountsList = document.getElementById('accountsList');
+            accountsList.innerHTML = '<p>Loading accounts...</p>';
+
+            fetch('api/account_manager.php?action=get_accounts')
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    displayAccounts(result.accounts);
+                } else {
+                    accountsList.innerHTML = '<p>Error loading accounts: ' + result.message + '</p>';
+                }
+            })
+            .catch(error => {
+                accountsList.innerHTML = '<p>Error loading accounts: ' + error.message + '</p>';
+            });
+        }
+
+        function displayAccounts(accounts) {
+            const accountsList = document.getElementById('accountsList');
+            
+            if (accounts.length === 0) {
+                accountsList.innerHTML = '<p>No accounts found.</p>';
+                return;
+            }
+
+            let html = '';
+            accounts.forEach(account => {
+                const roleClass = account.role === 'admin' ? 'role-admin' : 'role-student';
+                html += `
+                    <div class="account-item">
+                        <div class="account-info">
+                            <h4>${account.username}</h4>
+                            <p>Email: ${account.email}</p>
+                            ${account.student_id ? `<p>Student ID: ${account.student_id}</p>` : ''}
+                            <p>Created: ${account.created_at}</p>
+                        </div>
+                        <div>
+                            <span class="role-badge ${roleClass}">${account.role}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            accountsList.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

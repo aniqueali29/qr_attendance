@@ -1,0 +1,27 @@
+{
+    "date": "2025-10-12 04:33:31",
+    "total_students": 1,
+    "migrated_students": 1,
+    "skipped_students": 0,
+    "errors": 0,
+    "details": {
+        "migrated": [
+            {
+                "student_id": "22-SWT-02",
+                "name": "moin",
+                "admission_year": 2022,
+                "program": "SWT",
+                "shift": "Morning",
+                "year_level": "Completed",
+                "updated_fields": [
+                    "admission_year",
+                    "roll_prefix",
+                    "last_year_update",
+                    "updated_at"
+                ]
+            }
+        ],
+        "skipped": [],
+        "errors": []
+    }
+}

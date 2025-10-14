@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings - QR Attendance</title>
+    <link rel="stylesheet" href="assets/css/admin_advanced.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <header class="admin-header">
+            <div class="header-left">
+                <h1><i class="fas fa-cog"></i> System Settings</h1>
+                <p>Configure system parameters and timing settings</p>
+            </div>
+            <div class="header-right">
+                <div class="settings-status">
+                    <span class="status-indicator" id="settingsStatus">
+                        <i class="fas fa-circle"></i> <span class="status-text">Loading...</span>
+                    </span>
+                </div>
+                <button class="btn btn-primary" onclick="saveAllSettings()">
+                    <i class="fas fa-save"></i> Save All Changes
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="settings-nav">
+            <button class="tab-btn active" onclick="showTab('timings')">
+                <i class="fas fa-clock"></i> Shift Timings
+            </button>
+            <button class="tab-btn" onclick="showTab('system')">
+                <i class="fas fa-sliders-h"></i> System Config
+            </button>
+            <button class="tab-btn" onclick="showTab('integration')">
+                <i class="fas fa-plug"></i> Integration
+            </button>
+            <button class="tab-btn" onclick="showTab('advanced')">
+                <i class="fas fa-tools"></i> Advanced
+            </button>
+        </nav>
+
+        <!-- Tab Content -->
+        <div class="settings-content">
+            <!-- Shift Timings Tab -->
+            <div id="timings-tab" class="tab-content active">
+                <div class="settings-section">
+                    <h2><i class="fas fa-sun"></i> Morning Shift Settings</h2>
+                    <div class="timing-grid">
+                        <div class="timing-item">
+                            <label for="morning_checkin_start">Check-in Start Time</label>
+                            <input type="time" id="morning_checkin_start" class="time-input" value="09:00">
+                            <span class="help-text">When students can start checking in</span>
+                        </div>
+                        <div class="timing-item">
+                            <label for="morning_checkin_end">Check-in End Time</label>
+                            <input type="time" id="morning_checkin_end" class="time-input" value="11:00">
+                            <span class="help-text">Last time students can check in</span>
+                        </div>
+                        <div class="timing-item">
+                            <label for="morning_checkout_start">Check-out Start Time</label>
+                            <input type="time" id="morning_checkout_start" class="time-input" value="12:00">
+                            <span class="help-text">When students can start checking out</span>
+                        </div>
+                        <div class="timing-item">
+                            <label for="morning_checkout_end">Check-out End Time</label>
+                            <input type="time" id="morning_checkout_end" class="time-input" value="13:40">
+                            <span class="help-text">Last time students can check out</span>
+                        </div>
+                        <div class="timing-item">
+                            <label for="morning_class_end">Class End Time</label>
+                            <input type="time" id="morning_class_end" class="time-input" value="13:40">
+                            <span class="help-text">When the class session ends</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2><i class="fas fa-moon"></i> Evening Shift Settings</h2>
+                    <div class="timing-grid">
+                        <div class="timing-item">
+                            <label for="evening_checkin_start">Check-in Start Time</label>
+                            <input type="time" id="evening_checkin_start" class="time-input" value="15:00">
+                            <span class="help-text">When students can start checking in</span>
+                        </div>
+                        <div class="timing-item">
+                            <label for="evening_checkin_end">Check-in End Time</label>
+                            <input type="time" id="evening_checkin_end" class="time-input" value="18:00">
+                            <span class="help-text">Last time students can check in</span>
+                        </div>
+                        <div class="timing-item">
+                            <label for="evening_checkout_start">Check-out Start Time</label>
+                            <input type="time" id="evening_checkout_start" class="time-input" value="15:00">
+                            <span class="help-text">When students can start checking out</span>
+                        </div>
+                        <div class="timing-item">
+                            <label for="evening_checkout_end">Check-out End Time</label>
+                            <input type="time" id="evening_checkout_end" class="time-input" value="18:00">
+                            <span class="help-text">Last time students can check out</span>
+                        </div>
+                        <div class="timing-item">
+                            <label for="evening_class_end">Class End Time</label>
+                            <input type="time" id="evening_class_end" class="time-input" value="18:00">
+                            <span class="help-text">When the class session ends</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2><i class="fas fa-chart-line"></i> Timing Validation</h2>
+                    <div class="validation-panel">
+                        <button class="btn btn-secondary" onclick="validateTimings()">
+                            <i class="fas fa-check-circle"></i> Validate Configuration
+                        </button>
+                        <button class="btn btn-info" onclick="testConfiguration()">
+                            <i class="fas fa-play"></i> Test Configuration
+                        </button>
+                        <div id="validationResults" class="validation-results"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Configuration Tab -->
+            <div id="system-tab" class="tab-content">
+                <div class="settings-section">
+                    <h2><i class="fas fa-cogs"></i> General Settings</h2>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="minimum_duration_minutes">Minimum Duration (minutes)</label>
+                            <input type="number" id="minimum_duration_minutes" class="number-input" value="120" min="30" max="480">
+                            <span class="help-text">Minimum time required for attendance</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="sync_interval_seconds">Sync Interval (seconds)</label>
+                            <input type="number" id="sync_interval_seconds" class="number-input" value="30" min="10" max="300">
+                            <span class="help-text">How often to sync with web server</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="timezone">Timezone</label>
+                            <select id="timezone" class="select-input">
+                                <option value="Asia/Karachi">Asia/Karachi</option>
+                                <option value="UTC">UTC</option>
+                                <option value="America/New_York">America/New_York</option>
+                                <option value="Europe/London">Europe/London</option>
+                            </select>
+                            <span class="help-text">System timezone</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="academic_year_start_month">Academic Year Start Month</label>
+                            <select id="academic_year_start_month" class="select-input">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9" selected>September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            <span class="help-text">When the academic year starts</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2><i class="fas fa-user-times"></i> Auto-Absent Settings</h2>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="auto_absent_morning_hour">Morning Auto-Absent Hour</label>
+                            <input type="number" id="auto_absent_morning_hour" class="number-input" value="11" min="8" max="16">
+                            <span class="help-text">Hour to mark morning shift absent (24h format)</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="auto_absent_evening_hour">Evening Auto-Absent Hour</label>
+                            <input type="number" id="auto_absent_evening_hour" class="number-input" value="17" min="14" max="20">
+                            <span class="help-text">Hour to mark evening shift absent (24h format)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Integration Tab -->
+            <div id="integration-tab" class="tab-content">
+                <div class="settings-section">
+                    <h2><i class="fas fa-link"></i> Website Integration</h2>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="website_url">Website URL</label>
+                            <input type="url" id="website_url" class="text-input" value="http://localhost/qr_attendance/public">
+                            <span class="help-text">Base URL of the web application</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="api_endpoint_attendance">Attendance API Endpoint</label>
+                            <input type="text" id="api_endpoint_attendance" class="text-input" value="/api/api_attendance.php">
+                            <span class="help-text">API endpoint for attendance data</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="api_endpoint_checkin">Check-in API Endpoint</label>
+                            <input type="text" id="api_endpoint_checkin" class="text-input" value="/api/checkin_api.php">
+                            <span class="help-text">API endpoint for check-in operations</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="api_timeout_seconds">API Timeout (seconds)</label>
+                            <input type="number" id="api_timeout_seconds" class="number-input" value="30" min="5" max="120">
+                            <span class="help-text">Timeout for API requests</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2><i class="fas fa-key"></i> Security Settings</h2>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="api_key">API Key</label>
+                            <div class="password-input-group">
+                                <input type="password" id="api_key" class="text-input" value="attendance_2025_xyz789_secure">
+                                <button type="button" class="toggle-password" onclick="togglePassword('api_key')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <span class="help-text">API authentication key</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="max_sync_records">Max Sync Records</label>
+                            <input type="number" id="max_sync_records" class="number-input" value="1000" min="100" max="10000">
+                            <span class="help-text">Maximum records per sync operation</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="api_rate_limit">API Rate Limit (per hour)</label>
+                            <input type="number" id="api_rate_limit" class="number-input" value="100" min="10" max="1000">
+                            <span class="help-text">Rate limit for API requests</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2><i class="fas fa-network-wired"></i> Connection Test</h2>
+                    <div class="connection-test">
+                        <button class="btn btn-info" onclick="testConnection()">
+                            <i class="fas fa-wifi"></i> Test Website Connection
+                        </button>
+                        <button class="btn btn-secondary" onclick="testAPI()">
+                            <i class="fas fa-plug"></i> Test API Endpoints
+                        </button>
+                        <div id="connectionResults" class="connection-results"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Tab -->
+            <div id="advanced-tab" class="tab-content">
+                <div class="settings-section">
+                    <h2><i class="fas fa-bug"></i> Debug Settings</h2>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="debug_mode" checked>
+                                <span class="checkmark"></span>
+                                Enable Debug Mode
+                            </label>
+                            <span class="help-text">Show detailed debug information</span>
+                        </div>
+                        <div class="setting-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="log_errors" checked>
+                                <span class="checkmark"></span>
+                                Enable Error Logging
+                            </label>
+                            <span class="help-text">Log errors to system log</span>
+                        </div>
+                        <div class="setting-item">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show_errors" checked>
+                                <span class="checkmark"></span>
+                                Show Errors in Development
+                            </label>
+                            <span class="help-text">Display errors in development mode</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2><i class="fas fa-shield-alt"></i> Security Settings</h2>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="session_timeout_seconds">Session Timeout (seconds)</label>
+                            <input type="number" id="session_timeout_seconds" class="number-input" value="3600" min="300" max="86400">
+                            <span class="help-text">How long sessions remain active</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="max_login_attempts">Max Login Attempts</label>
+                            <input type="number" id="max_login_attempts" class="number-input" value="5" min="3" max="10">
+                            <span class="help-text">Maximum failed login attempts before lockout</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="login_lockout_minutes">Login Lockout (minutes)</label>
+                            <input type="number" id="login_lockout_minutes" class="number-input" value="15" min="5" max="60">
+                            <span class="help-text">How long to lockout after failed attempts</span>
+                        </div>
+                        <div class="setting-item">
+                            <label for="password_min_length">Minimum Password Length</label>
+                            <input type="number" id="password_min_length" class="number-input" value="8" min="6" max="32">
+                            <span class="help-text">Minimum required password length</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2><i class="fas fa-download"></i> Backup & Restore</h2>
+                    <div class="backup-restore">
+                        <button class="btn btn-success" onclick="exportSettings()">
+                            <i class="fas fa-download"></i> Export Settings
+                        </button>
+                        <button class="btn btn-warning" onclick="importSettings()">
+                            <i class="fas fa-upload"></i> Import Settings
+                        </button>
+                        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImportFile(this)">
+                        <button class="btn btn-danger" onclick="resetAllSettings()">
+                            <i class="fas fa-undo"></i> Reset to Defaults
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <script src="assets/js/settings.js"></script>
+</body>
+</html>

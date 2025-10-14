@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Admin Portal - QR Attendance System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="assets/css/admin_advanced.css">
+    <style>
+        .settings-redirect {
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .settings-info {
+            margin-bottom: 30px;
+        }
+        
+        .settings-info h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+        
+        .settings-info ul {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        
+        .settings-info li {
+            padding: 8px 0;
+            color: var(--text-secondary);
+        }
+        
+        .settings-info li i {
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+        
+        .settings-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .settings-actions .btn {
+            min-width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-top">
+                <div class="logo-section">
+                    <div class="logo">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <div class="institution-info">
+                        <h1>Advanced Admin Portal</h1>
+                        <p>D.A.E QR Code Attendance Management System</p>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.9rem;">Administrator</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">System Admin</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="switchTab('dashboard')">
+                <i class="fas fa-tachometer-alt"></i>
+                Dashboard
+            </div>
+            <div class="nav-tab" onclick="switchTab('students')">
+                <i class="fas fa-users"></i>
+                Students
+            </div>
+            <div class="nav-tab" onclick="switchTab('programs')">
+                <i class="fas fa-graduation-cap"></i>
+                Programs & Sections
+            </div>
+            <div class="nav-tab" onclick="switchTab('attendance')">
+                <i class="fas fa-clipboard-list"></i>
+                Attendance
+            </div>
+            <div class="nav-tab" onclick="switchTab('import')">
+                <i class="fas fa-upload"></i>
+                Import/Export
+            </div>
+            <div class="nav-tab" onclick="switchTab('settings')">
+                <i class="fas fa-cog"></i>
+                Settings
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div id="stats-container">
+                <!-- Stats cards will be loaded here -->
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>
+                            <div class="card-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            Attendance Trends
+                        </h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="attendance-trends-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2>
+                            <div class="card-icon">
+                                <i class="fas fa-chart-pie"></i>
+                            </div>
+                            Program Distribution
+                        </h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="program-distribution-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>
+                            <div class="card-icon">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            Shift Comparison
+                        </h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="shift-comparison-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2>
+                            <div class="card-icon">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            Year Progression Status
+                        </h2>
+                        <button class="btn secondary" onclick="runYearProgression()" id="run-progression-btn">
+                            <i class="fas fa-sync"></i>
+                            Run Now
+                        </button>
+                    </div>
+                    <div class="progression-status" id="progression-status">
+                        <div class="status-item">
+                            <div class="status-label">Last Progression:</div>
+                            <div class="status-value" id="last-progression">Loading...</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Next Progression:</div>
+                            <div class="status-value" id="next-progression">September 30th</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Students Needing Update:</div>
+                            <div class="status-value" id="students-needing-update">Loading...</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Current Academic Year:</div>
+                            <div class="status-value" id="current-academic-year">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2>
+                            <div class="card-icon">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            Year-wise Enrollment
+                        </h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="year-enrollment-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Students Tab -->
+        <div id="students" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <div class="card-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        Student Management
+                    </h2>
+                    <div class="d-flex gap-3">
+                        <button class="btn primary" onclick="openStudentModal()">
+                            <i class="fas fa-plus"></i>
+                            Add Student
+                        </button>
+                        <button class="btn success" onclick="exportStudents()">
+                            <i class="fas fa-download"></i>
+                            Export
+                        </button>
+                        <button class="btn info" onclick="toggleFilterPanel()">
+                            <i class="fas fa-filter"></i>
+                            Filters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Advanced Filter Panel -->
+                <div id="filter-panel" class="filter-panel collapsed">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="program-filter">Program</label>
+                            <select id="program-filter" class="form-control">
+                                <option value="">All Programs</option>
+                                <option value="SWT">Software Technology</option>
+                                <option value="CIT">Computer Information Technology</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="shift-filter">Shift</label>
+                            <div class="d-flex gap-3">
+                                <label><input type="radio" name="shift-filter" value="Morning"> Morning</label>
+                                <label><input type="radio" name="shift-filter" value="Evening"> Evening</label>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label>Year Level</label>
+                            <div class="d-flex gap-3">
+                                <label><input type="checkbox" name="year-filter" value="1st"> 1st Year</label>
+                                <label><input type="checkbox" name="year-filter" value="2nd"> 2nd Year</label>
+                                <label><input type="checkbox" name="year-filter" value="3rd"> 3rd Year</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="section-filter">Section</label>
+                            <select id="section-filter" class="form-control">
+                                <option value="">All Sections</option>
+                                <option value="A">Section A</option>
+                                <option value="B">Section B</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="attendance-min">Attendance Min (%)</label>
+                            <input type="range" id="attendance-min" min="0" max="100" value="0" class="form-control">
+                        </div>
+                        <div class="filter-group">
+                            <label for="attendance-max">Attendance Max (%)</label>
+                            <input type="range" id="attendance-max" min="0" max="100" value="100" class="form-control">
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="search-input">Search</label>
+                            <input type="text" id="search-input" placeholder="Search by name, ID, or email..." class="form-control">
+                        </div>
+                        <div class="filter-group">
+                            <button class="btn primary" onclick="applyFilters()">
+                                <i class="fas fa-search"></i>
+                                Apply Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="students-table">
+                        <thead>
+                            <tr>
+                                <th>Roll Number</th>
+                                <th>Name</th>
+                                <th>Program</th>
+                                <th>Shift</th>
+                                <th>Year</th>
+                                <th>Section</th>
+                                <th>Attendance %</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="10" class="loading">
+                                    <div class="spinner"></div>
+                                    Loading students...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div id="pagination" class="pagination">
+                    <!-- Pagination will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Programs & Sections Tab -->
+        <div id="programs" class="tab-content">
+            <!-- Programs Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <div class="card-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        Programs Management
+                    </h2>
+                    <button class="btn primary" onclick="openProgramModal()">
+                        <i class="fas fa-plus"></i>
+                        Add Program
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table id="programs-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Students</th>
+                                <th>Sections</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" class="loading">
+                                    <div class="spinner"></div>
+                                    Loading programs...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Sections Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <div class="card-icon">
+                            <i class="fas fa-chalkboard"></i>
+                        </div>
+                        Sections Management
+                    </h2>
+                    <div class="d-flex gap-3">
+                        <button class="btn primary" onclick="openSectionModal()">
+                            <i class="fas fa-plus"></i>
+                            Add Section
+                        </button>
+                        <select id="section-program-filter" class="form-control" style="width: auto;">
+                            <option value="">All Programs</option>
+                        </select>
+                        <select id="section-year-filter" class="form-control" style="width: auto;">
+                            <option value="">All Years</option>
+                            <option value="1st">1st Year</option>
+                            <option value="2nd">2nd Year</option>
+                            <option value="3rd">3rd Year</option>
+                        </select>
+                        <select id="section-shift-filter" class="form-control" style="width: auto;">
+                            <option value="">All Shifts</option>
+                            <option value="Morning">Morning</option>
+                            <option value="Evening">Evening</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="sections-table">
+                        <thead>
+                            <tr>
+                                <th>Section</th>
+                                <th>Program</th>
+                                <th>Year</th>
+                                <th>Shift</th>
+                                <th>Capacity</th>
+                                <th>Utilization</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="7" class="loading">
+                                    <div class="spinner"></div>
+                                    Loading sections...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Tab -->
+        <div id="attendance" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <div class="card-icon">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        Attendance Records
+                    </h2>
+                    <div class="d-flex gap-3">
+                        <button class="btn success" onclick="exportAttendance()">
+                            <i class="fas fa-download"></i>
+                            Export
+                        </button>
+                        <button class="btn primary" onclick="loadAttendance()">
+                            <i class="fas fa-sync"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="attendance-table">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Name</th>
+                                <th>Date & Time</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="loading">
+                                    <div class="spinner"></div>
+                                    Loading attendance records...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import/Export Tab -->
+        <div id="import" class="tab-content">
+            <!-- Bulk Import Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <div class="card-icon">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                        Bulk Import Students
+                    </h2>
+                </div>
+                
+                <div class="file-upload" onclick="document.getElementById('file-input').click()">
+                    <div class="file-upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="file-upload-text">Drop your CSV file here or click to browse</div>
+                    <div class="file-upload-hint">Supported formats: CSV, XLSX (Max 5MB)</div>
+                </div>
+                
+                <input type="file" id="file-input" accept=".csv,.xlsx" style="display: none;">
+                
+                <div id="file-info"></div>
+                <div id="validation-results"></div>
+                <div id="import-results"></div>
+            </div>
+
+            <!-- Export Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <div class="card-icon">
+                            <i class="fas fa-download"></i>
+                        </div>
+                        Export Data
+                    </h2>
+                </div>
+                
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="export-program">Program</label>
+                        <select id="export-program" class="form-control">
+                            <option value="">All Programs</option>
+                            <option value="SWT">Software Technology</option>
+                            <option value="CIT">Computer Information Technology</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="export-shift">Shift</label>
+                        <select id="export-shift" class="form-control">
+                            <option value="">All Shifts</option>
+                            <option value="Morning">Morning</option>
+                            <option value="Evening">Evening</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="export-year">Year Level</label>
+                        <select id="export-year" class="form-control">
+                            <option value="">All Years</option>
+                            <option value="1st">1st Year</option>
+                            <option value="2nd">2nd Year</option>
+                            <option value="3rd">3rd Year</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="export-format">Format</label>
+                        <select id="export-format" class="form-control">
+                            <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-3 justify-center">
+                    <button class="btn primary" onclick="exportData()">
+                        <i class="fas fa-download"></i>
+                        Export Data
+                    </button>
+                    <button class="btn info" onclick="downloadTemplate()">
+                        <i class="fas fa-file-download"></i>
+                        Download Template
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <div class="card-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        System Settings
+                    </h2>
+                </div>
+                
+                <div class="settings-redirect">
+                    <div class="settings-info">
+                        <i class="fas fa-external-link-alt"></i>
+                        <h3>Advanced Settings Management</h3>
+                        <p>Access the comprehensive settings panel to configure:</p>
+                        <ul>
+                            <li><i class="fas fa-clock"></i> Shift timing configurations</li>
+                            <li><i class="fas fa-sliders-h"></i> System parameters</li>
+                            <li><i class="fas fa-plug"></i> Integration settings</li>
+                            <li><i class="fas fa-tools"></i> Advanced options</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="settings-actions">
+                        <a href="settings_panel.html" class="btn primary" target="_blank">
+                            <i class="fas fa-cog"></i>
+                            Open Settings Panel
+                        </a>
+                        <button class="btn secondary" onclick="loadQuickSettings()">
+                            <i class="fas fa-bolt"></i>
+                            Quick Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Modal -->
+    <div id="student-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="student-modal-title">Add Student</h2>
+                <span class="close" onclick="closeStudentModal()">&times;</span>
+            </div>
+            <form id="student-form">
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="student-id">Student ID (Roll Number) *</label>
+                        <input type="text" id="student-id" name="student_id" class="form-control" placeholder="e.g., 24-SWT-01, 24-ESWT-01" required>
+                        <small style="color: var(--text-secondary);">Format: YY-PROGRAM-NN (Morning) or YY-EPROGRAM-NN (Evening)</small>
+                        <div id="roll-number-status" class="roll-status" style="display: none; margin-top: 8px; padding: 8px; border-radius: 4px; font-size: 0.9rem;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-name">Full Name *</label>
+                        <input type="text" id="student-name" name="name" class="form-control" placeholder="e.g., John Doe" required>
+                    </div>
+                </div>
+                
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="student-admission-year">Admission Year *</label>
+                        <input type="number" id="student-admission-year" name="admission_year" class="form-control" placeholder="e.g., 2024" required readonly>
+                        <small style="color: var(--text-secondary);">Auto-filled from roll number</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-email">Email Address *</label>
+                        <input type="email" id="student-email" name="email" class="form-control" placeholder="e.g., john.doe@college.edu" required>
+                    </div>
+                </div>
+                
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="student-phone">Phone Number</label>
+                        <input type="tel" id="student-phone" name="phone" class="form-control" placeholder="e.g., +92 300 1234567">
+                    </div>
+                    <div class="form-group">
+                        <label for="student-program">Program *</label>
+                        <select id="student-program" name="program" class="form-control" required>
+                            <option value="">Select Program</option>
+                            <option value="SWT">Software Technology</option>
+                            <option value="CIT">Computer Information Technology</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="student-shift">Shift *</label>
+                        <select id="student-shift" name="shift" class="form-control" required>
+                            <option value="">Select Shift</option>
+                            <option value="Morning">Morning</option>
+                            <option value="Evening">Evening</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-year-level">Year Level *</label>
+                        <select id="student-year-level" name="year_level" class="form-control" required>
+                            <option value="">Select Year</option>
+                            <option value="1st">1st Year</option>
+                            <option value="2nd">2nd Year</option>
+                            <option value="3rd">3rd Year</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="student-section">Section *</label>
+                        <select id="student-section" name="section" class="form-control" required>
+                            <option value="">Select Section</option>
+                            <option value="A">Section A</option>
+                            <option value="B">Section B</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <!-- Empty div for layout balance -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Password</label>
+                    <div style="background: var(--light-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <i class="fas fa-key" style="color: var(--primary-color);"></i>
+                            <span style="font-weight: 500;">Auto-Generated Password</span>
+                        </div>
+                        <div style="font-family: monospace; background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); word-break: break-all;" id="generated-password">Password will be generated when student is created</div>
+                        <small style="color: var(--text-secondary); display: block; margin-top: 8px;">
+                            <i class="fas fa-info-circle"></i> A secure password will be automatically generated and included in the students.json file
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-3 justify-end">
+                    <button type="button" class="btn" onclick="closeStudentModal()">Cancel</button>
+                    <button type="submit" class="btn primary">
+                        <i class="fas fa-user-plus"></i>
+                        Create Student Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Program Modal -->
+    <div id="program-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="program-modal-title">Add Program</h2>
+                <span class="close" onclick="closeProgramModal()">&times;</span>
+            </div>
+            <form id="program-form">
+                <div class="form-group">
+                    <label for="program-code">Program Code *</label>
+                    <input type="text" id="program-code" name="code" class="form-control" placeholder="e.g., SWT, CIT" required>
+                    <small style="color: var(--text-secondary);">2-10 uppercase letters</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="program-name">Program Name *</label>
+                    <input type="text" id="program-name" name="name" class="form-control" placeholder="e.g., Software Technology" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="program-description">Description</label>
+                    <textarea id="program-description" name="description" class="form-control" rows="3" placeholder="Program description..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="is_active" checked> Active Program
+                    </label>
+                </div>
+                
+                <div class="d-flex gap-3 justify-end">
+                    <button type="button" class="btn" onclick="closeProgramModal()">Cancel</button>
+                    <button type="submit" class="btn primary">
+                        <i class="fas fa-plus"></i>
+                        Create Program
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Section Modal -->
+    <div id="section-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="section-modal-title">Add Section</h2>
+                <span class="close" onclick="closeSectionModal()">&times;</span>
+            </div>
+            <form id="section-form">
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="section-program">Program *</label>
+                        <select id="section-program" name="program_id" class="form-control" required>
+                            <option value="">Select Program</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="section-year">Year Level *</label>
+                        <select id="section-year" name="year_level" class="form-control" required>
+                            <option value="">Select Year</option>
+                            <option value="1st">1st Year</option>
+                            <option value="2nd">2nd Year</option>
+                            <option value="3rd">3rd Year</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row form-row-2">
+                    <div class="form-group">
+                        <label for="section-name">Section Name *</label>
+                        <input type="text" id="section-name" name="section_name" class="form-control" placeholder="e.g., A, B, C" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="section-shift">Shift *</label>
+                        <select id="section-shift" name="shift" class="form-control" required>
+                            <option value="">Select Shift</option>
+                            <option value="Morning">Morning</option>
+                            <option value="Evening">Evening</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="section-capacity">Capacity</label>
+                    <input type="number" id="section-capacity" name="capacity" class="form-control" value="40" min="1" max="100">
+                </div>
+                
+                <div class="d-flex gap-3 justify-end">
+                    <button type="button" class="btn" onclick="closeSectionModal()">Cancel</button>
+                    <button type="submit" class="btn primary">
+                        <i class="fas fa-plus"></i>
+                        Create Section
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alert-container"></div>
+
+    <script src="assets/js/admin_advanced.js"></script>
+</body>
+</html>
