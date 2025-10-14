@@ -317,13 +317,6 @@ function isValidStudentId($student_id) {
     return preg_match('/^[A-Z0-9-]+$/', $student_id) && strlen($student_id) >= 5;
 }
 
-/**
- * Generate random password
- */
-function generateRandomPassword($length = 12) {
-    $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-    return substr(str_shuffle($chars), 0, $length);
-}
 
 /**
  * Get time ago string
@@ -338,5 +331,7 @@ function getTimeAgo($datetime) {
     if ($time < 31536000) return floor($time/2592000) . ' months ago';
     return floor($time/31536000) . ' years ago';
 }
+
+
 
 ?>

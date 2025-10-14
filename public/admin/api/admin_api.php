@@ -19,9 +19,20 @@ if (!isAdminLoggedIn()) {
 
 $response = ['success' => false, 'message' => 'Invalid request.'];
 
-if (isset($_REQUEST['action'])) {
+// Get action from either query string or JSON body
+$action = $_REQUEST['action'] ?? null;
+
+// If no action in query string, try to get it from JSON body for POST requests
+if (!$action && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $jsonData = json_decode(file_get_contents('php://input'), true);
+    if (isset($jsonData['action'])) {
+        $action = $jsonData['action'];
+    }
+}
+
+if (isset($action)) {
     try {
-        switch ($_REQUEST['action']) {
+        switch ($action) {
             case 'get_analytics_data':
                 // Get analytics data for dashboard
                 $totalStudents = $pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
@@ -91,13 +102,18 @@ if (isset($_REQUEST['action'])) {
                     $filters[] = "s.shift = ?";
                     $params[] = $_GET['shift'];
                 }
-                if (!empty($_GET['year_level'])) {
+                // Support both 'year' and 'year_level' parameter names
+                if (!empty($_GET['year_level']) || !empty($_GET['year'])) {
                     $filters[] = "s.year_level = ?";
-                    $params[] = $_GET['year_level'];
+                    $params[] = $_GET['year_level'] ?? $_GET['year'];
                 }
                 if (!empty($_GET['section'])) {
                     $filters[] = "s.section = ?";
                     $params[] = $_GET['section'];
+                }
+                if (isset($_GET['status']) && $_GET['status'] !== '') {
+                    $filters[] = "s.is_active = ?";
+                    $params[] = $_GET['status'];
                 }
                 if (!empty($_GET['search'])) {
                     $search = '%' . $_GET['search'] . '%';
@@ -573,6 +589,56 @@ if (isset($_REQUEST['action'])) {
                 }
                 break;
 
+            case 'bulk_activate_students':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    $response = ['success' => false, 'message' => 'POST method required.'];
+                    break;
+                }
+                
+                $input = json_decode(file_get_contents('php://input'), true);
+                $response = bulkActivateStudents($input['ids'] ?? []);
+                break;
+
+            case 'bulk_deactivate_students':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    $response = ['success' => false, 'message' => 'POST method required.'];
+                    break;
+                }
+                
+                $input = json_decode(file_get_contents('php://input'), true);
+                $response = bulkDeactivateStudents($input['ids'] ?? []);
+                break;
+
+            case 'bulk_delete_students':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    $response = ['success' => false, 'message' => 'POST method required.'];
+                    break;
+                }
+                
+                $input = json_decode(file_get_contents('php://input'), true);
+                $response = bulkDeleteStudents($input['ids'] ?? []);
+                break;
+
+            case 'bulk_change_program':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    $response = ['success' => false, 'message' => 'POST method required.'];
+                    break;
+                }
+                
+                $input = json_decode(file_get_contents('php://input'), true);
+                $response = bulkChangeProgram($input);
+                break;
+
+            case 'bulk_password_reset':
+                if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                    $response = ['success' => false, 'message' => 'POST method required.'];
+                    break;
+                }
+                
+                $input = json_decode(file_get_contents('php://input'), true);
+                $response = bulkPasswordReset($input);
+                break;
+
             default:
                 http_response_code(400);
                 $response = ['success' => false, 'message' => 'Unknown action.'];
@@ -1017,6 +1083,256 @@ function logImport($pdo, $results) {
     } catch (Exception $e) {
         error_log("Error logging import: " . $e->getMessage());
     }
+}
+
+/**
+ * Bulk activate students
+ */
+function bulkActivateStudents($ids) {
+    global $pdo;
+    
+    try {
+        if (empty($ids) || !is_array($ids)) {
+            return ['success' => false, 'message' => 'Invalid student IDs provided'];
+        }
+        
+        $ids = array_map('intval', $ids);
+        $placeholders = str_repeat('?,', count($ids) - 1) . '?';
+        
+        $stmt = $pdo->prepare("UPDATE students SET is_active = 1, updated_at = NOW() WHERE id IN ($placeholders)");
+        $result = $stmt->execute($ids);
+        
+        if ($result) {
+            $updatedCount = $stmt->rowCount();
+            return [
+                'success' => true, 
+                'message' => "Successfully activated $updatedCount student(s)",
+                'updated_count' => $updatedCount
+            ];
+        } else {
+            return ['success' => false, 'message' => 'Failed to activate students'];
+        }
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Bulk deactivate students
+ */
+function bulkDeactivateStudents($ids) {
+    global $pdo;
+    
+    try {
+        if (empty($ids) || !is_array($ids)) {
+            return ['success' => false, 'message' => 'Invalid student IDs provided'];
+        }
+        
+        $ids = array_map('intval', $ids);
+        $placeholders = str_repeat('?,', count($ids) - 1) . '?';
+        
+        $stmt = $pdo->prepare("UPDATE students SET is_active = 0, updated_at = NOW() WHERE id IN ($placeholders)");
+        $result = $stmt->execute($ids);
+        
+        if ($result) {
+            $updatedCount = $stmt->rowCount();
+            return [
+                'success' => true, 
+                'message' => "Successfully deactivated $updatedCount student(s)",
+                'updated_count' => $updatedCount
+            ];
+        } else {
+            return ['success' => false, 'message' => 'Failed to deactivate students'];
+        }
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Bulk delete students
+ */
+function bulkDeleteStudents($ids) {
+    global $pdo;
+    
+    try {
+        if (empty($ids) || !is_array($ids)) {
+            return ['success' => false, 'message' => 'Invalid student IDs provided'];
+        }
+        
+        $ids = array_map('intval', $ids);
+        $placeholders = str_repeat('?,', count($ids) - 1) . '?';
+        
+        // First delete related attendance records
+        $stmt = $pdo->prepare("DELETE FROM attendance WHERE student_id IN (SELECT student_id FROM students WHERE id IN ($placeholders))");
+        $stmt->execute($ids);
+        
+        // Then delete students
+        $stmt = $pdo->prepare("DELETE FROM students WHERE id IN ($placeholders)");
+        $result = $stmt->execute($ids);
+        
+        if ($result) {
+            $deletedCount = $stmt->rowCount();
+            return [
+                'success' => true, 
+                'message' => "Successfully deleted $deletedCount student(s) and their attendance records",
+                'deleted_count' => $deletedCount
+            ];
+        } else {
+            return ['success' => false, 'message' => 'Failed to delete students'];
+        }
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Bulk change program for students
+ */
+function bulkChangeProgram($input) {
+    global $pdo;
+    
+    try {
+        if (empty($input['ids']) || !is_array($input['ids'])) {
+            return ['success' => false, 'message' => 'Invalid student IDs provided'];
+        }
+        
+        $ids = array_map('intval', $input['ids']);
+        $placeholders = str_repeat('?,', count($ids) - 1) . '?';
+        
+        $updates = [];
+        $params = [];
+        
+        if (!empty($input['program'])) {
+            $updates[] = "program = ?";
+            $params[] = $input['program'];
+        }
+        
+        if (!empty($input['shift'])) {
+            $updates[] = "shift = ?";
+            $params[] = $input['shift'];
+        }
+        
+        if (!empty($input['year'])) {
+            $updates[] = "year_level = ?";
+            $params[] = $input['year'];
+        }
+        
+        if (!empty($input['section'])) {
+            $updates[] = "section = ?";
+            $params[] = $input['section'];
+        }
+        
+        if (empty($updates)) {
+            return ['success' => false, 'message' => 'No changes specified'];
+        }
+        
+        $updates[] = "updated_at = NOW()";
+        $params = array_merge($params, $ids);
+        
+        $sql = "UPDATE students SET " . implode(', ', $updates) . " WHERE id IN ($placeholders)";
+        $stmt = $pdo->prepare($sql);
+        $result = $stmt->execute($params);
+        
+        if ($result) {
+            $updatedCount = $stmt->rowCount();
+            return [
+                'success' => true, 
+                'message' => "Successfully updated $updatedCount student(s)",
+                'updated_count' => $updatedCount
+            ];
+        } else {
+            return ['success' => false, 'message' => 'Failed to update students'];
+        }
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Bulk password reset for students
+ */
+function bulkPasswordReset($input) {
+    global $pdo;
+    
+    try {
+        if (empty($input['ids']) || !is_array($input['ids'])) {
+            return ['success' => false, 'message' => 'Invalid student IDs provided'];
+        }
+        
+        $ids = array_map('intval', $input['ids']);
+        $passwordType = $input['password_type'] ?? 'roll';
+        $customPassword = $input['custom_password'] ?? '';
+        
+        $updatedCount = 0;
+        $errors = [];
+        
+        foreach ($ids as $id) {
+            try {
+                // Get student info
+                $stmt = $pdo->prepare("SELECT student_id, name FROM students WHERE id = ?");
+                $stmt->execute([$id]);
+                $student = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$student) {
+                    $errors[] = "Student with ID $id not found";
+                    continue;
+                }
+                
+                $newPassword = '';
+                switch ($passwordType) {
+                    case 'roll':
+                        $newPassword = $student['student_id'];
+                        break;
+                    case 'custom':
+                        $newPassword = $customPassword;
+                        break;
+                    case 'random':
+                        $newPassword = generateRandomPassword();
+                        break;
+                    default:
+                        $errors[] = "Invalid password type for student {$student['name']}";
+                        continue 2;
+                }
+                
+                // Update password
+                $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("UPDATE students SET password = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$hashedPassword, $id]);
+                $updatedCount++;
+                
+            } catch (Exception $e) {
+                $errors[] = "Error updating password for student ID $id: " . $e->getMessage();
+            }
+        }
+        
+        $message = "Successfully reset passwords for $updatedCount student(s)";
+        if (!empty($errors)) {
+            $message .= ". Errors: " . implode(', ', $errors);
+        }
+        
+        return [
+            'success' => true,
+            'message' => $message,
+            'updated_count' => $updatedCount,
+            'errors' => $errors
+        ];
+        
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Generate random password
+ */
+function generateRandomPassword($length = 12) {
+    $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    $password = '';
+    for ($i = 0; $i < $length; $i++) {
+        $password .= $chars[rand(0, strlen($chars) - 1)];
+    }
+    return $password;
 }
 
 echo json_encode($response);

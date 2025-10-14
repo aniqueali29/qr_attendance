@@ -47,7 +47,7 @@ $currentPage = $currentPage ?? getCurrentPage();
                     </svg>
                 </span>
             </span>
-            <span class="app-brand-text demo menu-text fw-bold ms-2">QR Attendance</span>
+            <span class="app-brand-text demo menu-text fw-bold ms-2">JPI-QR</span>
         </a>
         
         <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
@@ -88,6 +88,14 @@ $currentPage = $currentPage ?? getCurrentPage();
             <a href="program_sections.php" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-graduation-cap"></i>
                 <div class="text-truncate">Programs & Sections</div>
+            </a>
+        </li>
+        
+        <!-- Reports -->
+        <li class="menu-item <?php echo isPageActive('reports') ? 'active' : ''; ?>">
+            <a href="reports.php" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-bar-chart-alt-2"></i>
+                <div class="text-truncate">Reports</div>
             </a>
         </li>
         

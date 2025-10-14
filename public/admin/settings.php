@@ -29,22 +29,27 @@ include 'partials/navbar.php';
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header d-flex align-items-center justify-content-between">
-                        <div>
-                            <h4 class="card-title mb-0">
-                                <i class="bx bx-cog me-2"></i>System Settings
-                            </h4>
-                            <p class="card-subtitle mb-0">Configure system parameters and timing settings</p>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="settings-status">
-                                <span class="badge bg-label-info" id="settingsStatus">
-                                    <i class="bx bx-circle me-1"></i> <span class="status-text">Loading...</span>
-                                </span>
+                    <div class="card-header">
+                        <div class="row align-items-center">
+                            <div class="col-12 col-md-6">
+                                <h4 class="card-title mb-0">
+                                    <i class="bx bx-cog me-2"></i>System Settings
+                                </h4>
+                                <p class="card-subtitle mb-0">Configure system parameters and timing settings</p>
                             </div>
-                            <button class="btn btn-primary" onclick="saveAllSettings()">
-                                <i class="bx bx-save me-1"></i>Save All Changes
-                            </button>
+                            <div class="col-12 col-md-6 mt-2 mt-md-0">
+                                <div class="d-flex flex-wrap align-items-center gap-2 justify-content-md-end">
+                                    <div class="settings-status">
+                                        <span class="badge bg-label-info" id="settingsStatus">
+                                            <i class="bx bx-circle me-1"></i> <span class="status-text">Loading...</span>
+                                        </span>
+                                    </div>
+                                    <button class="btn btn-primary" onclick="saveAllSettings()">
+                                        <i class="bx bx-save me-1"></i>
+                                        <span class="btn-text">Save All</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -179,12 +184,14 @@ include 'partials/navbar.php';
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <div class="d-flex gap-2 mb-3">
+                                <div class="d-flex flex-wrap gap-2 mb-3">
                                     <button class="btn btn-outline-primary" onclick="validateTimings()">
-                                        <i class="bx bx-check me-1"></i>Validate Configuration
+                                        <i class="bx bx-check me-1"></i>
+                                        <span class="btn-text">Validate</span>
                                     </button>
                                     <button class="btn btn-outline-info" onclick="testConfiguration()">
-                                        <i class="bx bx-play me-1"></i>Test Configuration
+                                        <i class="bx bx-play me-1"></i>
+                                        <span class="btn-text">Test</span>
                                     </button>
                                 </div>
                                 <div id="validationResults" class="alert alert-info d-none">
@@ -369,12 +376,14 @@ include 'partials/navbar.php';
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <div class="d-flex gap-2 mb-3">
+                                <div class="d-flex flex-wrap gap-2 mb-3">
                                     <button class="btn btn-outline-info" onclick="testConnection()">
-                                        <i class="bx bx-wifi me-1"></i>Test Website Connection
+                                        <i class="bx bx-wifi me-1"></i>
+                                        <span class="btn-text">Test Website</span>
                                     </button>
                                     <button class="btn btn-outline-secondary" onclick="testAPI()">
-                                        <i class="bx bx-plug me-1"></i>Test API Endpoints
+                                        <i class="bx bx-plug me-1"></i>
+                                        <span class="btn-text">Test API</span>
                                     </button>
                                 </div>
                                 <div id="connectionResults" class="alert alert-info d-none">
@@ -478,15 +487,18 @@ include 'partials/navbar.php';
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <div class="d-flex gap-2 mb-3">
+                                <div class="d-flex flex-wrap gap-2 mb-3">
                                     <button class="btn btn-success" onclick="exportSettings()">
-                                        <i class="bx bx-download me-1"></i>Export Settings
+                                        <i class="bx bx-download me-1"></i>
+                                        <span class="btn-text">Export</span>
                                     </button>
                                     <button class="btn btn-warning" onclick="importSettings()">
-                                        <i class="bx bx-upload me-1"></i>Import Settings
+                                        <i class="bx bx-upload me-1"></i>
+                                        <span class="btn-text">Import</span>
                                     </button>
                                     <button class="btn btn-danger" onclick="resetAllSettings()">
-                                        <i class="bx bx-undo me-1"></i>Reset to Defaults
+                                        <i class="bx bx-undo me-1"></i>
+                                        <span class="btn-text">Reset</span>
                                     </button>
                                 </div>
                                 <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImportFile(this)">
@@ -549,6 +561,31 @@ include 'partials/navbar.php';
 
 <!-- Page JS -->
 <script src="<?php echo getAdminAssetUrl('js/settings.js'); ?>"></script>
+
+<style>
+/* Responsive button text */
+@media (max-width: 768px) {
+    .btn-text {
+        display: none;
+    }
+    
+    .d-flex.flex-wrap.gap-2 .btn {
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .settings-status {
+        width: 100%;
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .btn i.me-1 {
+        margin-right: 0.5rem !important;
+    }
+}
+</style>
 
 </body>
 </html>

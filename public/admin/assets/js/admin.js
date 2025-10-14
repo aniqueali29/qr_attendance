@@ -23,6 +23,23 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
 
+// Global error handler for fetch operations
+window.addEventListener('unhandledrejection', function(e) {
+    // Check if it's a fetch error
+    if (e.reason && e.reason.message && e.reason.message.includes('Failed to fetch')) {
+        console.warn('Network error detected - this might be due to server connectivity issues');
+        e.preventDefault();
+        return;
+    }
+    
+    // Check if it's a browser extension error (ignore these)
+    if (e.reason && e.reason.stack && e.reason.stack.includes('chrome-extension://')) {
+        console.warn('Browser extension error - ignoring');
+        e.preventDefault();
+        return;
+    }
+});
+
 /**
  * Initialize the application
  */
@@ -193,7 +210,12 @@ async function loadDashboard() {
         }
         
         // Load year progression status
-        await loadYearProgressionStatus();
+        try {
+            await loadYearProgressionStatus();
+        } catch (error) {
+            console.error('Year progression status failed to load:', error);
+            // Don't let this error stop the dashboard from loading
+        }
         
     } catch (error) {
         showAlert('Error loading dashboard: ' + error.message, 'error');
@@ -2053,7 +2075,7 @@ async function loadYearProgressionStatus() {
         }
         
         if (result.success) {
-            updateProgressionStatus(result);
+            updateProgressionStatus(result.data);
         } else {
             console.error('Error loading progression status:', result.error);
             updateProgressionStatus({
@@ -2069,6 +2091,9 @@ async function loadYearProgressionStatus() {
             students_needing_update: 'Unknown',
             current_academic_year: 'Unknown'
         });
+        
+        // Don't let this error bubble up
+        return;
     }
 }
 

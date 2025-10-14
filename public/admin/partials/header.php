@@ -35,6 +35,15 @@ $pageJS = $pageJS ?? [];
     <!-- Vendors CSS -->
     <link rel="stylesheet" href="<?php echo getAdminAssetUrl('vendor/libs/perfect-scrollbar/perfect-scrollbar.css'); ?>" />
     
+    <!-- UI Helpers (direct path, not in assets/) -->
+    <link rel="stylesheet" href="css/ui-helpers.css" />
+    
+    <!-- Feature Enhancements -->
+    <link rel="stylesheet" href="css/advanced-search.css" />
+    <link rel="stylesheet" href="css/keyboard-shortcuts.css" />
+    <link rel="stylesheet" href="css/mobile-optimize.css" />
+    <link rel="stylesheet" href="css/print.css" media="print" />
+    
     <!-- Page-specific CSS -->
     <?php foreach ($pageCSS as $css): ?>
         <link rel="stylesheet" href="<?php echo getAdminAssetUrl($css); ?>" />
@@ -43,6 +52,12 @@ $pageJS = $pageJS ?? [];
     <!-- Helpers -->
     <script src="<?php echo getAdminAssetUrl('vendor/js/helpers.js'); ?>"></script>
     <script src="<?php echo getAdminAssetUrl('js/config.js'); ?>"></script>
+    <script src="js/ui-helpers.js"></script>
+    
+    <!-- Feature Enhancements -->
+    <script src="js/advanced-search.js"></script>
+    <script src="js/keyboard-shortcuts.js"></script>
+    <script src="js/filter-presets.js"></script>
 </head>
 
 <body>

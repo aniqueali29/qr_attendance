@@ -4,9 +4,14 @@
  * Enhanced settings management for admin panel
  */
 
-// Suppress warnings and errors for clean JSON output
-error_reporting(0);
-ini_set('display_errors', 0);
+// Enable error reporting for development (disable suppression)
+// Errors will be logged to PHP error log, not displayed to client
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Keep this 0 to prevent HTML output in JSON
+ini_set('log_errors', 1);     // Enable error logging
+
+// Set JSON content type early
+header('Content-Type: application/json');
 
 require_once '../includes/config.php';
 
@@ -23,28 +28,20 @@ class AdminSettingsAPI {
     }
     
     /**
-     * Create the system_settings table if it doesn't exist
+     * Check if system_settings table exists
+     * DO NOT create tables at runtime - they should be created during deployment
      */
-    private function createSettingsTable() {
+    private function ensureTableExists() {
         try {
-            $sql = "
-                CREATE TABLE IF NOT EXISTS system_settings (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    setting_key VARCHAR(255) UNIQUE NOT NULL,
-                    setting_value TEXT,
-                    setting_type ENUM('string', 'integer', 'boolean', 'json', 'array') DEFAULT 'string',
-                    category VARCHAR(100) DEFAULT 'general',
-                    description TEXT,
-                    validation_rules JSON,
-                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    updated_by VARCHAR(100) DEFAULT 'system'
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            ";
-            
-            $this->pdo->exec($sql);
-            error_log("Created system_settings table");
+            $stmt = $this->pdo->query("SHOW TABLES LIKE 'system_settings'");
+            if ($stmt->rowCount() == 0) {
+                error_log("CRITICAL: system_settings table missing! Run database migrations.");
+                throw new Exception("Database schema not initialized. Please contact administrator.");
+            }
+            return true;
         } catch (PDOException $e) {
-            error_log("Error creating system_settings table: " . $e->getMessage());
+            error_log("Database check error: " . $e->getMessage());
+            throw new Exception("Database connection error");
         }
     }
     
@@ -60,12 +57,8 @@ class AdminSettingsAPI {
                 ];
             }
             
-            // Check if system_settings table exists
-            $table_check = $this->pdo->query("SHOW TABLES LIKE 'system_settings'");
-            if ($table_check->rowCount() == 0) {
-                // Create the table if it doesn't exist
-                $this->createSettingsTable();
-            }
+            // Check if table exists (don't create it)
+            $this->ensureTableExists();
             
             // First, ensure all default settings exist
             $this->ensureDefaultSettings();
@@ -764,60 +757,49 @@ class AdminSettingsAPI {
         error_log("Received timings: " . print_r($timings, true));
         
         try {
-            // Helper function to parse time with flexible format
-            $parseTime = function($time, $default = '09:00:00') {
-                if (empty($time)) return DateTime::createFromFormat('H:i:s', $default);
+            // Helper function to parse time with flexible format and proper validation
+            $parseTime = function($time, $fieldName, $default = '09:00:00') {
+                if (empty($time)) {
+                    $dt = DateTime::createFromFormat('H:i:s', $default);
+                    if ($dt === false) {
+                        throw new Exception("Invalid default time for {$fieldName}: {$default}");
+                    }
+                    return $dt;
+                }
                 
-                // Try HH:MM:SS format first
-                $dt = DateTime::createFromFormat('H:i:s', $time);
-                if ($dt !== false) return $dt;
+                // Try different time formats
+                $formats = ['H:i:s', 'H:i', 'g:i A', 'g:i a'];
+                foreach ($formats as $format) {
+                    $dt = DateTime::createFromFormat($format, $time);
+                    if ($dt !== false) {
+                        // Validate that the parsing was successful without errors
+                        $errors = DateTime::getLastErrors();
+                        if ($errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+                            continue; // Try next format
+                        }
+                        return $dt;
+                    }
+                }
                 
-                // Try HH:MM format
-                $dt = DateTime::createFromFormat('H:i', $time);
-                if ($dt !== false) return $dt;
-                
-                // Try default format
-                return DateTime::createFromFormat('H:i:s', $default);
+                // If no format worked, throw exception
+                throw new Exception("Invalid time format for {$fieldName}: {$time}. Expected formats: HH:MM, HH:MM:SS, or h:mm AM/PM");
             };
             
-            // Parse morning timings
-            $morning_start = $parseTime($timings['morning_checkin_start'] ?? '', '09:00:00');
-            $morning_end = $parseTime($timings['morning_checkin_end'] ?? '', '11:00:00');
-            $morning_checkout_start = $parseTime($timings['morning_checkout_start'] ?? '', '12:00:00');
-            $morning_checkout_end = $parseTime($timings['morning_checkout_end'] ?? '', '13:40:00');
-            $morning_class_end = $parseTime($timings['morning_class_end'] ?? '', '13:40:00');
+            // Parse morning timings with validation
+            $morning_start = $parseTime($timings['morning_checkin_start'] ?? '', 'morning_checkin_start', '09:00:00');
+            $morning_end = $parseTime($timings['morning_checkin_end'] ?? '', 'morning_checkin_end', '11:00:00');
+            $morning_checkout_start = $parseTime($timings['morning_checkout_start'] ?? '', 'morning_checkout_start', '12:00:00');
+            $morning_checkout_end = $parseTime($timings['morning_checkout_end'] ?? '', 'morning_checkout_end', '13:40:00');
+            $morning_class_end = $parseTime($timings['morning_class_end'] ?? '', 'morning_class_end', '13:40:00');
             
-            // Parse evening timings
-            $evening_start = $parseTime($timings['evening_checkin_start'] ?? '', '15:00:00');
-            $evening_end = $parseTime($timings['evening_checkin_end'] ?? '', '18:00:00');
-            $evening_checkout_start = $parseTime($timings['evening_checkout_start'] ?? '', '15:00:00');
-            $evening_checkout_end = $parseTime($timings['evening_checkout_end'] ?? '', '18:00:00');
-            $evening_class_end = $parseTime($timings['evening_class_end'] ?? '', '18:00:00');
+            // Parse evening timings with validation
+            $evening_start = $parseTime($timings['evening_checkin_start'] ?? '', 'evening_checkin_start', '15:00:00');
+            $evening_end = $parseTime($timings['evening_checkin_end'] ?? '', 'evening_checkin_end', '18:00:00');
+            $evening_checkout_start = $parseTime($timings['evening_checkout_start'] ?? '', 'evening_checkout_start', '15:00:00');
+            $evening_checkout_end = $parseTime($timings['evening_checkout_end'] ?? '', 'evening_checkout_end', '18:00:00');
+            $evening_class_end = $parseTime($timings['evening_class_end'] ?? '', 'evening_class_end', '18:00:00');
             
-            // Check if all DateTime objects were created successfully
-            $invalid_times = [];
-            if (!$morning_start) $invalid_times[] = 'morning_checkin_start: ' . ($timings['morning_checkin_start'] ?? 'empty');
-            if (!$morning_end) $invalid_times[] = 'morning_checkin_end: ' . ($timings['morning_checkin_end'] ?? 'empty');
-            if (!$morning_checkout_start) $invalid_times[] = 'morning_checkout_start: ' . ($timings['morning_checkout_start'] ?? 'empty');
-            if (!$morning_checkout_end) $invalid_times[] = 'morning_checkout_end: ' . ($timings['morning_checkout_end'] ?? 'empty');
-            if (!$morning_class_end) $invalid_times[] = 'morning_class_end: ' . ($timings['morning_class_end'] ?? 'empty');
-            if (!$evening_start) $invalid_times[] = 'evening_checkin_start: ' . ($timings['evening_checkin_start'] ?? 'empty');
-            if (!$evening_end) $invalid_times[] = 'evening_checkin_end: ' . ($timings['evening_checkin_end'] ?? 'empty');
-            if (!$evening_checkout_start) $invalid_times[] = 'evening_checkout_start: ' . ($timings['evening_checkout_start'] ?? 'empty');
-            if (!$evening_checkout_end) $invalid_times[] = 'evening_checkout_end: ' . ($timings['evening_checkout_end'] ?? 'empty');
-            if (!$evening_class_end) $invalid_times[] = 'evening_class_end: ' . ($timings['evening_class_end'] ?? 'empty');
-            
-            if (!empty($invalid_times)) {
-                $errors[] = "Invalid time format for: " . implode(', ', $invalid_times);
-                return [
-                    'success' => false,
-                    'message' => 'Invalid time format',
-                    'errors' => $errors,
-                    'warnings' => $warnings
-                ];
-            }
-            
-            // Validate morning shift
+            // Validate morning shift logic
             if ($morning_end <= $morning_start) {
                 $errors[] = "Morning check-in end must be after check-in start";
             }
@@ -945,14 +927,64 @@ class AdminSettingsAPI {
             return ['valid' => true, 'errors' => []];
         }
         
-        // Check required
-        if (isset($validation_rules['required']) && $validation_rules['required'] && empty($value)) {
-            $errors[] = "This setting is required";
+        // Type validation first
+        if (isset($validation_rules['type'])) {
+            switch ($validation_rules['type']) {
+                case 'integer':
+                case 'number':
+                    if (!is_numeric($value)) {
+                        $errors[] = "Value must be numeric (got: " . gettype($value) . ")";
+                        // If not numeric, skip other validations
+                        return ['valid' => false, 'errors' => $errors];
+                    }
+                    break;
+                case 'boolean':
+                    if (!in_array($value, [true, false, 'true', 'false', '1', '0', 1, 0], true)) {
+                        $errors[] = "Value must be boolean (true/false)";
+                        return ['valid' => false, 'errors' => $errors];
+                    }
+                    break;
+                case 'email':
+                    if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                        $errors[] = "Invalid email format";
+                        return ['valid' => false, 'errors' => $errors];
+                    }
+                    break;
+                case 'url':
+                    if (!filter_var($value, FILTER_VALIDATE_URL)) {
+                        $errors[] = "Invalid URL format";
+                        return ['valid' => false, 'errors' => $errors];
+                    }
+                    break;
+                case 'time':
+                    // Validate time format (HH:MM or HH:MM:SS)
+                    if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $value)) {
+                        $errors[] = "Invalid time format. Expected HH:MM or HH:MM:SS";
+                        return ['valid' => false, 'errors' => $errors];
+                    }
+                    break;
+            }
         }
         
-        // Check minimum length
-        if (isset($validation_rules['min_length']) && strlen($value) < $validation_rules['min_length']) {
-            $errors[] = "Minimum length is " . $validation_rules['min_length'];
+        // Check required
+        if (isset($validation_rules['required']) && $validation_rules['required']) {
+            if ($value === '' || $value === null) {
+                $errors[] = "This setting is required";
+            }
+        }
+        
+        // Check minimum length (for strings)
+        if (isset($validation_rules['min_length']) && is_string($value)) {
+            if (strlen($value) < $validation_rules['min_length']) {
+                $errors[] = "Minimum length is " . $validation_rules['min_length'] . " characters";
+            }
+        }
+        
+        // Check maximum length (for strings)
+        if (isset($validation_rules['max_length']) && is_string($value)) {
+            if (strlen($value) > $validation_rules['max_length']) {
+                $errors[] = "Maximum length is " . $validation_rules['max_length'] . " characters";
+            }
         }
         
         // Check numeric ranges
@@ -978,13 +1010,22 @@ class AdminSettingsAPI {
         } else {
             // If it's not numeric but has min/max rules, it's an error
             if (isset($validation_rules['min']) || isset($validation_rules['max'])) {
-                $errors[] = "Value must be numeric (got: " . var_export($value, true) . ")";
+                $errors[] = "Value must be numeric for min/max validation (got: " . var_export($value, true) . ")";
             }
         }
         
-        // Check options
-        if (isset($validation_rules['options']) && !in_array($value, $validation_rules['options'])) {
-            $errors[] = "Value must be one of: " . implode(', ', $validation_rules['options']);
+        // Check options (whitelist)
+        if (isset($validation_rules['options']) && is_array($validation_rules['options'])) {
+            if (!in_array($value, $validation_rules['options'], true)) {
+                $errors[] = "Value must be one of: " . implode(', ', $validation_rules['options']);
+            }
+        }
+        
+        // Check regex pattern
+        if (isset($validation_rules['pattern']) && is_string($value)) {
+            if (!preg_match($validation_rules['pattern'], $value)) {
+                $errors[] = "Value does not match required pattern";
+            }
         }
         
         return [

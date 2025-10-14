@@ -53,17 +53,20 @@ include 'partials/navbar.php';
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* Responsive adjustments */
+/* Responsive button text */
 @media (max-width: 768px) {
-    .btn-container {
-        flex-direction: column;
-        align-items: stretch;
+    .btn-text {
+        display: none;
     }
     
-    .btn-container .btn,
-    .btn-container .form-select {
-        width: 100%;
-        margin-bottom: 0.5rem;
+    .d-flex.flex-wrap.gap-2 .btn {
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .btn i.me-1 {
+        margin-right: 0.5rem !important;
     }
 }
 </style>
@@ -86,39 +89,76 @@ include 'partials/navbar.php';
         <div class="card mb-4">
             <div class="card-header">
                 <div class="row align-items-center">
-                    <div class="col-12 col-md-6 col-lg-8">
+                    <div class="col-12 col-md-6">
                         <h5 class="card-title mb-0">
                             <i class="bx bx-graduation-cap me-2"></i>Programs Management
                         </h5>
                     </div>
-                </div>
-                
-                <!-- Action Buttons and Filters Row -->
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="d-flex flex-wrap align-items-center gap-3 btn-container">
+                    <div class="col-12 col-md-6 mt-2 mt-md-0">
+                        <div class="d-flex flex-wrap gap-2 justify-content-md-end">
                             <!-- Add Program Button -->
                             <button class="btn btn-primary" onclick="openProgramModal()">
-                                <i class="bx bx-plus me-1"></i>Add Program
+                                <i class="bx bx-plus me-1"></i>
+                                <span class="btn-text">Add</span>
                             </button>
                             
                             <!-- Export Button -->
                             <button class="btn btn-success" onclick="exportPrograms()">
-                                <i class="bx bx-download me-1"></i>Export
+                                <i class="bx bx-download me-1"></i>
+                                <span class="btn-text">Export</span>
                             </button>
                             
-                            <!-- Filters -->
-                            <select id="program-status-filter" class="form-select" style="min-width: 120px;">
-                                <option value="">All Students</option>
+                            <!-- Filter Toggle Button -->
+                            <button class="btn btn-info" onclick="toggleProgramFilterPanel()">
+                                <i class="bx bx-filter me-1"></i>
+                                <span class="btn-text">Filters</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Advanced Filter Panel for Programs -->
+                <div id="program-filter-panel" class="card-body border-top" style="display: none;">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="program-status-filter" class="form-label">Status</label>
+                            <select id="program-status-filter" class="form-select">
+                                <option value="">All Status</option>
                                 <option value="1">Active</option>
                                 <option value="0">Inactive</option>
                             </select>
-                            
-                            <select id="program-type-filter" class="form-select" style="min-width: 120px;">
-                                <option value="">All Types</option>
-                                <option value="morning">Morning</option>
-                                <option value="evening">Evening</option>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="program-search-filter" class="form-label">Search</label>
+                            <input type="text" id="program-search-filter" class="form-control" placeholder="Search by name or code...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="program-student-count-filter" class="form-label">Student Count</label>
+                            <select id="program-student-count-filter" class="form-select">
+                                <option value="">All Programs</option>
+                                <option value="0">No Students</option>
+                                <option value="1-10">1-10 Students</option>
+                                <option value="11-50">11-50 Students</option>
+                                <option value="51+">51+ Students</option>
                             </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="program-section-count-filter" class="form-label">Section Count</label>
+                            <select id="program-section-count-filter" class="form-select">
+                                <option value="">All Programs</option>
+                                <option value="0">No Sections</option>
+                                <option value="1-3">1-3 Sections</option>
+                                <option value="4-10">4-10 Sections</option>
+                                <option value="11+">11+ Sections</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-primary" onclick="applyProgramFilters()">
+                                <i class="bx bx-search me-1"></i>Apply Filters
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearProgramFilters()">
+                                <i class="bx bx-x me-1"></i>Clear Filters
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -157,44 +197,99 @@ include 'partials/navbar.php';
         <div class="card">
             <div class="card-header">
                 <div class="row align-items-center">
-                    <div class="col-12 col-md-6 col-lg-8">
+                    <div class="col-12 col-md-6">
                         <h5 class="card-title mb-0">
                             <i class="bx bx-chalkboard me-2"></i>Sections Management
                         </h5>
                     </div>
-                </div>
-                
-                <!-- Action Buttons and Filters Row -->
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="d-flex flex-wrap align-items-center gap-3 btn-container">
+                    <div class="col-12 col-md-6 mt-2 mt-md-0">
+                        <div class="d-flex flex-wrap gap-2 justify-content-md-end">
                             <!-- Add Section Button -->
                             <button class="btn btn-primary" onclick="openSectionModal()">
-                                <i class="bx bx-plus me-1"></i>Add Section
+                                <i class="bx bx-plus me-1"></i>
+                                <span class="btn-text">Add</span>
                             </button>
                             
                             <!-- Export Button -->
                             <button class="btn btn-success" onclick="exportSections()">
-                                <i class="bx bx-download me-1"></i>Export
+                                <i class="bx bx-download me-1"></i>
+                                <span class="btn-text">Export</span>
                             </button>
                             
-                            <!-- Filters -->
-                            <select id="section-program-filter" class="form-select" style="min-width: 120px;">
+                            <!-- Filter Toggle Button -->
+                            <button class="btn btn-info" onclick="toggleSectionFilterPanel()">
+                                <i class="bx bx-filter me-1"></i>
+                                <span class="btn-text">Filters</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Advanced Filter Panel for Sections -->
+                <div id="section-filter-panel" class="card-body border-top" style="display: none;">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="section-program-filter" class="form-label">Program</label>
+                            <select id="section-program-filter" class="form-select">
                                 <option value="">All Programs</option>
                             </select>
-                            
-                            <select id="section-year-filter" class="form-select" style="min-width: 120px;">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="section-year-filter" class="form-label">Year Level</label>
+                            <select id="section-year-filter" class="form-select">
                                 <option value="">All Years</option>
                                 <option value="1st">1st Year</option>
                                 <option value="2nd">2nd Year</option>
                                 <option value="3rd">3rd Year</option>
                             </select>
-                            
-                            <select id="section-shift-filter" class="form-select" style="min-width: 120px;">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="section-shift-filter" class="form-label">Shift</label>
+                            <select id="section-shift-filter" class="form-select">
                                 <option value="">All Shifts</option>
                                 <option value="Morning">Morning</option>
                                 <option value="Evening">Evening</option>
                             </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="section-search-filter" class="form-label">Search</label>
+                            <input type="text" id="section-search-filter" class="form-control" placeholder="Search by section name...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="section-capacity-filter" class="form-label">Capacity</label>
+                            <select id="section-capacity-filter" class="form-select">
+                                <option value="">All Capacities</option>
+                                <option value="0-20">Small (0-20)</option>
+                                <option value="21-40">Medium (21-40)</option>
+                                <option value="41-60">Large (41-60)</option>
+                                <option value="61+">Extra Large (61+)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="section-utilization-filter" class="form-label">Utilization</label>
+                            <select id="section-utilization-filter" class="form-select">
+                                <option value="">All Utilization</option>
+                                <option value="0-25">Low (0-25%)</option>
+                                <option value="26-50">Medium (26-50%)</option>
+                                <option value="51-75">High (51-75%)</option>
+                                <option value="76-100">Full (76-100%)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="section-status-filter" class="form-label">Status</label>
+                            <select id="section-status-filter" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="1">Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-primary" onclick="applySectionFilters()">
+                                <i class="bx bx-search me-1"></i>Apply Filters
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearSectionFilters()">
+                                <i class="bx bx-x me-1"></i>Clear Filters
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -416,6 +511,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup form handlers
     setupFormHandlers();
     setupFilterHandlers();
+    
+    // Initialize modal form UX enhancements
+    if (typeof UIHelpers !== 'undefined') {
+        UIHelpers.initModalFormUX('#programModal', {
+            autoFocus: true,
+            optimizeTabOrder: true,
+            enterKeySubmit: true
+        });
+        
+        UIHelpers.initModalFormUX('#sectionModal', {
+            autoFocus: true,
+            optimizeTabOrder: true,
+            enterKeySubmit: true
+        });
+    }
 });
 
 function setupFormHandlers() {
@@ -448,10 +558,30 @@ function setupFilterHandlers() {
     document.getElementById('section-program-filter').addEventListener('change', loadSections);
     document.getElementById('section-year-filter').addEventListener('change', loadSections);
     document.getElementById('section-shift-filter').addEventListener('change', loadSections);
+    
+    // Program filter handlers
+    document.getElementById('program-status-filter').addEventListener('change', loadPrograms);
+    document.getElementById('program-search-filter').addEventListener('input', debounce(loadPrograms, 500));
+    document.getElementById('program-student-count-filter').addEventListener('change', loadPrograms);
+    document.getElementById('program-section-count-filter').addEventListener('change', loadPrograms);
+    
+    // Section filter handlers
+    document.getElementById('section-search-filter').addEventListener('input', debounce(loadSections, 500));
+    document.getElementById('section-capacity-filter').addEventListener('change', loadSections);
+    document.getElementById('section-utilization-filter').addEventListener('change', loadSections);
+    document.getElementById('section-status-filter').addEventListener('change', loadSections);
 }
 
 function loadPrograms() {
-    fetch('api/programs.php?action=list')
+    const params = new URLSearchParams({
+        action: 'list',
+        status: document.getElementById('program-status-filter').value,
+        search: document.getElementById('program-search-filter').value,
+        student_count: document.getElementById('program-student-count-filter').value,
+        section_count: document.getElementById('program-section-count-filter').value
+    });
+    
+    fetch(`api/programs.php?${params}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -471,7 +601,11 @@ function loadSections() {
         action: 'sections',
         program_id: document.getElementById('section-program-filter').value,
         year: document.getElementById('section-year-filter').value,
-        shift: document.getElementById('section-shift-filter').value
+        shift: document.getElementById('section-shift-filter').value,
+        search: document.getElementById('section-search-filter').value,
+        capacity: document.getElementById('section-capacity-filter').value,
+        utilization: document.getElementById('section-utilization-filter').value,
+        status: document.getElementById('section-status-filter').value
     });
     
     fetch(`api/programs.php?${params}`)
@@ -522,12 +656,23 @@ function updateProgramsTable(programs) {
         return;
     }
     
+    // HTML escape function to prevent XSS
+    function escapeHtml(unsafe) {
+        if (!unsafe) return '-';
+        return String(unsafe)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    
     tbody.innerHTML = programs.map(program => `
         <tr>
-            <td><strong>${program.code}</strong></td>
-            <td>${program.name}</td>
-            <td><span class="badge bg-primary">${program.total_students || 0}</span></td>
-            <td><span class="badge bg-info">${program.section_count}</span></td>
+            <td><strong>${escapeHtml(program.code)}</strong></td>
+            <td>${escapeHtml(program.name)}</td>
+            <td><span class="badge bg-primary">${escapeHtml(program.total_students || 0)}</span></td>
+            <td><span class="badge bg-info">${escapeHtml(program.section_count)}</span></td>
             <td>
                 <span class="badge bg-${program.is_active ? 'success' : 'secondary'}">
                     ${program.is_active ? 'Active' : 'Inactive'}
@@ -546,6 +691,9 @@ function updateProgramsTable(programs) {
                             <i class="bx bx-show me-2"></i>View
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="toggleProgramStatus(${program.id}, ${program.is_active ? 0 : 1})">
+                            <i class="bx bx-${program.is_active ? 'x' : 'check'} me-2"></i>${program.is_active ? 'Deactivate' : 'Activate'}
+                        </a></li>
                         <li><a class="dropdown-item text-danger" href="#" onclick="confirmDelete(${program.id}, 'program')">
                             <i class="bx bx-trash me-2"></i>Delete
                         </a></li>
@@ -564,20 +712,31 @@ function updateSectionsTable(sections) {
         return;
     }
     
+    // HTML escape function to prevent XSS
+    function escapeHtml(unsafe) {
+        if (!unsafe) return '-';
+        return String(unsafe)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    
     tbody.innerHTML = sections.map(section => `
         <tr>
-            <td><strong>Section ${section.section_name}</strong></td>
-            <td><span class="badge bg-primary">${section.program_name}</span></td>
-            <td>${section.year_level}</td>
-            <td><span class="badge bg-${section.shift === 'Morning' ? 'success' : 'info'}">${section.shift}</span></td>
-            <td>${section.capacity}</td>
+            <td><strong>Section ${escapeHtml(section.section_name)}</strong></td>
+            <td><span class="badge bg-primary">${escapeHtml(section.program_name)}</span></td>
+            <td>${escapeHtml(section.year_level)}</td>
+            <td><span class="badge bg-${section.shift === 'Morning' ? 'success' : 'info'}">${escapeHtml(section.shift)}</span></td>
+            <td>${escapeHtml(section.capacity)}</td>
             <td>
                 <div class="progress" style="height: 20px;">
-                    <div class="progress-bar" role="progressbar" style="width: ${section.capacity_utilization}%">
-                        ${section.capacity_utilization}%
+                    <div class="progress-bar" role="progressbar" style="width: ${escapeHtml(section.capacity_utilization)}%">
+                        ${escapeHtml(section.capacity_utilization)}%
                     </div>
                 </div>
-                <small class="text-muted">${section.student_count}/${section.capacity} students</small>
+                <small class="text-muted">${escapeHtml(section.student_count)}/${escapeHtml(section.capacity)} students</small>
             </td>
             <td>
                 <div class="dropdown">
@@ -592,6 +751,9 @@ function updateSectionsTable(sections) {
                             <i class="bx bx-show me-2"></i>View
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="toggleSectionStatus(${section.id}, ${section.is_active ? 0 : 1})">
+                            <i class="bx bx-${section.is_active ? 'x' : 'check'} me-2"></i>${section.is_active ? 'Deactivate' : 'Activate'}
+                        </a></li>
                         <li><a class="dropdown-item text-danger" href="#" onclick="confirmDelete(${section.id}, 'section')">
                             <i class="bx bx-trash me-2"></i>Delete
                         </a></li>
@@ -682,10 +844,21 @@ function loadSectionData(sectionId) {
 function saveProgram() {
     const form = document.getElementById('programForm');
     const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    // Handle checkbox - ensure is_active is always sent
+    const isActiveCheckbox = document.getElementById('program-active');
+    if (isActiveCheckbox) {
+        formData.set('is_active', isActiveCheckbox.checked ? '1' : '0');
+    }
     
     const programId = document.getElementById('program-id').value;
     const url = programId ? `api/programs.php?action=update&id=${programId}` : 'api/programs.php?action=add';
-    const method = 'POST'; // Both create and update use POST method
+    const method = 'POST';
+    
+    // Show loading state
+    UIHelpers.showButtonLoading(submitBtn, programId ? 'Updating...' : 'Creating...');
+    UIHelpers.disableForm(form);
     
     fetch(url, {
         method: method,
@@ -693,27 +866,37 @@ function saveProgram() {
     })
     .then(response => response.json())
     .then(data => {
+        UIHelpers.hideButtonLoading(submitBtn);
+        UIHelpers.enableForm(form);
+        
         if (data.success) {
-            showAlert(data.message, 'success');
+            UIHelpers.showSuccess(data.message || (programId ? 'Program updated successfully!' : 'Program created successfully!'));
             bootstrap.Modal.getInstance(document.getElementById('programModal')).hide();
             loadPrograms();
         } else {
-            showAlert(data.error, 'danger');
+            UIHelpers.showError(data.message || data.error || 'Error saving program');
         }
     })
     .catch(error => {
         console.error('Error saving program:', error);
-        showAlert('Error saving program', 'danger');
+        UIHelpers.hideButtonLoading(submitBtn);
+        UIHelpers.enableForm(form);
+        UIHelpers.showError('Error saving program');
     });
 }
 
 function saveSection() {
     const form = document.getElementById('sectionForm');
     const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
     
     const sectionId = document.getElementById('section-id').value;
     const url = sectionId ? `api/programs.php?action=update-section&id=${sectionId}` : 'api/programs.php?action=add-section';
-    const method = 'POST'; // Both create and update use POST method
+    const method = 'POST';
+    
+    // Show loading state
+    UIHelpers.showButtonLoading(submitBtn, sectionId ? 'Updating...' : 'Creating...');
+    UIHelpers.disableForm(form);
     
     fetch(url, {
         method: method,
@@ -721,17 +904,22 @@ function saveSection() {
     })
     .then(response => response.json())
     .then(data => {
+        UIHelpers.hideButtonLoading(submitBtn);
+        UIHelpers.enableForm(form);
+        
         if (data.success) {
-            showAlert(data.message, 'success');
+            UIHelpers.showSuccess(data.message || (sectionId ? 'Section updated successfully!' : 'Section created successfully!'));
             bootstrap.Modal.getInstance(document.getElementById('sectionModal')).hide();
             loadSections();
         } else {
-            showAlert(data.error, 'danger');
+            UIHelpers.showError(data.message || data.error || 'Error saving section');
         }
     })
     .catch(error => {
         console.error('Error saving section:', error);
-        showAlert('Error saving section', 'danger');
+        UIHelpers.hideButtonLoading(submitBtn);
+        UIHelpers.enableForm(form);
+        UIHelpers.showError('Error saving section');
     });
 }
 
@@ -874,58 +1062,160 @@ function getCapacityColor(utilization) {
 }
 
 function confirmDelete(itemId, itemType) {
-    deleteItemId = itemId;
-    deleteItemType = itemType;
+    const message = itemType === 'program' 
+        ? 'Are you sure you want to delete this program? This will also delete all associated sections and affect students.'
+        : 'Are you sure you want to delete this section? This will affect all students in this section.';
     
-    const message = document.getElementById('delete-message');
-    if (itemType === 'program') {
-        message.textContent = 'Are you sure you want to delete this program? This will also delete all associated sections and affect students.';
-    } else if (itemType === 'section') {
-        message.textContent = 'Are you sure you want to delete this section? This will affect all students in this section.';
-    }
-    
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    modal.show();
+    UIHelpers.showConfirmDialog({
+        title: `Delete ${itemType === 'program' ? 'Program' : 'Section'}`,
+        message: message,
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        confirmClass: 'btn-danger',
+        onConfirm: () => {
+            if (itemType === 'program') {
+                deleteProgram(itemId);
+            } else {
+                deleteSection(itemId);
+            }
+        }
+    });
 }
 
 function deleteProgram(programId) {
-    fetch(`api/programs.php?action=delete&id=${programId}`, {
-        method: 'DELETE'
+    const formData = new FormData();
+    formData.append('csrf_token', '<?php echo generateCSRFToken(); ?>');
+    formData.append('id', programId);
+    
+    UIHelpers.showLoadingOverlay('.card-body', 'Deleting program...');
+    
+    fetch(`api/programs.php?action=delete`, {
+        method: 'POST',
+        body: formData
     })
     .then(response => response.json())
     .then(data => {
+        UIHelpers.hideLoadingOverlay('.card-body');
+        
         if (data.success) {
-            showAlert(data.message, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+            UIHelpers.showSuccess(data.message || 'Program deleted successfully!');
             loadPrograms();
             loadSections();
         } else {
-            showAlert(data.error, 'danger');
+            UIHelpers.showError(data.message || data.error || 'Error deleting program');
         }
     })
     .catch(error => {
         console.error('Error deleting program:', error);
-        showAlert('Error deleting program', 'danger');
+        UIHelpers.hideLoadingOverlay('.card-body');
+        UIHelpers.showError('Error deleting program');
     });
 }
 
 function deleteSection(sectionId) {
-    fetch(`api/programs.php?action=delete-section&id=${sectionId}`, {
-        method: 'DELETE'
+    const formData = new FormData();
+    formData.append('csrf_token', '<?php echo generateCSRFToken(); ?>');
+    formData.append('id', sectionId);
+    
+    UIHelpers.showLoadingOverlay('.card-body', 'Deleting section...');
+    
+    fetch(`api/programs.php?action=delete-section`, {
+        method: 'POST',
+        body: formData
     })
     .then(response => response.json())
     .then(data => {
+        UIHelpers.hideLoadingOverlay('.card-body');
+        
         if (data.success) {
-            showAlert(data.message, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+            UIHelpers.showSuccess(data.message || 'Section deleted successfully!');
             loadSections();
         } else {
-            showAlert(data.error, 'danger');
+            UIHelpers.showError(data.message || data.error || 'Error deleting section');
         }
     })
     .catch(error => {
         console.error('Error deleting section:', error);
-        showAlert('Error deleting section', 'danger');
+        UIHelpers.hideLoadingOverlay('.card-body');
+        UIHelpers.showError('Error deleting section');
+    });
+}
+
+function toggleProgramStatus(programId, newStatus) {
+    const statusText = newStatus ? 'activate' : 'deactivate';
+    
+    UIHelpers.showConfirmDialog({
+        title: `${statusText.charAt(0).toUpperCase() + statusText.slice(1)} Program`,
+        message: `Are you sure you want to ${statusText} this program?`,
+        confirmText: `Yes, ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
+        confirmClass: newStatus ? 'btn-success' : 'btn-warning',
+        onConfirm: () => {
+            const formData = new FormData();
+            formData.append('csrf_token', '<?php echo generateCSRFToken(); ?>');
+            formData.append('is_active', newStatus);
+            
+            UIHelpers.showLoadingOverlay('.card-body', `${statusText.charAt(0).toUpperCase() + statusText.slice(1)}ing program...`);
+            
+            fetch(`api/programs.php?action=toggle-status&id=${programId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                UIHelpers.hideLoadingOverlay('.card-body');
+                
+                if (data.success) {
+                    UIHelpers.showSuccess(data.message || `Program ${statusText}d successfully`);
+                    loadPrograms();
+                } else {
+                    UIHelpers.showError(data.message || data.error || `Error ${statusText}ing program`);
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling program status:', error);
+                UIHelpers.hideLoadingOverlay('.card-body');
+                UIHelpers.showError(`Error ${statusText}ing program`);
+            });
+        }
+    });
+}
+
+function toggleSectionStatus(sectionId, newStatus) {
+    const statusText = newStatus ? 'activate' : 'deactivate';
+    
+    UIHelpers.showConfirmDialog({
+        title: `${statusText.charAt(0).toUpperCase() + statusText.slice(1)} Section`,
+        message: `Are you sure you want to ${statusText} this section?`,
+        confirmText: `Yes, ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}`,
+        confirmClass: newStatus ? 'btn-success' : 'btn-warning',
+        onConfirm: () => {
+            const formData = new FormData();
+            formData.append('csrf_token', '<?php echo generateCSRFToken(); ?>');
+            formData.append('is_active', newStatus);
+            
+            UIHelpers.showLoadingOverlay('.card-body', `${statusText.charAt(0).toUpperCase() + statusText.slice(1)}ing section...`);
+            
+            fetch(`api/programs.php?action=toggle-section-status&id=${sectionId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                UIHelpers.hideLoadingOverlay('.card-body');
+                
+                if (data.success) {
+                    UIHelpers.showSuccess(data.message || `Section ${statusText}d successfully`);
+                    loadSections();
+                } else {
+                    UIHelpers.showError(data.message || data.error || `Error ${statusText}ing section`);
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling section status:', error);
+                UIHelpers.hideLoadingOverlay('.card-body');
+                UIHelpers.showError(`Error ${statusText}ing section`);
+            });
+        }
     });
 }
 
@@ -1003,6 +1293,106 @@ function performExport() {
     
     // Open export URL
     window.open(`api/export.php?action=programs&format=${format}`, '_blank');
+}
+
+// Filter Panel Toggle Functions
+function toggleProgramFilterPanel() {
+    const panel = document.getElementById('program-filter-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleSectionFilterPanel() {
+    const panel = document.getElementById('section-filter-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+// Filter Application Functions
+function applyProgramFilters() {
+    loadPrograms();
+}
+
+function applySectionFilters() {
+    loadSections();
+}
+
+// Filter Clear Functions
+function clearProgramFilters() {
+    document.getElementById('program-status-filter').value = '';
+    document.getElementById('program-search-filter').value = '';
+    document.getElementById('program-student-count-filter').value = '';
+    document.getElementById('program-section-count-filter').value = '';
+    loadPrograms();
+}
+
+function clearSectionFilters() {
+    document.getElementById('section-program-filter').value = '';
+    document.getElementById('section-year-filter').value = '';
+    document.getElementById('section-shift-filter').value = '';
+    document.getElementById('section-search-filter').value = '';
+    document.getElementById('section-capacity-filter').value = '';
+    document.getElementById('section-utilization-filter').value = '';
+    document.getElementById('section-status-filter').value = '';
+    loadSections();
+}
+
+// Debounce utility function for search inputs
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Alert system (if not already defined)
+function showAlert(message, type = 'info') {
+    // Create alert container if it doesn't exist
+    let alertContainer = document.getElementById('alert-container');
+    if (!alertContainer) {
+        alertContainer = document.createElement('div');
+        alertContainer.id = 'alert-container';
+        alertContainer.className = 'position-fixed top-0 end-0 p-3';
+        alertContainer.style.zIndex = '9999';
+        document.body.appendChild(alertContainer);
+    }
+    
+    // Generate unique ID for alert
+    const alertId = 'alert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    
+    // Get icon and color based on type
+    const typeConfig = {
+        'success': { icon: 'bx-check-circle', color: 'success' },
+        'error': { icon: 'bx-x-circle', color: 'danger' },
+        'warning': { icon: 'bx-error-circle', color: 'warning' },
+        'info': { icon: 'bx-info-circle', color: 'info' },
+        'danger': { icon: 'bx-x-circle', color: 'danger' }
+    };
+    
+    const config = typeConfig[type] || typeConfig['info'];
+    
+    // Create alert HTML
+    const alertHtml = `
+        <div id="${alertId}" class="alert alert-${config.color} alert-dismissible fade show" role="alert">
+            <i class="bx ${config.icon} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+    
+    // Add alert to container
+    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+    
+    // Auto-remove alert after 5 seconds
+    setTimeout(() => {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+            alertElement.remove();
+        }
+    }, 5000);
 }
 </script>
 

@@ -37,29 +37,57 @@ include 'partials/navbar.php';
         
         <!-- Attendance Records Card -->
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    <i class="bx bx-clipboard me-2"></i>Attendance Records
-                    <span id="student-filter-indicator" class="badge bg-info ms-2" style="display: none;">
-                        <i class="bx bx-user me-1"></i>Filtered by Student
-                    </span>
-                </h5>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success" onclick="exportAttendance()">
-                        <i class="bx bx-download me-1"></i>Export
-                    </button>
-                    <button class="btn btn-primary" onclick="loadAttendance()">
-                        <i class="bx bx-refresh me-1"></i>Refresh
-                    </button>
-                    <button class="btn btn-info" onclick="toggleFilterPanel()">
-                        <i class="bx bx-filter me-1"></i>Filters
-                    </button>
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-12 col-md-6">
+                        <h5 class="card-title mb-0">
+                            <i class="bx bx-clipboard me-2"></i>Attendance Records
+                            <span id="student-filter-indicator" class="badge bg-info ms-2" style="display: none;">
+                                <i class="bx bx-user me-1"></i>Filtered by Student
+                            </span>
+                        </h5>
+                    </div>
+                    <div class="col-12 col-md-6 mt-2 mt-md-0">
+                        <div class="d-flex flex-wrap gap-2 justify-content-md-end">
+                            <button class="btn btn-success" onclick="exportAttendance()">
+                                <i class="bx bx-download me-1"></i>
+                                <span class="btn-text">Export</span>
+                            </button>
+                            <button class="btn btn-primary" onclick="loadAttendance()">
+                                <i class="bx bx-refresh me-1"></i>
+                                <span class="btn-text">Refresh</span>
+                            </button>
+                            <button class="btn btn-info" onclick="toggleFilterPanel()">
+                                <i class="bx bx-filter me-1"></i>
+                                <span class="btn-text">Filters</span>
+                            </button>
+                            <button class="btn btn-warning" onclick="toggleBulkModeAttendance()">
+                                <i class="bx bx-checkbox-square me-1"></i>
+                                <span class="btn-text">Bulk Actions</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             
             <!-- Filter Panel -->
             <div id="filter-panel" class="card-body border-top" style="display: none;">
                 <div class="row g-3 mt-3">
+                    <!-- Date Range Presets -->
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Quick Date Ranges</label>
+                        <div class="btn-group d-flex flex-wrap gap-2" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyDatePreset('today')">Today</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyDatePreset('yesterday')">Yesterday</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyDatePreset('last7days')">Last 7 Days</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyDatePreset('last30days')">Last 30 Days</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyDatePreset('thisweek')">This Week</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyDatePreset('lastweek')">Last Week</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyDatePreset('thismonth')">This Month</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyDatePreset('lastmonth')">Last Month</button>
+                        </div>
+                    </div>
+                    <div class="col-12"><hr class="my-2"></div>
                     <div class="col-md-3">
                         <label for="date-from" class="form-label">From Date</label>
                         <input type="date" id="date-from" class="form-control">
@@ -124,6 +152,9 @@ include 'partials/navbar.php';
                     <table class="table table-hover" id="attendance-table">
                         <thead>
                             <tr>
+                                <th width="50" class="bulk-checkbox-column">
+                                    <input type="checkbox" id="select-all-attendance" onchange="toggleSelectAllAttendance()">
+                                </th>
                                 <th>Student ID</th>
                                 <th>Name</th>
                                 <th>Program</th>
@@ -136,7 +167,7 @@ include 'partials/navbar.php';
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="8" class="text-center py-4">
+                                <td colspan="9" class="text-center py-4">
                                     <div class="spinner-border" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
@@ -150,6 +181,21 @@ include 'partials/navbar.php';
                 <!-- Pagination -->
                 <div id="pagination" class="d-flex justify-content-center mt-4">
                     <!-- Pagination will be loaded here -->
+                </div>
+                
+                <!-- Bulk Actions Panel for Attendance -->
+                <div id="bulk-attendance-actions" class="bulk-actions">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted" id="selected-attendance-count">0 selected</span>
+                        <div class="ms-auto">
+                            <button class="btn btn-sm btn-danger" onclick="bulkDeleteAttendance()">
+                                <i class="bx bx-trash me-1"></i>Delete
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="bulkChangeStatus()">
+                                <i class="bx bx-edit me-1"></i>Change Status
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -313,6 +359,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup form handlers
     setupFormHandlers();
+    
+    // Initialize modal form UX enhancements
+    if (typeof UIHelpers !== 'undefined') {
+        UIHelpers.initModalFormUX('#editAttendanceModal', {
+            autoFocus: true,
+            optimizeTabOrder: true,
+            enterKeySubmit: true
+        });
+    }
 });
 
 function setupFormHandlers() {
@@ -400,6 +455,7 @@ function loadAttendance(page = 1) {
     }
     
     const params = new URLSearchParams({
+        action: 'list',
         page: page,
         ...currentFilters
     });
@@ -407,7 +463,22 @@ function loadAttendance(page = 1) {
     console.log('API URL:', `api/attendance.php?${params}`);
     
     fetch(`api/attendance.php?${params}`)
-        .then(response => response.json())
+        .then(response => {
+            // Check if response is ok
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            // Check content type
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                // If not JSON, try to get text to see what the error is
+                return response.text().then(text => {
+                    console.error('Non-JSON response from attendance API:', text.substring(0, 500));
+                    throw new Error('Server returned non-JSON response. Check console for details.');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 updateAttendanceTable(data.data.records);
@@ -424,7 +495,22 @@ function loadAttendance(page = 1) {
 
 function loadStudentOptions() {
     return fetch('api/students.php?action=list&limit=1000')
-        .then(response => response.json())
+        .then(response => {
+            // Check if response is ok
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            // Check content type
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                // If not JSON, try to get text to see what the error is
+                return response.text().then(text => {
+                    console.error('Non-JSON response:', text.substring(0, 500));
+                    throw new Error('Server returned non-JSON response. Check console for details.');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 const select = document.getElementById('student-filter');
@@ -436,11 +522,16 @@ function loadStudentOptions() {
                     option.textContent = `${student.roll_number} - ${student.name}`;
                     select.appendChild(option);
                 });
+            } else {
+                console.error('API returned error:', data.error);
+                showAlert('Error loading students: ' + (data.error || 'Unknown error'), 'warning');
             }
             return data;
         })
         .catch(error => {
             console.error('Error loading students:', error);
+            // Show a user-friendly error message
+            showAlert('Could not load student list. Please refresh the page.', 'danger');
             throw error;
         });
 }
@@ -449,12 +540,15 @@ function updateAttendanceTable(records) {
     const tbody = document.querySelector('#attendance-table tbody');
     
     if (records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">No attendance records found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">No attendance records found</td></tr>';
         return;
     }
     
     tbody.innerHTML = records.map(record => `
         <tr>
+            <td class="bulk-checkbox-column">
+                <input type="checkbox" data-attendance-id="${record.id}" onchange="updateSelectedAttendanceCount()">
+            </td>
             <td><strong>${record.roll_number}</strong></td>
             <td>${record.student_name}</td>
             <td><span class="badge bg-primary">${record.program}</span></td>
@@ -614,6 +708,7 @@ function saveAttendanceEdit() {
     const form = document.getElementById('editAttendanceForm');
     const formData = new FormData(form);
     const attendanceId = document.getElementById('edit-attendance-id').value;
+    const submitBtn = form.querySelector('button[type="submit"]') || document.querySelector('#editAttendanceModal .btn-primary');
     
     // Convert FormData to JSON
     const jsonData = {
@@ -624,6 +719,12 @@ function saveAttendanceEdit() {
     
     console.log('JSON data:', jsonData);
     console.log('Attendance ID:', attendanceId);
+    
+    // Show loading state
+    if (submitBtn) {
+        UIHelpers.showButtonLoading(submitBtn, 'Updating...');
+    }
+    UIHelpers.disableForm(form);
     
     fetch(`api/attendance.php?action=update&id=${attendanceId}`, {
         method: 'PUT',
@@ -638,43 +739,63 @@ function saveAttendanceEdit() {
     })
     .then(data => {
         console.log('Response data:', data);
+        if (submitBtn) {
+            UIHelpers.hideButtonLoading(submitBtn);
+        }
+        UIHelpers.enableForm(form);
+        
         if (data.success) {
-            alert('Success: ' + data.message);
+            UIHelpers.showSuccess(data.message || 'Attendance updated successfully!');
             bootstrap.Modal.getInstance(document.getElementById('editAttendanceModal')).hide();
             loadAttendance(attendanceCurrentPage);
         } else {
-            alert('Error: ' + data.error);
+            UIHelpers.showError(data.error || 'Error updating attendance');
         }
     })
     .catch(error => {
         console.error('Error saving attendance:', error);
-        alert('Error saving attendance: ' + error.message);
+        if (submitBtn) {
+            UIHelpers.hideButtonLoading(submitBtn);
+        }
+        UIHelpers.enableForm(form);
+        UIHelpers.showError('Error saving attendance: ' + error.message);
     });
 }
 
 function confirmDelete(attendanceId) {
-    deleteAttendanceId = attendanceId;
-    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    modal.show();
+    UIHelpers.showConfirmDialog({
+        title: 'Delete Attendance Record',
+        message: 'Are you sure you want to delete this attendance record? This action cannot be undone.',
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        confirmClass: 'btn-danger',
+        onConfirm: () => {
+            deleteAttendance(attendanceId);
+        }
+    });
 }
 
 function deleteAttendance(attendanceId) {
+    UIHelpers.showLoadingOverlay('.card-body', 'Deleting attendance record...');
+    
     fetch(`api/attendance.php?action=delete&id=${attendanceId}`, {
         method: 'DELETE'
     })
     .then(response => response.json())
     .then(data => {
+        UIHelpers.hideLoadingOverlay('.card-body');
+        
         if (data.success) {
-            showAlert(data.message, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+            UIHelpers.showSuccess(data.message || 'Attendance deleted successfully!');
             loadAttendance(attendanceCurrentPage);
         } else {
-            showAlert(data.error, 'danger');
+            UIHelpers.showError(data.error || 'Error deleting attendance');
         }
     })
     .catch(error => {
         console.error('Error deleting attendance:', error);
-        showAlert('Error deleting attendance', 'danger');
+        UIHelpers.hideLoadingOverlay('.card-body');
+        UIHelpers.showError('Error deleting attendance');
     });
 }
 
@@ -744,6 +865,98 @@ function clearAllFilters() {
     loadAttendance(1);
 }
 
+/**
+ * Apply date range preset
+ * @param {string} preset - Preset name (today, yesterday, last7days, etc.)
+ */
+function applyDatePreset(preset) {
+    const today = new Date();
+    let fromDate, toDate;
+    
+    switch(preset) {
+        case 'today':
+            fromDate = toDate = new Date(today);
+            break;
+            
+        case 'yesterday':
+            fromDate = toDate = new Date(today);
+            fromDate.setDate(today.getDate() - 1);
+            toDate.setDate(today.getDate() - 1);
+            break;
+            
+        case 'last7days':
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - 6);
+            toDate = new Date(today);
+            break;
+            
+        case 'last30days':
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - 29);
+            toDate = new Date(today);
+            break;
+            
+        case 'thisweek':
+            // Get start of week (Sunday)
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - today.getDay());
+            toDate = new Date(today);
+            break;
+            
+        case 'lastweek':
+            // Get start of last week (Sunday)
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - today.getDay() - 7);
+            // Get end of last week (Saturday)
+            toDate = new Date(fromDate);
+            toDate.setDate(fromDate.getDate() + 6);
+            break;
+            
+        case 'thismonth':
+            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            toDate = new Date(today);
+            break;
+            
+        case 'lastmonth':
+            fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+            
+        default:
+            UIHelpers.showWarning('Invalid date preset');
+            return;
+    }
+    
+    // Format dates as YYYY-MM-DD
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+    
+    // Set date inputs
+    document.getElementById('date-from').value = formatDate(fromDate);
+    document.getElementById('date-to').value = formatDate(toDate);
+    
+    // Show success message with readable date range
+    const presetNames = {
+        'today': 'Today',
+        'yesterday': 'Yesterday',
+        'last7days': 'Last 7 Days',
+        'last30days': 'Last 30 Days',
+        'thisweek': 'This Week',
+        'lastweek': 'Last Week',
+        'thismonth': 'This Month',
+        'lastmonth': 'Last Month'
+    };
+    
+    UIHelpers.showInfo(`Date range set to: ${presetNames[preset]}`);
+    
+    // Automatically apply filters
+    applyFilters();
+}
+
 function exportAttendance() {
     const params = new URLSearchParams(currentFilters);
     window.open(`api/attendance.php?action=export&${params}`, '_blank');
@@ -779,7 +992,310 @@ function showAlert(message, type = 'info') {
         }
     }, 5000);
 }
+
+// Bulk Operations Functions for Attendance
+function toggleBulkModeAttendance() {
+    const table = document.getElementById('attendance-table');
+    const bulkPanel = document.getElementById('bulk-attendance-actions');
+    
+    if (table.classList.contains('bulk-mode')) {
+        // Exit bulk mode
+        table.classList.remove('bulk-mode');
+        bulkPanel.classList.remove('show');
+        clearAllAttendanceSelections();
+    } else {
+        // Enter bulk mode
+        table.classList.add('bulk-mode');
+    }
+}
+
+function toggleSelectAllAttendance() {
+    const selectAllCheckbox = document.getElementById('select-all-attendance');
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][data-attendance-id]');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateSelectedAttendanceCount();
+}
+
+function updateSelectedAttendanceCount() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][data-attendance-id]:checked');
+    const countElement = document.getElementById('selected-attendance-count');
+    const bulkPanel = document.getElementById('bulk-attendance-actions');
+    
+    countElement.textContent = `${checkboxes.length} selected`;
+    
+    if (checkboxes.length > 0) {
+        bulkPanel.classList.add('show');
+    } else {
+        bulkPanel.classList.remove('show');
+    }
+}
+
+function getSelectedAttendance() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][data-attendance-id]:checked');
+    return Array.from(checkboxes).map(checkbox => checkbox.dataset.attendanceId);
+}
+
+function bulkDeleteAttendance() {
+    const selectedIds = getSelectedAttendance();
+    if (selectedIds.length === 0) {
+        UIHelpers.showWarning('Please select attendance records to delete');
+        return;
+    }
+    
+    UIHelpers.showConfirmDialog({
+        title: 'Delete Attendance Records',
+        message: `Are you sure you want to delete ${selectedIds.length} attendance record(s)? This action cannot be undone.`,
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        confirmClass: 'btn-danger',
+        onConfirm: () => {
+            performBulkActionAttendance('delete', selectedIds);
+        }
+    });
+}
+
+function bulkChangeStatus() {
+    const selectedIds = getSelectedAttendance();
+    if (selectedIds.length === 0) {
+        UIHelpers.showWarning('Please select attendance records to change status');
+        return;
+    }
+    
+    // Show bulk status change modal
+    showBulkStatusChangeModal(selectedIds);
+}
+
+function performBulkActionAttendance(action, ids) {
+    const data = {
+        action: `bulk_${action}_attendance`,
+        ids: ids
+    };
+    
+    console.log('Bulk action data:', data);
+    console.log('API URL:', 'api/attendance.php');
+    
+    UIHelpers.showLoadingOverlay('.card-body', `${action.charAt(0).toUpperCase() + action.slice(1)}ing ${ids.length} record(s)...`);
+    
+    fetch('api/attendance.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        UIHelpers.hideLoadingOverlay('.card-body');
+        
+        if (result.success) {
+            UIHelpers.showSuccess(result.message || `Successfully ${action}d ${ids.length} record(s)`);
+            clearAllAttendanceSelections();
+            loadAttendance(attendanceCurrentPage);
+        } else {
+            UIHelpers.showError(result.error || 'Operation failed');
+        }
+    })
+    .catch(error => {
+        console.error('Bulk action error:', error);
+        UIHelpers.hideLoadingOverlay('.card-body');
+        UIHelpers.showError('Error performing bulk action');
+    });
+}
+
+function clearAllAttendanceSelections() {
+    const selectAllCheckbox = document.getElementById('select-all-attendance');
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][data-attendance-id]');
+    const bulkPanel = document.getElementById('bulk-attendance-actions');
+    
+    selectAllCheckbox.checked = false;
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    bulkPanel.classList.remove('show');
+    updateSelectedAttendanceCount();
+}
+
+// Bulk Status Change Modal
+function showBulkStatusChangeModal(selectedIds) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('bulkStatusChangeModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'bulkStatusChangeModal';
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Bulk Change Status</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">New Status</label>
+                            <select id="bulk-status-select" class="form-select">
+                                <option value="">Select Status</option>
+                                <option value="Present">Present</option>
+                                <option value="Absent">Absent</option>
+                                <option value="Check-in">Check-in</option>
+                                <option value="Checked-out">Checked-out</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea id="bulk-status-notes" class="form-control" rows="3" placeholder="Add notes for the status change..."></textarea>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="bx bx-info-circle me-2"></i>
+                            This will change the status for <span id="bulk-status-selected-count">0</span> selected attendance records.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="confirmBulkStatusChange()">
+                            <i class="bx bx-check me-1"></i>Apply Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // Update selected count
+    document.getElementById('bulk-status-selected-count').textContent = selectedIds.length;
+    
+    // Store selected IDs for later use
+    modal.dataset.selectedIds = selectedIds.join(',');
+    
+    // Show modal
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+function confirmBulkStatusChange() {
+    const modal = document.getElementById('bulkStatusChangeModal');
+    const selectedIds = modal.dataset.selectedIds.split(',');
+    const status = document.getElementById('bulk-status-select').value;
+    const notes = document.getElementById('bulk-status-notes').value;
+    const submitBtn = modal.querySelector('.btn-primary');
+    
+    if (!status) {
+        UIHelpers.showWarning('Please select a status');
+        return;
+    }
+    
+    const data = {
+        action: 'bulk_change_status',
+        ids: selectedIds,
+        status: status,
+        notes: notes
+    };
+    
+    UIHelpers.showButtonLoading(submitBtn, 'Updating...');
+    
+    fetch('api/attendance.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        UIHelpers.hideButtonLoading(submitBtn);
+        
+        if (result.success) {
+            UIHelpers.showSuccess(result.message || `Status updated for ${selectedIds.length} record(s)`);
+            bootstrap.Modal.getInstance(modal).hide();
+            clearAllAttendanceSelections();
+            loadAttendance(attendanceCurrentPage);
+        } else {
+            UIHelpers.showError(result.error || 'Error changing status');
+        }
+    })
+    .catch(error => {
+        console.error('Bulk status change error:', error);
+        UIHelpers.hideButtonLoading(submitBtn);
+        UIHelpers.showError('Error changing status');
+    });
+}
 </script>
+
+<style>
+/* Bulk Actions Panel */
+.bulk-actions {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: none;
+}
+
+.bulk-actions.show {
+    display: block;
+}
+
+/* Bulk Mode - Hide checkboxes by default */
+.bulk-checkbox-column {
+    display: none;
+}
+
+.bulk-mode .bulk-checkbox-column {
+    display: table-cell;
+}
+
+/* Responsive button text */
+@media (max-width: 768px) {
+    .btn-text {
+        display: none;
+    }
+    
+    .d-flex.flex-wrap.gap-2 .btn {
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .bulk-actions {
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        transform: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .bulk-actions .d-flex {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .bulk-actions .ms-auto {
+        margin-left: 0 !important;
+        margin-top: 0.5rem;
+    }
+    
+    .bulk-actions .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.5rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .btn i.me-1 {
+        margin-right: 0.5rem !important;
+    }
+}
+</style>
 
 </body>
 </html>

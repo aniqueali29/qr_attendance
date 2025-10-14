@@ -71,29 +71,29 @@ try {
         ORDER BY date ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get shift-specific attendance for today
+    // Get shift-specific attendance for today - BUG FIX #10: Add NULL checks
     $morningAttendance = $pdo->query("
         SELECT COUNT(DISTINCT a.student_id) as morning_count
         FROM attendance a
         JOIN students s ON a.student_id = s.student_id
         WHERE DATE(a.check_in_time) = CURDATE() AND s.shift = 'Morning'
-    ")->fetchColumn();
+    ")->fetchColumn() ?? 0;
     
     $eveningAttendance = $pdo->query("
         SELECT COUNT(DISTINCT a.student_id) as evening_count
         FROM attendance a
         JOIN students s ON a.student_id = s.student_id
         WHERE DATE(a.check_in_time) = CURDATE() AND s.shift = 'Evening'
-    ")->fetchColumn();
+    ")->fetchColumn() ?? 0;
     
-    // Get total students by shift
+    // Get total students by shift - BUG FIX #10: Add NULL checks
     $totalMorningStudents = $pdo->query("
         SELECT COUNT(*) FROM students WHERE shift = 'Morning'
-    ")->fetchColumn();
+    ")->fetchColumn() ?? 0;
     
     $totalEveningStudents = $pdo->query("
         SELECT COUNT(*) FROM students WHERE shift = 'Evening'
-    ")->fetchColumn();
+    ")->fetchColumn() ?? 0;
     
     // Calculate absent students
     $absentToday = $totalStudents - $todayAttendance;
@@ -588,6 +588,32 @@ include 'partials/navbar.php';
 <script src="<?php echo getAdminAssetUrl('js/dashboards-analytics.js?v=' . time()); ?>"></script>
 
 <script>
+// BUG FIX #14: Proper logging system instead of console.log
+const DEBUG_MODE = false; // Set to true for development, false for production
+
+const logger = {
+    log: function(...args) {
+        if (DEBUG_MODE) console.log(...args);
+    },
+    info: function(...args) {
+        if (DEBUG_MODE) console.info(...args);
+    },
+    warn: function(...args) {
+        console.warn(...args); // Always show warnings
+    },
+    error: function(...args) {
+        console.error(...args); // Always show errors
+    }
+};
+
+// BUG FIX #15: Extract magic numbers to constants
+const DASHBOARD_CONFIG = {
+    REFRESH_INTERVAL: 5 * 60 * 1000,  // 5 minutes
+    API_TIMEOUT: 10000,                // 10 seconds
+    CHART_FALLBACK_DELAY: 15000,       // 15 seconds
+    BASE_API_PATH: 'api/dashboard.php'
+};
+
 // Dashboard specific JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // Test API connectivity first
@@ -604,22 +630,57 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dashboard data
     loadDashboardData();
     
-    // Set up auto-refresh every 5 minutes
-    setInterval(loadDashboardData, 300000);
+    // Set up auto-refresh every 5 minutes - BUG FIX #19: Only refresh when tab is visible
+    let refreshInterval;
+    
+    function startAutoRefresh() {
+        refreshInterval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                logger.log('Auto-refreshing dashboard data...');
+                loadDashboardData();
+            } else {
+                logger.log('Tab is hidden, skipping refresh');
+            }
+        }, DASHBOARD_CONFIG.REFRESH_INTERVAL);
+    }
+    
+    // Start auto-refresh
+    startAutoRefresh();
+    
+    // Pause when tab is hidden, resume when visible
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            logger.log('Tab visible, resuming auto-refresh');
+            if (!refreshInterval) startAutoRefresh();
+        }
+    });
 });
 
 function testAPIConnectivity() {
-    console.log('Testing API connectivity...');
-    fetch('api/dashboard.php?action=test')
+    logger.log('Testing API connectivity...');
+    fetch(`${DASHBOARD_CONFIG.BASE_API_PATH}?action=test`)
         .then(response => {
-            console.log('API test response status:', response.status);
+            logger.log('API test response status:', response.status);
+            if (!response.ok) {
+                logger.error('API test failed with status:', response.status);
+                return response.text().then(text => {
+                    logger.error('Response body:', text);
+                    throw new Error(`HTTP ${response.status}: ${text}`);
+                });
+            }
             return response.json();
         })
         .then(data => {
-            console.log('API test response:', data);
+            logger.log('✅ API test response:', data);
+            if (data.success) {
+                logger.log('✅ Dashboard API is working correctly');
+            } else {
+                logger.error('❌ API returned success=false:', data.message);
+            }
         })
         .catch(error => {
-            console.error('API connectivity test failed:', error);
+            logger.error('❌ API connectivity test failed:', error);
+            showAlert('API Connection Failed: ' + error.message, 'danger');
         });
 }
 
@@ -678,9 +739,19 @@ function initializeDefaultCharts() {
 }
 
 function loadDashboardData() {
+    // BUG FIX #4: Add timeout to prevent browser hanging
+    const statsController = new AbortController();
+    const statsTimeoutId = setTimeout(() => {
+        logger.warn('Stats request timed out');
+        statsController.abort();
+    }, DASHBOARD_CONFIG.API_TIMEOUT);
+    
     // Load stats
-    fetch('api/dashboard.php?action=stats')
+    fetch(`${DASHBOARD_CONFIG.BASE_API_PATH}?action=stats`, {
+        signal: statsController.signal
+    })
         .then(response => {
+            clearTimeout(statsTimeoutId);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -690,11 +761,16 @@ function loadDashboardData() {
             if (data.success) {
                 updateStatsCards(data.data);
             } else {
-                console.error('API error:', data.message);
+                logger.error('API error:', data.message);
             }
         })
         .catch(error => {
-            console.error('Error loading stats:', error);
+            clearTimeout(statsTimeoutId);
+            if (error.name === 'AbortError') {
+                logger.error('Stats request was aborted due to timeout');
+            } else {
+                logger.error('Error loading stats:', error);
+            }
             // Set default values on error
             updateStatsCards({
                 totalStudents: 0,
@@ -733,41 +809,44 @@ function updateChangeIndicator(elementId, change) {
 }
 
 function loadAttendanceTrends() {
-    console.log('Loading attendance trends...');
+    logger.log('Loading attendance trends...');
     
     // Add timeout to the fetch request
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-        console.log('Attendance trends request timed out after 10 seconds');
+        logger.warn('Attendance trends request timed out after', DASHBOARD_CONFIG.API_TIMEOUT, 'ms');
         controller.abort();
-    }, 10000); // 10 second timeout
+    }, DASHBOARD_CONFIG.API_TIMEOUT);
     
-    fetch('api/dashboard.php?action=attendance-trends', {
+    fetch(`${DASHBOARD_CONFIG.BASE_API_PATH}?action=attendance-trends`, {
         signal: controller.signal
     })
         .then(response => {
             clearTimeout(timeoutId);
-            console.log('Attendance trends response status:', response.status);
+            logger.log('Attendance trends response status:', response.status);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Attendance trends API response:', data);
+            logger.log('✅ Attendance trends API response:', data);
             if (data.success && data.data) {
+                logger.log(`✅ Received ${data.data.length} data points`);
                 // Update attendance trends chart
                 if (typeof ApexCharts !== 'undefined') {
                     // Prepare chart data with proper validation
                     const chartData = Array.isArray(data.data) ? data.data : [];
-                    console.log('Chart data:', chartData);
+                    logger.log('Chart data:', chartData);
                     
                     // Ensure we have valid data structure
                     if (chartData.length === 0) {
-                        console.log('No attendance data available, showing fallback chart');
+                        logger.warn('⚠️ No attendance data available, showing fallback chart');
                         showFallbackChart();
                         return;
                     }
+                    
+                    logger.log(`✅ Processing ${chartData.length} chart data points...`);
                     
                     // Safely extract categories and data
                     let categories = [];
@@ -788,7 +867,7 @@ function loadAttendanceTrends() {
                             return 0;
                         });
                     } catch (error) {
-                        console.error('Error processing chart data:', error);
+                        logger.error('Error processing chart data:', error);
                         // Use default data if processing fails
                         categories = ['No Data'];
                         seriesData = [0];
@@ -806,17 +885,20 @@ function loadAttendanceTrends() {
                     }];
                     
                     // Debug logging
-                    console.log('Series data for chart:', series);
-                    console.log('Categories:', categories);
-                    console.log('Series data array:', seriesData);
+                    logger.log('Series data for chart:', series);
+                    logger.log('Categories:', categories);
+                    logger.log('Series data array:', seriesData);
                     
                     const chartElement = document.querySelector("#totalRevenueChart");
                     if (chartElement) {
-                        // Always recreate the chart to avoid updateSeries issues
-                        // Destroy existing chart if it exists
+                        // BUG FIX #5: Proper chart cleanup to prevent race conditions
                         if (chartElement._apexChart) {
-                            chartElement._apexChart.destroy();
-                            chartElement._apexChart = null;
+                            try {
+                                chartElement._apexChart.destroy();
+                                chartElement._apexChart = null;
+                            } catch (e) {
+                                console.error('Chart destroy error:', e);
+                            }
                         }
                         
                         // Create new chart with updated data
@@ -848,18 +930,19 @@ function loadAttendanceTrends() {
                         const chart = new ApexCharts(chartElement, options);
                         chart.render();
                         chartElement._apexChart = chart;
+                        logger.log('✅ Chart rendered successfully with', seriesData.length, 'data points');
                     }
                 }
             } else {
-                console.error('API error:', data.message);
+                logger.error('❌ API returned success=false:', data.message || 'Unknown error');
                 showFallbackChart();
             }
         })
         .catch(error => {
             clearTimeout(timeoutId);
-            console.error('Error loading attendance trends:', error);
+            logger.error('Error loading attendance trends:', error);
             if (error.name === 'AbortError') {
-                console.error('Request timed out after 10 seconds');
+                logger.error('Request timed out');
             }
             // Show fallback chart with sample data
             showFallbackChart();
@@ -867,8 +950,18 @@ function loadAttendanceTrends() {
 }
 
 function loadProgramDistribution() {
-    fetch('api/dashboard.php?action=program-distribution')
+    // BUG FIX #4: Add timeout to prevent browser hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        logger.warn('Program distribution request timed out');
+        controller.abort();
+    }, DASHBOARD_CONFIG.API_TIMEOUT);
+    
+    fetch(`${DASHBOARD_CONFIG.BASE_API_PATH}?action=program-distribution`, {
+        signal: controller.signal
+    })
         .then(response => {
+            clearTimeout(timeoutId);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -878,12 +971,17 @@ function loadProgramDistribution() {
             if (data.success) {
                 updateProgramDistribution(data.data);
             } else {
-                console.error('API error:', data.message);
+                logger.error('API error:', data.message);
                 updateProgramDistribution([]);
             }
         })
         .catch(error => {
-            console.error('Error loading program distribution:', error);
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                logger.error('Program distribution request was aborted due to timeout');
+            } else {
+                logger.error('Error loading program distribution:', error);
+            }
             updateProgramDistribution([]);
         });
 }
@@ -944,8 +1042,18 @@ function updateProgramDistribution(data) {
 }
 
 function loadRecentActivity() {
-    fetch('api/dashboard.php?action=recent-activity')
+    // BUG FIX #4: Add timeout to prevent browser hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        logger.warn('Recent activity request timed out');
+        controller.abort();
+    }, DASHBOARD_CONFIG.API_TIMEOUT);
+    
+    fetch(`${DASHBOARD_CONFIG.BASE_API_PATH}?action=recent-activity`, {
+        signal: controller.signal
+    })
         .then(response => {
+            clearTimeout(timeoutId);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -955,12 +1063,17 @@ function loadRecentActivity() {
             if (data.success) {
                 updateRecentActivity(data.data);
             } else {
-                console.error('API error:', data.message);
+                logger.error('API error:', data.message);
                 updateRecentActivity([]);
             }
         })
         .catch(error => {
-            console.error('Error loading recent activity:', error);
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                logger.error('Recent activity request was aborted due to timeout');
+            } else {
+                logger.error('Error loading recent activity:', error);
+            }
             updateRecentActivity([]);
         });
 }
@@ -1056,14 +1169,18 @@ function setTrendPeriod(days) {
 }
 
 function showFallbackChart() {
-    console.log('Showing fallback chart with sample data');
+    logger.log('Showing fallback chart with sample data');
     if (typeof ApexCharts !== 'undefined') {
         const chartElement = document.querySelector("#totalRevenueChart");
         if (chartElement) {
-            // Destroy existing chart if it exists
+            // BUG FIX #5: Proper chart instance cleanup to prevent race conditions
             if (chartElement._apexChart) {
-                chartElement._apexChart.destroy();
-                chartElement._apexChart = null;
+                try {
+                    chartElement._apexChart.destroy();
+                    chartElement._apexChart = null;
+                } catch (e) {
+                    logger.error('Chart destroy error:', e);
+                }
             }
             // Create sample data for the last 7 days
             const sampleData = [];

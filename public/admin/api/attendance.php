@@ -4,6 +4,13 @@
  * Handles attendance records CRUD operations
  */
 
+// Set error handling to prevent HTML output
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+// Start output buffering to catch any unexpected output
+ob_start();
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -15,15 +22,65 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
-require_once '../includes/config.php';
-require_once '../includes/auth.php';
-
-// Check for API key authentication for bulk_sync, otherwise require admin authentication
-$action = $_GET['action'] ?? 'list';
-if ($action !== 'bulk_sync' && !isAdminLoggedIn()) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Authentication required']);
+try {
+    require_once '../includes/config.php';
+    require_once '../includes/auth.php';
+} catch (Exception $e) {
+    // Clear any output and return JSON error
+    ob_clean();
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Configuration error: ' . $e->getMessage()]);
     exit();
+}
+
+// Authentication check - ALWAYS check first
+if (!isAdminLoggedIn()) {
+    // Only allow bulk_sync with valid API key
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true);
+        $requestAction = $input['action'] ?? $_GET['action'] ?? 'list';
+        
+        if ($requestAction === 'bulk_sync') {
+            $headers = getallheaders();
+            $apiKey = $headers['X-API-Key'] ?? '';
+            
+            // Validate API key (should be from environment)
+            $validApiKey = getenv('API_KEY') ?: 'attendance_2025_xyz789_secure';
+            
+            if ($apiKey !== $validApiKey) {
+                ob_clean();
+                http_response_code(401);
+                echo json_encode(['success' => false, 'error' => 'Invalid API key']);
+                exit();
+            }
+            // API key valid, set action for later use
+            $action = 'bulk_sync';
+        } else if ($requestAction !== 'test') {
+            // Not bulk_sync and not authenticated
+            ob_clean();
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Authentication required']);
+            exit();
+        }
+    } else {
+        // GET/PUT/DELETE requests require authentication (except test)
+        $requestAction = $_GET['action'] ?? 'list';
+        if ($requestAction !== 'test') {
+            ob_clean();
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Authentication required']);
+            exit();
+        }
+    }
+}
+
+// Get action from request
+$action = $_GET['action'] ?? 'list';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (isset($input['action'])) {
+        $action = $input['action'];
+    }
 }
 
 try {
@@ -45,52 +102,239 @@ try {
             echo json_encode(['success' => false, 'error' => 'Method not allowed']);
     }
 } catch (Exception $e) {
+    // Clear any output and return JSON error
+    ob_clean();
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+}
+
+/**
+ * Send JSON response with proper output buffer cleanup
+ */
+function sendJsonResponse($data, $statusCode = 200) {
+    ob_clean();
+    http_response_code($statusCode);
+    echo json_encode($data);
+    exit();
+}
+
+/**
+ * Validate and sanitize status filter
+ */
+function validateStatusFilter($statusParam) {
+    $validStatuses = ['Present', 'Absent', 'Check-in', 'Checked-out'];
+    
+    if (strpos($statusParam, ',') !== false) {
+        $statuses = array_map('trim', explode(',', $statusParam));
+        $statuses = array_filter($statuses, function($s) use ($validStatuses) {
+            return in_array($s, $validStatuses);
+        });
+        
+        if (empty($statuses)) {
+            return ['valid' => false, 'error' => 'Invalid status values'];
+        }
+        
+        return [
+            'valid' => true,
+            'is_array' => true,
+            'values' => $statuses,
+            'placeholders' => str_repeat('?,', count($statuses) - 1) . '?'
+        ];
+    } else {
+        $status = trim($statusParam);
+        if (!in_array($status, $validStatuses)) {
+            return ['valid' => false, 'error' => 'Invalid status value'];
+        }
+        
+        return [
+            'valid' => true,
+            'is_array' => false,
+            'values' => [$status]
+        ];
+    }
+}
+
+/**
+ * Validate date format and range
+ * @param string $date - Date to validate (YYYY-MM-DD format)
+ * @param string $label - Field label for error messages
+ * @return array - ['valid' => bool, 'error' => string]
+ */
+function validateDate($date, $label = 'Date') {
+    if (empty($date)) {
+        return ['valid' => true]; // Optional field
+    }
+    
+    // Check format (YYYY-MM-DD)
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        return ['valid' => false, 'error' => "$label must be in YYYY-MM-DD format"];
+    }
+    
+    // Validate actual date
+    $parts = explode('-', $date);
+    if (!checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0])) {
+        return ['valid' => false, 'error' => "$label is not a valid date"];
+    }
+    
+    // Check if date is not too far in the past (more than 5 years)
+    $dateObj = new DateTime($date);
+    $fiveYearsAgo = new DateTime('-5 years');
+    if ($dateObj < $fiveYearsAgo) {
+        return ['valid' => false, 'error' => "$label cannot be more than 5 years in the past"];
+    }
+    
+    // Check if date is not in the future
+    $today = new DateTime('today');
+    if ($dateObj > $today) {
+        return ['valid' => false, 'error' => "$label cannot be in the future"];
+    }
+    
+    return ['valid' => true];
+}
+
+/**
+ * Validate date range
+ * @param string $dateFrom - Start date
+ * @param string $dateTo - End date
+ * @return array - ['valid' => bool, 'error' => string]
+ */
+function validateDateRange($dateFrom, $dateTo) {
+    // Validate individual dates first
+    $fromValidation = validateDate($dateFrom, 'Start date');
+    if (!$fromValidation['valid']) {
+        return $fromValidation;
+    }
+    
+    $toValidation = validateDate($dateTo, 'End date');
+    if (!$toValidation['valid']) {
+        return $toValidation;
+    }
+    
+    // If both dates provided, validate range
+    if (!empty($dateFrom) && !empty($dateTo)) {
+        $from = new DateTime($dateFrom);
+        $to = new DateTime($dateTo);
+        
+        if ($from > $to) {
+            return ['valid' => false, 'error' => 'Start date must be before or equal to end date'];
+        }
+        
+        // Check if range is not too large (max 1 year)
+        $diff = $from->diff($to);
+        if ($diff->days > 365) {
+            return ['valid' => false, 'error' => 'Date range cannot exceed 1 year'];
+        }
+    }
+    
+    return ['valid' => true];
+}
+
+/**
+ * Validate student ID format
+ * @param string $studentId - Student ID to validate
+ * @return array - ['valid' => bool, 'error' => string]
+ */
+function validateStudentId($studentId) {
+    if (empty($studentId)) {
+        return ['valid' => false, 'error' => 'Student ID is required'];
+    }
+    
+    // Check length (between 5 and 50 characters)
+    if (strlen($studentId) < 5 || strlen($studentId) > 50) {
+        return ['valid' => false, 'error' => 'Student ID must be between 5 and 50 characters'];
+    }
+    
+    // Check format - alphanumeric with hyphens only
+    if (!preg_match('/^[A-Za-z0-9\-]+$/', $studentId)) {
+        return ['valid' => false, 'error' => 'Student ID can only contain letters, numbers, and hyphens'];
+    }
+    
+    return ['valid' => true];
+}
+
+/**
+ * Validate bulk operation IDs
+ * @param array $ids - Array of IDs to validate
+ * @param int $maxCount - Maximum allowed IDs
+ * @return array - ['valid' => bool, 'error' => string, 'ids' => array]
+ */
+function validateBulkIds($ids, $maxCount = 1000) {
+    if (!isset($ids) || !is_array($ids)) {
+        return ['valid' => false, 'error' => 'IDs must be an array'];
+    }
+    
+    if (empty($ids)) {
+        return ['valid' => false, 'error' => 'No IDs provided'];
+    }
+    
+    // Check count to prevent DoS
+    if (count($ids) > $maxCount) {
+        return ['valid' => false, 'error' => "Cannot process more than $maxCount records at once"];
+    }
+    
+    // Filter and validate IDs
+    $validIds = array_filter(array_map('intval', $ids));
+    
+    if (empty($validIds)) {
+        return ['valid' => false, 'error' => 'No valid IDs provided'];
+    }
+    
+    // Check for duplicates
+    if (count($validIds) !== count(array_unique($validIds))) {
+        return ['valid' => false, 'error' => 'Duplicate IDs detected'];
+    }
+    
+    return ['valid' => true, 'ids' => $validIds];
 }
 
 function handleGetRequest($action) {
     switch ($action) {
         case 'list':
-            echo json_encode(getAttendanceList());
+            sendJsonResponse(getAttendanceList());
             break;
         case 'view':
-            echo json_encode(getAttendanceDetails());
+            sendJsonResponse(getAttendanceDetails());
             break;
         case 'export':
-            echo json_encode(exportAttendance());
+            sendJsonResponse(exportAttendance());
             break;
         case 'get_csrf_token':
-            echo json_encode(['success' => true, 'token' => generateCSRFToken()]);
+            sendJsonResponse(['success' => true, 'token' => generateCSRFToken()]);
+            break;
+        case 'test':
+            sendJsonResponse(['success' => true, 'message' => 'API is working', 'timestamp' => date('Y-m-d H:i:s')]);
             break;
         default:
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Invalid action']);
+            sendJsonResponse(['success' => false, 'error' => 'Invalid action'], 400);
     }
 }
 
 function handlePostRequest($action) {
     switch ($action) {
         case 'create':
-            echo json_encode(createAttendance());
+            sendJsonResponse(createAttendance());
             break;
         case 'bulk_sync':
-            echo json_encode(bulkSyncAttendance());
+            sendJsonResponse(bulkSyncAttendance());
+            break;
+        case 'bulk_delete_attendance':
+            sendJsonResponse(bulkDeleteAttendance());
+            break;
+        case 'bulk_change_status':
+            sendJsonResponse(bulkChangeStatus());
             break;
         default:
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Invalid action']);
+            sendJsonResponse(['success' => false, 'error' => 'Invalid action'], 400);
     }
 }
 
 function handlePutRequest($action) {
     switch ($action) {
         case 'update':
-            echo json_encode(updateAttendance());
+            sendJsonResponse(updateAttendance());
             break;
         default:
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Invalid action']);
+            sendJsonResponse(['success' => false, 'error' => 'Invalid action'], 400);
     }
 }
 
@@ -112,6 +356,26 @@ function getAttendanceList() {
     global $pdo;
     
     try {
+        // Check if PDO connection exists
+        if (!isset($pdo) || $pdo === null) {
+            error_log("Attendance API: Database connection not available");
+            return ['success' => false, 'error' => 'Service temporarily unavailable'];
+        }
+        
+        // Test if attendance table exists
+        try {
+            $testStmt = $pdo->query("SHOW TABLES LIKE 'attendance'");
+            if (!$testStmt || $testStmt->rowCount() == 0) {
+                error_log("Attendance API: Attendance table does not exist");
+                return ['success' => false, 'error' => 'Service unavailable'];
+            }
+        } catch (Exception $e) {
+            error_log("Attendance API Database Error: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Service temporarily unavailable'];
+        }
+        
+        // Debug: Log the request parameters
+        error_log("Attendance API called with params: " . json_encode($_GET));
         $page = (int)($_GET['page'] ?? 1);
         $limit = 20;
         $offset = ($page - 1) * $limit;
@@ -120,32 +384,54 @@ function getAttendanceList() {
         $whereConditions = ["1=1"];
         $params = [];
         
-        // Apply filters
+        // Apply filters with validation
         if (!empty($_GET['date_from'])) {
+            $dateValidation = validateDate($_GET['date_from'], 'Start date');
+            if (!$dateValidation['valid']) {
+                return ['success' => false, 'error' => $dateValidation['error']];
+            }
             $whereConditions[] = "DATE(a.timestamp) >= ?";
             $params[] = $_GET['date_from'];
         }
         
         if (!empty($_GET['date_to'])) {
+            $dateValidation = validateDate($_GET['date_to'], 'End date');
+            if (!$dateValidation['valid']) {
+                return ['success' => false, 'error' => $dateValidation['error']];
+            }
             $whereConditions[] = "DATE(a.timestamp) <= ?";
             $params[] = $_GET['date_to'];
         }
         
+        // Validate date range if both dates provided
+        if (!empty($_GET['date_from']) && !empty($_GET['date_to'])) {
+            $rangeValidation = validateDateRange($_GET['date_from'], $_GET['date_to']);
+            if (!$rangeValidation['valid']) {
+                return ['success' => false, 'error' => $rangeValidation['error']];
+            }
+        }
+        
         if (!empty($_GET['student_id'])) {
+            $studentIdValidation = validateStudentId($_GET['student_id']);
+            if (!$studentIdValidation['valid']) {
+                return ['success' => false, 'error' => $studentIdValidation['error']];
+            }
             $whereConditions[] = "a.student_id = ?";
             $params[] = $_GET['student_id'];
         }
         
         if (!empty($_GET['status'])) {
-            // Handle multiple statuses separated by comma
-            if (strpos($_GET['status'], ',') !== false) {
-                $statuses = explode(',', $_GET['status']);
-                $statusPlaceholders = str_repeat('?,', count($statuses) - 1) . '?';
-                $whereConditions[] = "a.status IN ($statusPlaceholders)";
-                $params = array_merge($params, $statuses);
+            $statusValidation = validateStatusFilter($_GET['status']);
+            if (!$statusValidation['valid']) {
+                return ['success' => false, 'error' => $statusValidation['error']];
+            }
+            
+            if ($statusValidation['is_array']) {
+                $whereConditions[] = "a.status IN (" . $statusValidation['placeholders'] . ")";
+                $params = array_merge($params, $statusValidation['values']);
             } else {
                 $whereConditions[] = "a.status = ?";
-                $params[] = $_GET['status'];
+                $params[] = $statusValidation['values'][0];
             }
         }
         
@@ -175,6 +461,10 @@ function getAttendanceList() {
             WHERE $whereClause
         ";
         $stmt = $pdo->prepare($countSql);
+        if (!$stmt) {
+            error_log("Failed to prepare count query: " . implode(', ', $pdo->errorInfo()));
+            return ['success' => false, 'error' => 'Service error'];
+        }
         $stmt->execute($params);
         $total = $stmt->fetch()['total'];
         
@@ -210,6 +500,10 @@ function getAttendanceList() {
         ";
         
         $stmt = $pdo->prepare($sql);
+        if (!$stmt) {
+            error_log("Failed to prepare main query: " . implode(', ', $pdo->errorInfo()));
+            return ['success' => false, 'error' => 'Service error'];
+        }
         $stmt->execute($params);
         $records = $stmt->fetchAll();
         
@@ -306,23 +600,68 @@ function createAttendance() {
         $status = sanitizeInput($_POST['status'] ?? '');
         $program = sanitizeInput($_POST['program'] ?? '');
         $shift = sanitizeInput($_POST['shift'] ?? '');
+        $date = sanitizeInput($_POST['date'] ?? date('Y-m-d'));
+        $notes = sanitizeInput($_POST['notes'] ?? '');
         
         // Validate required fields
-        if (empty($studentId) || empty($status)) {
-            return ['success' => false, 'error' => 'Student ID and status are required'];
+        if (empty($studentId)) {
+            return ['success' => false, 'error' => 'Student ID is required'];
         }
         
-        // Create attendance record
+        if (empty($status)) {
+            return ['success' => false, 'error' => 'Status is required'];
+        }
+        
+        // Validate student ID format
+        $studentIdValidation = validateStudentId($studentId);
+        if (!$studentIdValidation['valid']) {
+            return ['success' => false, 'error' => $studentIdValidation['error']];
+        }
+        
+        // Validate status value
+        $validStatuses = ['Present', 'Absent', 'Check-in', 'Checked-out'];
+        if (!in_array($status, $validStatuses)) {
+            return ['success' => false, 'error' => 'Invalid status value. Must be one of: ' . implode(', ', $validStatuses)];
+        }
+        
+        // Validate date if provided
+        $dateValidation = validateDate($date, 'Date');
+        if (!$dateValidation['valid']) {
+            return ['success' => false, 'error' => $dateValidation['error']];
+        }
+        
+        // Validate student name length if provided
+        if (!empty($studentName) && strlen($studentName) > 100) {
+            return ['success' => false, 'error' => 'Student name must not exceed 100 characters'];
+        }
+        
+        // Validate notes length if provided
+        if (!empty($notes) && strlen($notes) > 500) {
+            return ['success' => false, 'error' => 'Notes must not exceed 500 characters'];
+        }
+        
+        // Check for duplicate attendance on the same date
         $stmt = $pdo->prepare("
-            INSERT INTO attendance (student_id, student_name, status, timestamp, program, shift, created_at)
-            VALUES (?, ?, ?, NOW(), ?, ?, NOW())
+            SELECT id FROM attendance 
+            WHERE student_id = ? AND DATE(timestamp) = ?
         ");
-        $stmt->execute([$studentId, $studentName, $status, $program, $shift]);
+        $stmt->execute([$studentId, $date]);
+        if ($stmt->fetch()) {
+            return ['success' => false, 'error' => 'Attendance record already exists for this student on this date'];
+        }
+        
+        // Create attendance record with proper timestamp
+        $timestamp = $date . ' ' . date('H:i:s');
+        $stmt = $pdo->prepare("
+            INSERT INTO attendance (student_id, student_name, status, timestamp, program, shift, notes, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([$studentId, $studentName, $status, $timestamp, $program, $shift, $notes]);
         
         $attendanceId = $pdo->lastInsertId();
         
         // Log the action
-        logAdminAction('ATTENDANCE_CREATED', "Created attendance record ID: $attendanceId");
+        logAdminAction('ATTENDANCE_CREATED', "Created attendance record ID: $attendanceId for student: $studentId");
         
         return [
             'success' => true,
@@ -330,7 +669,8 @@ function createAttendance() {
             'data' => ['id' => $attendanceId]
         ];
     } catch (Exception $e) {
-        return ['success' => false, 'error' => $e->getMessage()];
+        error_log("Create attendance error: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Failed to create attendance record'];
     }
 }
 
@@ -496,19 +836,24 @@ function updateAttendance() {
             return ['success' => false, 'error' => 'Attendance ID required'];
         }
         
-        // Validate CSRF token (temporarily disabled for debugging)
-        $csrf_token = $_POST['csrf_token'] ?? '';
-        $session_token = $_SESSION['admin_csrf_token'] ?? '';
+        // Validate attendance ID is numeric and positive
+        if (!is_numeric($attendanceId) || $attendanceId <= 0) {
+            return ['success' => false, 'error' => 'Invalid attendance ID'];
+        }
         
-        // Debug CSRF token validation
-        error_log("CSRF Debug - Received: " . $csrf_token);
-        error_log("CSRF Debug - Session: " . $session_token);
-        error_log("CSRF Debug - Match: " . (hash_equals($session_token, $csrf_token) ? 'YES' : 'NO'));
+        // Validate CSRF token for PUT requests
+        if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $csrf_token = $input['csrf_token'] ?? '';
+        } else {
+            $csrf_token = $_POST['csrf_token'] ?? '';
+        }
         
-        // Temporarily skip CSRF validation for debugging
-        // if (!validateCSRFToken($csrf_token)) {
-        //     return ['success' => false, 'error' => 'Invalid CSRF token'];
-        // }
+        if (!validateCSRFToken($csrf_token)) {
+            error_log("CSRF validation failed for attendance update");
+            http_response_code(403);
+            return ['success' => false, 'error' => 'Invalid security token'];
+        }
         
         // Handle both POST and PUT requests
         if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
@@ -526,6 +871,24 @@ function updateAttendance() {
             return ['success' => false, 'error' => 'Status is required'];
         }
         
+        // Validate status value
+        $validStatuses = ['Present', 'Absent', 'Check-in', 'Checked-out'];
+        if (!in_array($status, $validStatuses)) {
+            return ['success' => false, 'error' => 'Invalid status value. Must be one of: ' . implode(', ', $validStatuses)];
+        }
+        
+        // Validate notes length if provided
+        if (!empty($notes) && strlen($notes) > 500) {
+            return ['success' => false, 'error' => 'Notes must not exceed 500 characters'];
+        }
+        
+        // Check if record exists before updating
+        $stmt = $pdo->prepare("SELECT id FROM attendance WHERE id = ?");
+        $stmt->execute([$attendanceId]);
+        if (!$stmt->fetch()) {
+            return ['success' => false, 'error' => 'Attendance record not found'];
+        }
+        
         // Update attendance record
         $stmt = $pdo->prepare("
             UPDATE attendance 
@@ -534,19 +897,16 @@ function updateAttendance() {
         ");
         $stmt->execute([$status, $notes, $attendanceId]);
         
-        if ($stmt->rowCount() === 0) {
-            return ['success' => false, 'error' => 'Attendance record not found'];
-        }
-        
         // Log the action
-        logAdminAction('ATTENDANCE_UPDATED', "Updated attendance record ID: $attendanceId");
+        logAdminAction('ATTENDANCE_UPDATED', "Updated attendance record ID: $attendanceId to status: $status");
         
         return [
             'success' => true,
             'message' => 'Attendance record updated successfully'
         ];
     } catch (Exception $e) {
-        return ['success' => false, 'error' => $e->getMessage()];
+        error_log("Update attendance error: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Failed to update attendance record'];
     }
 }
 
@@ -616,15 +976,17 @@ function exportAttendance() {
         }
         
         if (!empty($_GET['status'])) {
-            // Handle multiple statuses separated by comma
-            if (strpos($_GET['status'], ',') !== false) {
-                $statuses = explode(',', $_GET['status']);
-                $statusPlaceholders = str_repeat('?,', count($statuses) - 1) . '?';
-                $whereConditions[] = "a.status IN ($statusPlaceholders)";
-                $params = array_merge($params, $statuses);
+            $statusValidation = validateStatusFilter($_GET['status']);
+            if (!$statusValidation['valid']) {
+                return ['success' => false, 'error' => $statusValidation['error']];
+            }
+            
+            if ($statusValidation['is_array']) {
+                $whereConditions[] = "a.status IN (" . $statusValidation['placeholders'] . ")";
+                $params = array_merge($params, $statusValidation['values']);
             } else {
                 $whereConditions[] = "a.status = ?";
-                $params[] = $_GET['status'];
+                $params[] = $statusValidation['values'][0];
             }
         }
         
@@ -699,6 +1061,129 @@ function exportAttendance() {
         exit();
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
+
+/**
+ * Bulk delete attendance records
+ */
+function bulkDeleteAttendance() {
+    global $pdo;
+    
+    try {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        // Validate bulk IDs
+        $validation = validateBulkIds($input['ids'] ?? null, 500);
+        if (!$validation['valid']) {
+            return ['success' => false, 'error' => $validation['error']];
+        }
+        
+        $ids = $validation['ids'];
+        
+        // Use transaction for atomic operation
+        $pdo->beginTransaction();
+        
+        try {
+            $placeholders = str_repeat('?,', count($ids) - 1) . '?';
+            
+            // Get records for logging before deletion
+            $stmt = $pdo->prepare("SELECT id, student_id FROM attendance WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            $records = $stmt->fetchAll();
+            
+            // Delete records
+            $stmt = $pdo->prepare("DELETE FROM attendance WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            
+            $deletedCount = $stmt->rowCount();
+            
+            // Log the action
+            logAdminAction('BULK_ATTENDANCE_DELETED', "Deleted $deletedCount attendance records");
+            
+            $pdo->commit();
+            
+            return [
+                'success' => true, 
+                'message' => "Successfully deleted $deletedCount attendance record(s)",
+                'deleted_count' => $deletedCount
+            ];
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            error_log("Bulk delete attendance error: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to delete attendance records'];
+        }
+    } catch (Exception $e) {
+        error_log("Bulk delete attendance error: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Service temporarily unavailable'];
+    }
+}
+
+/**
+ * Bulk change status for attendance records
+ */
+function bulkChangeStatus() {
+    global $pdo;
+    
+    try {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        // Validate bulk IDs
+        $validation = validateBulkIds($input['ids'] ?? null, 500);
+        if (!$validation['valid']) {
+            return ['success' => false, 'error' => $validation['error']];
+        }
+        
+        $ids = $validation['ids'];
+        
+        // Validate status
+        if (!isset($input['status']) || empty($input['status'])) {
+            return ['success' => false, 'error' => 'Status is required'];
+        }
+        
+        $validStatuses = ['Present', 'Absent', 'Check-in', 'Checked-out'];
+        $status = trim($input['status']);
+        if (!in_array($status, $validStatuses)) {
+            return ['success' => false, 'error' => 'Invalid status value. Must be one of: ' . implode(', ', $validStatuses)];
+        }
+        
+        $notes = sanitizeInput($input['notes'] ?? '');
+        
+        // Validate notes length if provided
+        if (!empty($notes) && strlen($notes) > 500) {
+            return ['success' => false, 'error' => 'Notes must not exceed 500 characters'];
+        }
+        
+        // Use transaction for atomic operation
+        $pdo->beginTransaction();
+        
+        try {
+            $placeholders = str_repeat('?,', count($ids) - 1) . '?';
+            
+            $stmt = $pdo->prepare("UPDATE attendance SET status = ?, notes = ?, updated_at = NOW() WHERE id IN ($placeholders)");
+            $params = array_merge([$status, $notes], $ids);
+            $stmt->execute($params);
+            
+            $updatedCount = $stmt->rowCount();
+            
+            // Log the action
+            logAdminAction('BULK_ATTENDANCE_STATUS_CHANGED', "Updated $updatedCount attendance records to $status");
+            
+            $pdo->commit();
+            
+            return [
+                'success' => true, 
+                'message' => "Successfully updated $updatedCount attendance record(s) to $status",
+                'updated_count' => $updatedCount
+            ];
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            error_log("Bulk change status error: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to update attendance records'];
+        }
+    } catch (Exception $e) {
+        error_log("Bulk change status error: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Service temporarily unavailable'];
     }
 }
 ?>

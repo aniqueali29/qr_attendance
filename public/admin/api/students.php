@@ -108,37 +108,50 @@ function getStudentsList() {
     
     try {
         $page = (int)($_GET['page'] ?? 1);
-        $limit = 10;
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+        // Cap the limit to prevent DoS
+        $limit = min($limit, 10000);
         $offset = ($page - 1) * $limit;
         
         // Build WHERE clause
-        $whereConditions = ["u.role = 'student'", "u.is_active = 1"];
+        $whereConditions = ["s.is_active = 1"];
         $params = [];
         
         // Apply filters
         if (!empty($_GET['program'])) {
-            $whereConditions[] = "u.program = ?";
+            $whereConditions[] = "s.program = ?";
             $params[] = $_GET['program'];
         }
         
         if (!empty($_GET['shift'])) {
-            $whereConditions[] = "u.shift = ?";
+            $whereConditions[] = "s.shift = ?";
             $params[] = $_GET['shift'];
         }
         
         if (!empty($_GET['year'])) {
-            $whereConditions[] = "u.year_level = ?";
+            $whereConditions[] = "s.year_level = ?";
             $params[] = $_GET['year'];
         }
         
         if (!empty($_GET['section'])) {
-            $whereConditions[] = "u.section = ?";
+            $whereConditions[] = "s.section = ?";
             $params[] = $_GET['section'];
         }
         
         if (!empty($_GET['search'])) {
-            $whereConditions[] = "(u.username LIKE ? OR u.name LIKE ? OR u.email LIKE ?)";
-            $searchTerm = '%' . $_GET['search'] . '%';
+            // Sanitize and validate search term
+            $search = filter_var($_GET['search'], FILTER_SANITIZE_SPECIAL_CHARS);
+            
+            // Limit length to prevent DoS
+            if (strlen($search) > 100) {
+                return ['success' => false, 'error' => 'Search term too long'];
+            }
+            
+            // Remove SQL wildcards from user input
+            $search = str_replace(['%', '_'], ['\\%', '\\_'], $search);
+            
+            $whereConditions[] = "(s.student_id LIKE ? OR s.name LIKE ? OR s.email LIKE ?)";
+            $searchTerm = '%' . $search . '%';
             $params[] = $searchTerm;
             $params[] = $searchTerm;
             $params[] = $searchTerm;
@@ -147,7 +160,7 @@ function getStudentsList() {
         $whereClause = implode(' AND ', $whereConditions);
         
         // Get total count
-        $countSql = "SELECT COUNT(*) as total FROM users u WHERE $whereClause";
+        $countSql = "SELECT COUNT(*) as total FROM students s WHERE $whereClause";
         $stmt = $pdo->prepare($countSql);
         $stmt->execute($params);
         $total = $stmt->fetch()['total'];
@@ -155,29 +168,19 @@ function getStudentsList() {
         // Get students with attendance percentage
         $sql = "
             SELECT 
-                u.id,
-                u.username as roll_number,
-                u.name,
-                u.email,
-                u.phone,
-                u.program,
-                u.shift,
-                u.year_level,
-                u.section,
-                COALESCE(att.attendance_percentage, 0) as attendance_percentage
-            FROM users u
-            LEFT JOIN (
-                SELECT 
-                    user_id,
-                    ROUND(
-                        (COUNT(CASE WHEN status = 'present' THEN 1 END) * 100.0 / 
-                         NULLIF(COUNT(*), 0)), 2
-                    ) as attendance_percentage
-                FROM attendance 
-                GROUP BY user_id
-            ) att ON u.id = att.user_id
+                s.id,
+                s.student_id as roll_number,
+                s.name,
+                s.email,
+                s.phone,
+                s.program,
+                s.shift,
+                s.year_level,
+                s.section,
+                COALESCE(s.attendance_percentage, 0) as attendance_percentage
+            FROM students s
             WHERE $whereClause
-            ORDER BY u.username
+            ORDER BY s.student_id
             LIMIT $limit OFFSET $offset
         ";
         
@@ -219,19 +222,19 @@ function getStudentDetails() {
         
         $stmt = $pdo->prepare("
             SELECT 
-                u.id,
-                u.username as roll_number,
-                u.name,
-                u.email,
-                u.phone,
-                u.program,
-                u.shift,
-                u.year_level,
-                u.section,
-                u.created_at,
-                u.last_login
-            FROM users u
-            WHERE u.id = ? AND u.role = 'student' AND u.is_active = 1
+                s.id,
+                s.student_id as roll_number,
+                s.name,
+                s.email,
+                s.phone,
+                s.program,
+                s.shift,
+                s.year_level,
+                s.section,
+                s.created_at,
+                s.updated_at as last_login
+            FROM students s
+            WHERE s.id = ? AND s.is_active = 1
         ");
         $stmt->execute([$studentId]);
         $student = $stmt->fetch();
@@ -263,59 +266,126 @@ function createStudent() {
         
         $rollNumber = sanitizeInput($_POST['roll_number'] ?? '');
         $name = sanitizeInput($_POST['name'] ?? '');
-        $email = sanitizeInput($_POST['email'] ?? '');
+        $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
         $phone = sanitizeInput($_POST['phone'] ?? '');
         $program = sanitizeInput($_POST['program'] ?? '');
         $shift = sanitizeInput($_POST['shift'] ?? '');
         $yearLevel = sanitizeInput($_POST['year_level'] ?? '');
         $section = sanitizeInput($_POST['section'] ?? '');
         
-        // Validate required fields
+        // Validate required fields first
         if (empty($rollNumber) || empty($name) || empty($email) || empty($program) || empty($shift) || empty($yearLevel) || empty($section)) {
             return ['success' => false, 'error' => 'All required fields must be filled'];
         }
         
-        // Check if roll number already exists in students table
-        $stmt = $pdo->prepare("SELECT id FROM students WHERE student_id = ? OR roll_number = ?");
-        $stmt->execute([$rollNumber, $rollNumber]);
-        if ($stmt->fetch()) {
-            return ['success' => false, 'error' => 'Roll number already exists'];
+        // Validate name format (letters, spaces, hyphens, apostrophes, dots only)
+        if (!preg_match("/^[a-zA-Z\s\-'.]+$/u", $name)) {
+            return ['success' => false, 'error' => 'Name can only contain letters, spaces, hyphens, apostrophes, and dots'];
         }
         
-        // Check if email already exists in students table
-        $stmt = $pdo->prepare("SELECT id FROM students WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->fetch()) {
-            return ['success' => false, 'error' => 'Email already exists'];
+        // Validate name length
+        if (strlen($name) < 2) {
+            return ['success' => false, 'error' => 'Name must be at least 2 characters long'];
         }
         
-        // Create student in students table only
-        $admissionYear = '20' . substr($rollNumber, 0, 2);
-        $rollPrefix = explode('-', $rollNumber)[1];
+        if (strlen($name) > 100) {
+            return ['success' => false, 'error' => 'Name must not exceed 100 characters'];
+        }
         
-        $stmt = $pdo->prepare("
-            INSERT INTO students (student_id, roll_number, name, email, phone, program, shift, year_level, section, admission_year, roll_prefix, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $stmt->execute([
-            $rollNumber, $rollNumber, $name, $email, $phone, $program, $shift, $yearLevel, $section, $admissionYear, $rollPrefix
-        ]);
+        // Validate email format
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['success' => false, 'error' => 'Invalid email format'];
+        }
         
-        $studentId = $pdo->lastInsertId();
+        // Validate email length
+        if (strlen($email) > 255) {
+            return ['success' => false, 'error' => 'Email must not exceed 255 characters'];
+        }
         
-        // Log the action
-        logAdminAction('STUDENT_CREATED', "Created student: $rollNumber ($name)");
+        // Validate phone number if provided
+        if (!empty($phone)) {
+            // Remove common separators for validation
+            $phoneDigits = preg_replace('/[\s\-()]/', '', $phone);
+            
+            // Check if it contains only valid characters (digits, +, -, spaces, parentheses)
+            if (!preg_match('/^[\d\s\-+()]+$/', $phone)) {
+                return ['success' => false, 'error' => 'Phone number can only contain digits, spaces, hyphens, plus sign, and parentheses'];
+            }
+            
+            // Check length (must have 10-15 digits)
+            $digitCount = preg_match_all('/\d/', $phoneDigits);
+            if (strlen($phoneDigits) < 10 || strlen($phoneDigits) > 15) {
+                return ['success' => false, 'error' => 'Phone number must contain 10 to 15 digits'];
+            }
+        }
         
-        return [
-            'success' => true,
-            'message' => 'Student created successfully',
-            'data' => [
-                'id' => $studentId,
-                'roll_number' => $rollNumber,
-                'password' => $password
-            ]
-        ];
+        // Validate roll number format (YY-PROGRAM-NN or YY-EPROGRAM-NN)
+        if (!preg_match('/^\d{2}-[A-Z]+\-\d+$/', $rollNumber)) {
+            return ['success' => false, 'error' => 'Invalid roll number format. Expected: YY-PROGRAM-NN (e.g., 24-SWT-01)'];
+        }
+        
+        // Use transaction to prevent race condition
+        $pdo->beginTransaction();
+        
+        try {
+            // Check if roll number already exists with row lock
+            $stmt = $pdo->prepare("SELECT id FROM students WHERE student_id = ? OR roll_number = ? FOR UPDATE");
+            $stmt->execute([$rollNumber, $rollNumber]);
+            if ($stmt->fetch()) {
+                $pdo->rollBack();
+                return ['success' => false, 'error' => 'Roll number already exists'];
+            }
+            
+            // Check if email already exists with row lock
+            $stmt = $pdo->prepare("SELECT id FROM students WHERE email = ? FOR UPDATE");
+            $stmt->execute([$email]);
+            if ($stmt->fetch()) {
+                $pdo->rollBack();
+                return ['success' => false, 'error' => 'Email already exists'];
+            }
+        
+            // Generate default password (roll number)
+            $password = $rollNumber;
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            
+            // Create student in students table only
+            $admissionYear = '20' . substr($rollNumber, 0, 2);
+            $rollPrefix = explode('-', $rollNumber)[1];
+            
+            $stmt = $pdo->prepare("
+                INSERT INTO students (student_id, roll_number, name, email, phone, program, shift, year_level, section, admission_year, roll_prefix, password, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $rollNumber, $rollNumber, $name, $email, $phone, $program, $shift, $yearLevel, $section, $admissionYear, $rollPrefix, $hashedPassword
+            ]);
+            
+            $studentId = $pdo->lastInsertId();
+            
+            // Commit transaction
+            $pdo->commit();
+            
+            // Log the action
+            logAdminAction('STUDENT_CREATED', "Created student: $rollNumber ($name)");
+            
+            return [
+                'success' => true,
+                'message' => 'Student created successfully',
+                'data' => [
+                    'id' => $studentId,
+                    'roll_number' => $rollNumber,
+                    'password' => $password
+                ]
+            ];
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            error_log("Student creation error: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to create student'];
+        }
     } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         return ['success' => false, 'error' => $e->getMessage()];
     }
 }
@@ -339,7 +409,7 @@ function updateStudent() {
         }
         
         $name = sanitizeInput($_POST['name'] ?? '');
-        $email = sanitizeInput($_POST['email'] ?? '');
+        $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
         $phone = sanitizeInput($_POST['phone'] ?? '');
         $program = sanitizeInput($_POST['program'] ?? '');
         $shift = sanitizeInput($_POST['shift'] ?? '');
@@ -351,18 +421,59 @@ function updateStudent() {
             return ['success' => false, 'error' => 'All required fields must be filled'];
         }
         
-        // Check if email already exists for another user
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+        // Validate name format (letters, spaces, hyphens, apostrophes, dots only)
+        if (!preg_match("/^[a-zA-Z\s\-'.]+$/u", $name)) {
+            return ['success' => false, 'error' => 'Name can only contain letters, spaces, hyphens, apostrophes, and dots'];
+        }
+        
+        // Validate name length
+        if (strlen($name) < 2) {
+            return ['success' => false, 'error' => 'Name must be at least 2 characters long'];
+        }
+        
+        if (strlen($name) > 100) {
+            return ['success' => false, 'error' => 'Name must not exceed 100 characters'];
+        }
+        
+        // Validate email format
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['success' => false, 'error' => 'Invalid email format'];
+        }
+        
+        // Validate email length
+        if (strlen($email) > 255) {
+            return ['success' => false, 'error' => 'Email must not exceed 255 characters'];
+        }
+        
+        // Validate phone number if provided
+        if (!empty($phone)) {
+            // Remove common separators for validation
+            $phoneDigits = preg_replace('/[\s\-()]/', '', $phone);
+            
+            // Check if it contains only valid characters (digits, +, -, spaces, parentheses)
+            if (!preg_match('/^[\d\s\-+()]+$/', $phone)) {
+                return ['success' => false, 'error' => 'Phone number can only contain digits, spaces, hyphens, plus sign, and parentheses'];
+            }
+            
+            // Check length (must have 10-15 digits)
+            $digitCount = preg_match_all('/\d/', $phoneDigits);
+            if (strlen($phoneDigits) < 10 || strlen($phoneDigits) > 15) {
+                return ['success' => false, 'error' => 'Phone number must contain 10 to 15 digits'];
+            }
+        }
+        
+        // Check if email already exists for another student
+        $stmt = $pdo->prepare("SELECT id FROM students WHERE email = ? AND id != ?");
         $stmt->execute([$email, $studentId]);
         if ($stmt->fetch()) {
             return ['success' => false, 'error' => 'Email already exists'];
         }
         
-        // Update student
+        // Update student in students table
         $stmt = $pdo->prepare("
-            UPDATE users 
+            UPDATE students 
             SET name = ?, email = ?, phone = ?, program = ?, shift = ?, year_level = ?, section = ?, updated_at = NOW()
-            WHERE id = ? AND role = 'student'
+            WHERE id = ? AND is_active = 1
         ");
         $stmt->execute([$name, $email, $phone, $program, $shift, $yearLevel, $section, $studentId]);
         

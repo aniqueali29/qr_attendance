@@ -18,7 +18,14 @@ requireAdminAuth();
 
 $response = ['success' => false, 'message' => 'Invalid request.'];
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
+// BUG FIX #3: Validate HTTP method
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Only GET requests are allowed']);
+    exit;
+}
+
+if (isset($_GET['action'])) {
     try {
         switch ($_GET['action']) {
             case 'test':
@@ -34,11 +41,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
                 $totalPrograms = $pdo->query("SELECT COUNT(*) FROM programs")->fetchColumn();
                 $totalSections = $pdo->query("SELECT COUNT(*) FROM sections")->fetchColumn();
                 
-                // Today's attendance
+                // Today's attendance - BUG FIX #2: Optimized date query for index usage
                 $todayAttendance = $pdo->query("
                     SELECT COUNT(DISTINCT student_id) as present_today 
                     FROM attendance 
-                    WHERE DATE(check_in_time) = CURDATE()
+                    WHERE check_in_time >= CURDATE() 
+                    AND check_in_time < CURDATE() + INTERVAL 1 DAY
                 ")->fetchColumn();
                 
                 // Total attendance records
@@ -68,12 +76,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
             case 'attendance-trends':
                 // Get attendance trends for the last 7 days
                 try {
+                    // BUG FIX #2: Optimized date query
                     $stmt = $pdo->query("
                         SELECT 
                             DATE(check_in_time) as date,
                             COUNT(DISTINCT student_id) as present_students
                         FROM attendance 
-                        WHERE check_in_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                        WHERE check_in_time >= CURDATE() - INTERVAL 7 DAY
+                        AND check_in_time < CURDATE() + INTERVAL 1 DAY
                         GROUP BY DATE(check_in_time)
                         ORDER BY date ASC
                     ");
@@ -105,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
                 break;
 
             case 'program-distribution':
+                // BUG FIX #7: Sanitize data to prevent XSS
                 // Get student count by program and shift to separate morning and evening programs
                 // Only show programs that actually have students
                 $stmt = $pdo->query("
@@ -124,13 +135,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
                 ");
                 $distribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
+                // Sanitize output data
+                $sanitized = array_map(function($item) {
+                    return [
+                        'program_name' => htmlspecialchars($item['program_name'] ?? '', ENT_QUOTES, 'UTF-8'),
+                        'student_count' => (int)($item['student_count'] ?? 0),
+                        'shift' => htmlspecialchars($item['shift'] ?? '', ENT_QUOTES, 'UTF-8'),
+                        'base_program_name' => htmlspecialchars($item['base_program_name'] ?? '', ENT_QUOTES, 'UTF-8')
+                    ];
+                }, $distribution);
+                
                 $response = [
                     'success' => true,
-                    'data' => $distribution
+                    'data' => $sanitized
                 ];
                 break;
 
             case 'recent-activity':
+                // BUG FIX #33: Add date filter - only last 7 days
                 // Get recent attendance records
                 $stmt = $pdo->query("
                     SELECT 
@@ -141,14 +163,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
                         a.status
                     FROM attendance a
                     JOIN students s ON a.student_id = s.student_id
+                    WHERE a.check_in_time >= CURDATE() - INTERVAL 7 DAY
                     ORDER BY a.check_in_time DESC
                     LIMIT 10
                 ");
                 $activity = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
+                // BUG FIX #7: Sanitize output
+                $sanitized = array_map(function($item) {
+                    return [
+                        'id' => (int)($item['id'] ?? 0),
+                        'student_name' => htmlspecialchars($item['student_name'] ?? '', ENT_QUOTES, 'UTF-8'),
+                        'student_id' => htmlspecialchars($item['student_id'] ?? '', ENT_QUOTES, 'UTF-8'),
+                        'check_in_time' => $item['check_in_time'] ?? '',
+                        'status' => htmlspecialchars($item['status'] ?? '', ENT_QUOTES, 'UTF-8')
+                    ];
+                }, $activity);
+                
                 $response = [
                     'success' => true,
-                    'data' => $activity
+                    'data' => $sanitized
                 ];
                 break;
 
@@ -195,31 +229,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
                     $yesterday = date('Y-m-d', strtotime('-1 day'));
                     $lastWeek = date('Y-m-d', strtotime('-7 days'));
                     
-                    // Today's attendance
+                    // Today's attendance - BUG FIX #2: Optimized date query
                     $stmt = $pdo->prepare("
                         SELECT COUNT(DISTINCT student_id) as today_count
                         FROM attendance 
-                        WHERE DATE(check_in_time) = ?
+                        WHERE check_in_time >= ? 
+                        AND check_in_time < ? + INTERVAL 1 DAY
                     ");
-                    $stmt->execute([$today]);
+                    $stmt->execute([$today, $today]);
                     $todayAttendance = $stmt->fetchColumn();
                     
-                    // Yesterday's attendance
+                    // Yesterday's attendance - BUG FIX #2: Optimized date query
                     $stmt = $pdo->prepare("
                         SELECT COUNT(DISTINCT student_id) as yesterday_count
                         FROM attendance 
-                        WHERE DATE(check_in_time) = ?
+                        WHERE check_in_time >= ? 
+                        AND check_in_time < ? + INTERVAL 1 DAY
                     ");
-                    $stmt->execute([$yesterday]);
+                    $stmt->execute([$yesterday, $yesterday]);
                     $yesterdayAttendance = $stmt->fetchColumn();
                     
-                    // Last week's attendance
+                    // Last week's attendance - BUG FIX #2: Optimized date query
                     $stmt = $pdo->prepare("
                         SELECT COUNT(DISTINCT student_id) as last_week_count
                         FROM attendance 
-                        WHERE DATE(check_in_time) = ?
+                        WHERE check_in_time >= ? 
+                        AND check_in_time < ? + INTERVAL 1 DAY
                     ");
-                    $stmt->execute([$lastWeek]);
+                    $stmt->execute([$lastWeek, $lastWeek]);
                     $lastWeekAttendance = $stmt->fetchColumn();
                     
                     // Calculate growth percentage
@@ -263,11 +300,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
                 break;
         }
     } catch (PDOException $e) {
+        // BUG FIX #1: Don't expose database details to client
+        error_log('Dashboard API Database Error: ' . $e->getMessage());
         http_response_code(500);
-        $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+        $response = ['success' => false, 'message' => 'A database error occurred. Please try again later.'];
     } catch (Exception $e) {
+        // BUG FIX #1: Don't expose server details to client
+        error_log('Dashboard API Server Error: ' . $e->getMessage());
         http_response_code(500);
-        $response = ['success' => false, 'message' => 'Server error: ' . $e->getMessage()];
+        $response = ['success' => false, 'message' => 'A server error occurred. Please try again later.'];
     }
 }
 
