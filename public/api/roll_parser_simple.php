@@ -83,11 +83,19 @@ function parseRollNumberData($roll_number, $pdo) {
         }
         
         $years_in_program = $current_academic_year - $admission_year + 1;
-        $year_level = min(max($years_in_program, 1), 3);
+        // Clamp to 1-3 for D.A.E programs (3 years)
+        $clamped_year = min(max($years_in_program, 1), 3);
         
         // Determine if student has completed the program
         $is_completed = $years_in_program > 3;
-        $status = $is_completed ? 'Completed' : $year_level . 'st';
+        
+        // Map to proper suffix values that match UI options: 1st, 2nd, 3rd
+        $suffixMap = [
+            1 => '1st',
+            2 => '2nd',
+            3 => '3rd'
+        ];
+        $year_level_str = $suffixMap[$clamped_year];
         
         return [
             'success' => true,
@@ -99,7 +107,8 @@ function parseRollNumberData($roll_number, $pdo) {
                 'program_name' => $program['name'],
                 'shift' => $shift,
                 'serial_number' => $serial_part,
-                'year_level' => $status,
+                'year_level' => $year_level_str,
+                'year_level_numeric' => $clamped_year,
                 'is_completed' => $is_completed,
                 'years_in_program' => $years_in_program
             ]

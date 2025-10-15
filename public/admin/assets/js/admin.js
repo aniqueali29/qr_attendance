@@ -1886,7 +1886,7 @@ async function parseRollNumber(rollNumber) {
             // Auto-fill form fields
             const programSelect = document.getElementById('student-program');
             const shiftSelect = document.getElementById('student-shift');
-            const yearLevelSelect = document.getElementById('student-year-level');
+            const yearLevelSelect = document.getElementById('student-year');
             const admissionYearInput = document.getElementById('student-admission-year');
             const sectionSelect = document.getElementById('student-section');
             
@@ -1933,10 +1933,11 @@ async function parseRollNumber(rollNumber) {
             
             // Fill year level
             if (yearLevelSelect) {
-                console.log('Looking for year level:', data.year_level);
+                const desired = data.year_level || (data.year_level_numeric === 1 ? '1st' : data.year_level_numeric === 2 ? '2nd' : data.year_level_numeric === 3 ? '3rd' : '');
+                console.log('Looking for year level:', desired);
                 console.log('Available year level options:', Array.from(yearLevelSelect.options).map(o => ({value: o.value, text: o.text})));
                 for (let option of yearLevelSelect.options) {
-                    if (option.value === data.year_level) {
+                    if (option.value === desired) {
                         option.selected = true;
                         yearLevelSelect.style.backgroundColor = '#e8f5e8';
                         yearLevelSelect.style.borderColor = '#4caf50';
@@ -2030,7 +2031,7 @@ function resetAutoFilledFields() {
  * Setup roll number auto-fill event listeners
  */
 function setupRollNumberAutoFill() {
-    const rollNumberInput = document.getElementById('student-id');
+    const rollNumberInput = document.getElementById('student-roll');
     if (rollNumberInput) {
         // Add event listener for input change
         rollNumberInput.addEventListener('blur', function() {
