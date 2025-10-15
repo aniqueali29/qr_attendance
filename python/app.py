@@ -37,6 +37,10 @@ WEBSITE_URL = settings.get('website_url', 'http://localhost/qr_attendance/public
 API_ENDPOINT = settings.get('api_endpoint_attendance', '/api/api_attendance.php')
 API_KEY = settings.get('api_key', 'attendance_2025_xyz789_secure')
 SYNC_INTERVAL = settings.get('sync_interval_seconds', 30)  # Sync interval from settings
+ADMIN_ATTENDANCE_API_URL = settings.get('admin_attendance_api_url', f"{WEBSITE_URL}/api/api_attendance.php")
+ADMIN_API_KEY = settings.get('admin_api_key', '')
+ATT_PULL_LOOKBACK_DAYS = settings.get('attendance_pull_lookback_days', 7)
+ATT_PULL_PAGE_SIZE = settings.get('attendance_pull_page_size', 1000)
 
 def get_current_time():
     """Get current time in Asia/Karachi timezone."""
@@ -246,7 +250,7 @@ def sync_to_website():
         }
         
         # Send to website
-        url = urljoin(WEBSITE_URL, API_ENDPOINT)
+        url = f"{WEBSITE_URL.rstrip('/')}/{API_ENDPOINT.lstrip('/')}"
         response = requests.post(url, json=api_data, timeout=5, verify=False)
         
         if response.status_code == 200:
@@ -361,8 +365,12 @@ def sync_attendance_to_website():
             print("📝 No local attendance data to sync")
             return True
         
-        # Read CSV data
-        df = pd.read_csv(CSV_FILE)
+        # Read CSV data tolerant of empty/headerless files
+        try:
+            df = pd.read_csv(CSV_FILE)
+        except Exception:
+            print("📝 No attendance records to sync")
+            return True
         if df.empty:
             print("📝 No attendance records to sync")
             return True
@@ -385,7 +393,7 @@ def sync_attendance_to_website():
             "attendance_data": attendance_data
         }
         
-        url = urljoin(WEBSITE_URL, API_ENDPOINT)
+        url = f"{WEBSITE_URL.rstrip('/')}/{API_ENDPOINT.lstrip('/')}"
         response = requests.post(url, json=api_data, timeout=30, verify=False)
         
         if response.status_code == 200:
@@ -410,8 +418,151 @@ def sync_attendance_to_website():
         print(f"❌ Error syncing attendance: {e}")
         return False
 
+def _read_local_attendance_df():
+    """Read local attendance CSV into a DataFrame with standard headers, tolerant of missing file."""
+    if not os.path.exists(CSV_FILE):
+        return pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status'])
+    try:
+        try:
+            return pd.read_csv(CSV_FILE)
+        except Exception:
+            # Fallback to explicit names when file may not have header row
+            return pd.read_csv(CSV_FILE, names=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year'])
+    except Exception:
+        return pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status'])
+
+def _safe_write_attendance_df(df: pd.DataFrame):
+    """Safely write DataFrame to CSV with header. Uses temp file then replace."""
+    tmp_path = CSV_FILE + ".tmp"
+    df.to_csv(tmp_path, index=False)
+    os.replace(tmp_path, CSV_FILE)
+
+def sync_attendance_from_website():
+    """Pull recent attendance from server and reconcile into local CSV (server-wins)."""
+    try:
+        if not check_internet_connection():
+            print("❌ No internet connection - cannot pull attendance")
+            return False
+        if not check_website_connection():
+            print("❌ Website not accessible - cannot pull attendance")
+            return False
+
+        lookback_cutoff = get_current_time() - timedelta(days=ATT_PULL_LOOKBACK_DAYS)
+
+        headers = {}
+
+        all_server_records = []
+        offset = 0
+        page = 0
+        while True:
+            params = {
+                'api_key': API_KEY,
+                'limit': ATT_PULL_PAGE_SIZE,
+                'offset': offset,
+                'since': lookback_cutoff.strftime('%Y-%m-%d')
+            }
+            resp = requests.get(ADMIN_ATTENDANCE_API_URL, params=params, timeout=30, verify=False)
+            if resp.status_code != 200:
+                print(f"❌ HTTP Error {resp.status_code} while pulling attendance: {resp.text}")
+                break
+            data = resp.json()
+            records = data.get('data') or data.get('attendance') or []
+            if not records:
+                break
+
+            # Stop when oldest fetched record is older than lookback cutoff
+            oldest_ts = None
+            for r in records:
+                all_server_records.append({
+                    'ID': r.get('student_id') or r.get('studentId') or r.get('ID'),
+                    'Name': r.get('student_name') or r.get('name') or r.get('Name'),
+                    'Timestamp': r.get('timestamp') or r.get('Timestamp'),
+                    'Status': r.get('status') or r.get('Status')
+                })
+                try:
+                    ts_val = r.get('timestamp') or r.get('Timestamp')
+                    dt = datetime.strptime(ts_val, '%Y-%m-%d %H:%M:%S') if ts_val and 'AM' not in ts_val and 'PM' not in ts_val else datetime.strptime(ts_val, '%Y-%m-%d %I:%M:%S %p')
+                    if oldest_ts is None or dt < oldest_ts:
+                        oldest_ts = dt
+                except Exception:
+                    pass
+
+            page += 1
+            offset += ATT_PULL_PAGE_SIZE
+
+            if oldest_ts is not None and oldest_ts < lookback_cutoff.replace(tzinfo=None):
+                break
+
+            # Safety cap pages
+            if page >= 20:
+                break
+
+        if not all_server_records:
+            print("📝 No server attendance to reconcile")
+            return True
+
+        # Reconcile into local CSV (server wins)
+        local_df = _read_local_attendance_df()
+        if local_df.empty:
+            local_df = pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status'])
+
+        # Normalize local timestamps to strings
+        if 'Timestamp' in local_df.columns:
+            local_df['Timestamp'] = local_df['Timestamp'].astype(str)
+
+        local_index = {(str(row['ID']), str(row['Timestamp'])): idx for idx, row in local_df.reset_index().iterrows()}
+
+        updated = 0
+        added = 0
+        for r in all_server_records:
+            sid = str(r.get('ID') or '')
+            ts = str(r.get('Timestamp') or '')
+            if not sid or not ts:
+                continue
+
+            key = (sid, ts)
+            if key in local_index:
+                idx = local_index[key]
+                # Overwrite status and name from server
+                if 'Status' in local_df.columns:
+                    if str(local_df.at[idx, 'Status']) != str(r['Status']):
+                        local_df.at[idx, 'Status'] = r['Status']
+                        updated += 1
+                if 'Name' in local_df.columns and r.get('Name'):
+                    if str(local_df.at[idx, 'Name']) != str(r['Name']):
+                        local_df.at[idx, 'Name'] = r['Name']
+            else:
+                # Append new record if within lookback window
+                try:
+                    ts_val = r.get('Timestamp')
+                    dt = datetime.strptime(ts_val, '%Y-%m-%d %H:%M:%S') if ts_val and 'AM' not in ts_val and 'PM' not in ts_val else datetime.strptime(ts_val, '%Y-%m-%d %I:%M:%S %p')
+                except Exception:
+                    dt = None
+                if dt is None or dt >= lookback_cutoff.replace(tzinfo=None):
+                    new_row = {
+                        'ID': r.get('ID'),
+                        'Name': r.get('Name') or '',
+                        'Timestamp': r.get('Timestamp'),
+                        'Status': r.get('Status')
+                    }
+                    local_df = pd.concat([local_df, pd.DataFrame([new_row])], ignore_index=True)
+                    local_index[key] = len(local_df) - 1
+                    added += 1
+
+        # Keep only standard columns when saving
+        cols = [c for c in ['ID', 'Name', 'Timestamp', 'Status'] if c in local_df.columns]
+        out_df = local_df[cols]
+        _safe_write_attendance_df(out_df)
+
+        print(f"✅ Attendance pull complete: updated={updated}, added={added}")
+        return True
+
+    except Exception as e:
+        print(f"❌ Error pulling attendance: {e}")
+        return False
+
 def bidirectional_sync():
-    """Perform bidirectional sync: students from website, attendance to website"""
+    """Perform bidirectional sync: students from website, attendance to website, then pull server edits"""
     print("🔄 Starting bidirectional sync...")
     print("=" * 50)
     
@@ -422,13 +573,18 @@ def bidirectional_sync():
     # Step 2: Sync attendance to website
     print("\n📤 Step 2: Syncing attendance to website...")
     attendance_synced = sync_attendance_to_website()
+
+    # Step 3: Pull attendance from website (server-wins)
+    print("\n📥 Step 3: Pulling attendance from website (server-wins)...")
+    attendance_pulled = sync_attendance_from_website()
     
     # Summary
     print("\n📊 Sync Summary:")
     print(f"   Students sync: {'✅ Success' if students_synced else '❌ Failed'}")
-    print(f"   Attendance sync: {'✅ Success' if attendance_synced else '❌ Failed'}")
+    print(f"   Attendance to website: {'✅ Success' if attendance_synced else '❌ Failed'}")
+    print(f"   Attendance from website: {'✅ Success' if attendance_pulled else '❌ Failed'}")
     
-    return students_synced and attendance_synced
+    return students_synced and attendance_synced and attendance_pulled
 
 def start_bidirectional_sync():
     """Start bidirectional sync as background service - runs every minute"""
@@ -450,11 +606,16 @@ def start_bidirectional_sync():
                 print("\n📥 Step 3: Fetching students from website...")
                 students_synced = sync_students_from_website()
                 
+                # Step 4: Pull attendance changes from website (server-wins)
+                print("\n📥 Step 4: Pulling attendance from website (server-wins)...")
+                attendance_pulled = sync_attendance_from_website()
+
                 # Summary
                 print(f"\n📊 Background Sync Summary:")
                 print(f"   Attendance to website: {'✅ Success' if attendance_synced else '❌ Failed'}")
                 print(f"   Settings from website: {'✅ Success' if settings_synced else '❌ Failed'}")
                 print(f"   Students from website: {'✅ Success' if students_synced else '❌ Failed'}")
+                print(f"   Attendance from website: {'✅ Success' if attendance_pulled else '❌ Failed'}")
                 
                 # Wait 1 minute before next sync
                 print(f"\n⏰ Next sync in 60 seconds...")

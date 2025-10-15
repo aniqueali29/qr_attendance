@@ -262,7 +262,7 @@ const KeyboardShortcuts = {
         if (!navbar) return;
 
         const indicator = document.createElement('button');
-        indicator.className = 'btn btn-sm btn-outline-secondary ms-2';
+        indicator.className = 'btn btn-sm btn-outline-secondary ms-2 d-none';
         indicator.innerHTML = '<i class="bx bx-keyboard me-1"></i>Shortcuts <kbd>?</kbd>';
         indicator.onclick = () => this.showHelp();
 

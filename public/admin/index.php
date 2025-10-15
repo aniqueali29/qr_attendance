@@ -990,8 +990,9 @@ function updateProgramDistribution(data) {
     const listElement = document.getElementById('program-distribution-list');
     if (listElement) {
         listElement.innerHTML = '';
-        if (data && data.length > 0) {
-            data.forEach(program => {
+        const safeData = Array.isArray(data) ? data.filter(p => p) : [];
+        if (safeData.length > 0) {
+            safeData.forEach(program => {
                 const listItem = document.createElement('li');
                 listItem.className = 'd-flex align-items-center mb-5';
                 listItem.innerHTML = `
@@ -1005,11 +1006,11 @@ function updateProgramDistribution(data) {
                                 </div>
                                 <div>
                                     <h6 class="mb-0">${program.program_name || 'Unknown Program'}</h6>
-                                    <small class="text-muted">${program.student_count || 0} students</small>
+                                    <small class="text-muted">${Number(program.student_count || 0)} students</small>
                                 </div>
                             </div>
                             <div class="user-progress">
-                                <small class="fw-medium">${program.student_count || 0}</small>
+                                <small class="fw-medium">${Number(program.student_count || 0)}</small>
                             </div>
                         </div>
                     </div>
@@ -1037,7 +1038,8 @@ function updateProgramDistribution(data) {
     
     // Update the donut chart with new data
     if (typeof updateOrderStatisticsChart === 'function') {
-        updateOrderStatisticsChart(data);
+        const safeData = Array.isArray(data) ? data.filter(p => p) : [];
+        updateOrderStatisticsChart(safeData);
     }
 }
 

@@ -1,5 +1,11 @@
-24-ESWT-01,Anique Ali,2025-10-13 08:35:43 PM,Check-in (Checked out at 2025-10-13 08:40:24 PM),Evening,SWT,2,2024
-24-ESWT-01,Anique Ali,2025-10-14 08:41:28 PM,Check-in (Checked out at 2025-10-14 08:41:33 PM),Evening,SWT,2,2024
-25-SWT-03,New Student 1,2025-10-13 08:44:42 PM,Check-in (Checked out at 2025-10-13 08:45:31 PM),Morning,SWT,1,2025
-25-SWT-03,New Student 1,2025-10-14 09:25:11 AM,Check-in (Checked out at 2025-10-14 09:26:31 AM),Morning,SWT,1,2025
-25-SWT-06,Saif,2025-10-14 11:18:27 AM,Check-in (Checked out at 2025-10-14 11:19:38 AM),Morning,SWT,1,2025
+ID,Name,Timestamp,Status
+25-SWT-05,Moiz,2025-10-15 10:38:00,Checked-out
+25-SWT-06,Saif,2025-10-14 11:18:27,Present
+25-SWT-03,New Student 1,2025-10-14 09:25:11,Present
+22-SWT-02,Anique Ali,2025-10-14 09:00:00,Absent
+24-ESWT-01,Anique Ali,2025-10-14 08:41:28,Present
+25-SWT-03,New Student 1,2025-10-13 09:00:00,Present
+25-SWT-03,New Student 1,2025-10-13 08:44:42,Present
+24-ESWT-01,Anique Ali,2025-10-13 08:35:43,Present
+24-ESWT-01,Anique Ali,2025-10-13 08:32:30,Present
+24-ESWT-01,Anique Ali,2025-10-12 15:00:00,Absent

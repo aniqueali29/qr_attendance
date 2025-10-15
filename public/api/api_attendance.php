@@ -100,16 +100,40 @@ try {
         echo json_encode($response);
         
     } elseif ($_SERVER['REQUEST_METHOD'] == 'GET') {
-        // Get attendance data (for website display)
-        $stmt = $pdo->prepare("
-            SELECT student_id, student_name, timestamp, status 
-            FROM attendance 
-            ORDER BY timestamp DESC 
-            LIMIT 100
-        ");
-        $stmt->execute();
+        // Provide attendance data for sync pulls with API key auth, pagination and optional since filter
+        $inputKey = $_GET['api_key'] ?? '';
+        if ($inputKey !== $API_KEY) {
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Invalid API key']);
+            exit();
+        }
+
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+        // Sanitize numeric pagination (MySQL doesn't allow bound params in LIMIT/OFFSET in some versions)
+        if ($limit < 1) { $limit = 1; }
+        if ($limit > 5000) { $limit = 5000; }
+        if ($offset < 0) { $offset = 0; }
+        $since = $_GET['since'] ?? null; // YYYY-MM-DD
+
+        $params = [];
+        $where = '';
+        if ($since) {
+            $where = 'WHERE timestamp >= ?';
+            $params[] = $since . ' 00:00:00';
+        }
+
+        $sql = "
+            SELECT student_id, student_name, timestamp, status
+            FROM attendance
+            $where
+            ORDER BY timestamp DESC
+            LIMIT $limit OFFSET $offset
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
         $attendance = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         echo json_encode([
             'success' => true,
             'data' => $attendance

@@ -86,7 +86,7 @@ $currentPage = $currentPage ?? getCurrentPage();
         <!-- Programs & Sections -->
         <li class="menu-item <?php echo isPageActive('program_sections') ? 'active' : ''; ?>">
             <a href="program_sections.php" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-graduation-cap"></i>
+                <i class="menu-icon tf-icons bx bx-laptop"></i>
                 <div class="text-truncate">Programs & Sections</div>
             </a>
         </li>
