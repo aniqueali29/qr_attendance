@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 16, 2025 at 02:40 AM
+-- Generation Time: Oct 16, 2025 at 11:33 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -73,7 +73,7 @@ CREATE TABLE `attendance` (
 --
 
 INSERT INTO `attendance` (`id`, `student_id`, `student_name`, `timestamp`, `status`, `check_in_time`, `check_out_time`, `session_duration`, `created_at`, `updated_at`, `admission_year`, `current_year`, `shift`, `program`, `is_graduated`, `notes`) VALUES
-(6, '25-SWT-07', 'Naheed Akhter', '2025-10-16 05:36:39', 'Present', '2025-10-16 05:36:36', '2025-10-16 05:36:39', 0, '2025-10-16 00:36:48', '2025-10-16 00:38:26', 2025, 1, 'Morning', 'SWT', 0, '');
+(19, '24-ESWT-01', 'Anique Ali', '2025-10-16 11:01:07', 'Present', '2025-10-16 11:01:07', '2025-10-16 11:01:51', 0, '2025-10-16 06:01:07', '2025-10-16 09:31:09', 2024, NULL, 'Evening', 'SWT', 0, '');
 
 -- --------------------------------------------------------
 
@@ -90,6 +90,13 @@ CREATE TABLE `check_in_sessions` (
   `is_active` tinyint(1) DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `check_in_sessions`
+--
+
+INSERT INTO `check_in_sessions` (`id`, `student_id`, `student_name`, `check_in_time`, `last_activity`, `is_active`, `created_at`) VALUES
+(8, '24-ESWT-01', 'Anique Ali', '2025-10-16 11:01:07', '2025-10-16 11:01:51', 0, '2025-10-16 06:01:07');
 
 -- --------------------------------------------------------
 
@@ -116,7 +123,9 @@ INSERT INTO `import_logs` (`id`, `import_type`, `total_records`, `successful_rec
 (2, 'student_import', 4, 4, 0, '[]', '2025-10-13 07:07:44'),
 (3, 'student_import', 4, 4, 0, '[]', '2025-10-13 07:08:19'),
 (4, 'student_import', 4, 4, 0, '[]', '2025-10-13 07:27:36'),
-(5, 'student_import', 4, 4, 0, '[]', '2025-10-15 20:53:30');
+(5, 'student_import', 4, 4, 0, '[]', '2025-10-15 20:53:30'),
+(6, 'student_import', 4, 4, 0, '[]', '2025-10-16 08:28:34'),
+(7, 'student_import', 4, 4, 0, '[]', '2025-10-16 08:43:15');
 
 -- --------------------------------------------------------
 
@@ -142,8 +151,8 @@ CREATE TABLE `programs` (
 INSERT INTO `programs` (`id`, `code`, `name`, `description`, `duration_years`, `is_active`, `created_at`, `updated_at`) VALUES
 (1, 'SWT', 'Software Technology', 'D.A.E', 3, 1, '2025-10-11 11:16:08', '2025-10-11 12:00:56'),
 (4, 'CIT', 'Computer Information Technology', 'D.A.E', 3, 1, '2025-10-11 11:16:08', '2025-10-14 22:08:59'),
-(23, 'ESWT', 'Software Technology', 'D.A.E', 4, 1, '2025-10-13 07:42:13', '2025-10-14 19:06:18'),
-(24, 'ECIT', 'Computer Information Technology', '', 4, 1, '2025-10-13 07:42:27', '2025-10-13 07:42:27');
+(23, 'ESWT', 'Software Technology Evening', 'D.A.E', 3, 1, '2025-10-13 07:42:13', '2025-10-16 05:25:38'),
+(24, 'ECIT', 'Computer Information Technology Evening', 'D.A.E', 3, 1, '2025-10-13 07:42:27', '2025-10-16 05:25:43');
 
 -- --------------------------------------------------------
 
@@ -188,7 +197,15 @@ INSERT INTO `qr_codes` (`id`, `student_id`, `qr_data`, `qr_image_path`, `generat
 (37, '22-ESWT-02', '22-ESWT-02', 'C:\\xampp\\htdocs\\qr_attendance\\public/assets/img/qr_codes/qr_22-ESWT-02_1760217877.png', '2025-10-11 21:24:37', 1, 10),
 (38, '25-SWT-26', '25-SWT-26', 'C:\\xampp\\htdocs\\qr_attendance\\public/assets/img/qr_codes/qr_25-SWT-26_1760429175.png', '2025-10-14 08:06:15', 1, 10),
 (39, '25-SWT-03', '25-SWT-03', 'C:\\xampp\\htdocs\\qr_attendance\\public/assets/img/qr_codes/qr_25-SWT-03_1760429238.png', '2025-10-14 08:07:18', 1, 10),
-(40, '24-ESWT-01', '24-ESWT-01', 'C:\\xampp\\htdocs\\qr_attendance\\public/assets/img/qr_codes/qr_24-ESWT-01_1760444369.png', '2025-10-14 12:19:29', 1, 10);
+(40, '24-ESWT-01', '24-ESWT-01', 'C:\\xampp\\htdocs\\qr_attendance\\public/assets/img/qr_codes/qr_24-ESWT-01_1760444369.png', '2025-10-14 12:19:29', 1, 10),
+(75, '25-SWT-595', '{\"student_id\":\"25-SWT-595\",\"name\":\"Sample Student 1\",\"timestamp\":1760605851,\"type\":\"attendance\"}', '', '2025-10-16 09:10:51', 1, 10),
+(76, '25-SWT-596', '{\"student_id\":\"25-SWT-596\",\"name\":\"Sample Student 2\",\"timestamp\":1760605851,\"type\":\"attendance\"}', '', '2025-10-16 09:10:51', 1, 10),
+(77, '25-CIT-597', '{\"student_id\":\"25-CIT-597\",\"name\":\"Sample Student 3\",\"timestamp\":1760605851,\"type\":\"attendance\"}', '', '2025-10-16 09:10:51', 1, 10),
+(78, '25-CIT-598', '{\"student_id\":\"25-CIT-598\",\"name\":\"Sample Student 4\",\"timestamp\":1760605851,\"type\":\"attendance\"}', '', '2025-10-16 09:10:51', 1, 10),
+(79, '25-SWT-599', '{\"student_id\":\"25-SWT-599\",\"name\":\"Sample Student 1\",\"timestamp\":1760605851,\"type\":\"attendance\"}', '', '2025-10-16 09:10:51', 1, 10),
+(80, '25-SWT-600', '{\"student_id\":\"25-SWT-600\",\"name\":\"Sample Student 2\",\"timestamp\":1760605851,\"type\":\"attendance\"}', '', '2025-10-16 09:10:51', 1, 10),
+(81, '25-CIT-601', '{\"student_id\":\"25-CIT-601\",\"name\":\"Sample Student 3\",\"timestamp\":1760605851,\"type\":\"attendance\"}', '', '2025-10-16 09:10:51', 1, 10),
+(82, '25-CIT-602', '{\"student_id\":\"25-CIT-602\",\"name\":\"Sample Student 4\",\"timestamp\":1760605851,\"type\":\"attendance\"}', '', '2025-10-16 09:10:51', 1, 10);
 
 -- --------------------------------------------------------
 
@@ -214,7 +231,7 @@ CREATE TABLE `sections` (
 --
 
 INSERT INTO `sections` (`id`, `program_id`, `year_level`, `section_name`, `shift`, `capacity`, `current_students`, `is_active`, `created_at`, `updated_at`) VALUES
-(1, 1, '1st', 'A', 'Morning', 40, 1, 1, '2025-10-11 22:15:27', '2025-10-14 20:48:50'),
+(1, 1, '1st', 'A', 'Morning', 41, 1, 1, '2025-10-11 22:15:27', '2025-10-16 09:31:34'),
 (2, 1, '1st', 'B', 'Morning', 40, 0, 1, '2025-10-11 22:15:27', '2025-10-11 23:33:31'),
 (3, 1, '1st', 'A', 'Evening', 41, 0, 1, '2025-10-11 22:15:27', '2025-10-13 07:57:56'),
 (4, 1, '1st', 'B', 'Evening', 40, 0, 1, '2025-10-11 22:15:27', '2025-10-11 23:33:31'),
@@ -295,6 +312,7 @@ INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, 
 ('99465cca2614829aedf0479097b73652ea741c8f8185c7290a30b2bdfcb7ae36', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 22:11:00', '2025-10-12 22:11:00'),
 ('9d98c32cf1e5d2dcb7c6a865b931812397821adec81e9b4600401185575ad7e2', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-13 21:31:28', '2025-10-13 19:26:02'),
 ('9dc581cbe33106df88412e23a3f1c8532a8864f112d94edd52515b38598b525a', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 20:40:16', '2025-10-12 20:07:11'),
+('afbf18251a0cfc75f381db412b5fdae90e5fb2e1023575f9ec8b96969f9aba9b', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-16 09:32:29', '2025-10-16 08:53:07'),
 ('b88f3096ec9cd331741fd0c13aff83b608d6a6afca94f3c69176f1f836b57493', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36', NULL, '2025-10-11 20:27:44', '2025-10-11 20:27:43'),
 ('bb98d3e9a016c08abbe7e6cd188ab51c802f2d9a7636c08d31500aedc73c2440', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-13 07:54:33', '2025-10-13 05:54:36'),
 ('dd302bfe01e2d09824d73a3d10eecb9c9694ba62a22711460917626c0788541a', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-11 21:21:27', '2025-10-11 21:15:07'),
@@ -369,19 +387,15 @@ CREATE TABLE `students` (
 --
 
 INSERT INTO `students` (`id`, `student_id`, `roll_number`, `name`, `email`, `phone`, `password`, `user_id`, `is_active`, `created_at`, `updated_at`, `admission_year`, `current_year`, `shift`, `program`, `last_year_update`, `is_graduated`, `year_level`, `section`, `roll_prefix`, `section_id`, `attendance_percentage`, `username`) VALUES
-(108, '24-ESWT-01', '24-ESWT-01', 'Anique Ali', 'aniquecodes@gmail.com', '+923010020668', '$2y$10$nRjGPoTmQiAm9NMydqWDoei3R965j9xbYAEEvjNWGcAsVsvdQYyhi', NULL, 1, '2025-10-12 23:58:55', '2025-10-15 21:17:09', 2024, 1, 'Evening', 'SWT', NULL, 0, '2nd', 'A', NULL, NULL, 0.00, '24-ESWT-01'),
-(121, '25-SWT-03', '25-SWT-03', 'New Student 1', 'newstudent1@college.edu', '923001234567', '25-SWT-03', NULL, 1, '2025-10-13 07:27:36', '2025-10-14 20:56:23', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', 'SWT', 1, 0.00, '25-SWT-03'),
-(122, '25-SWT-04', '25-SWT-04', 'New Student 2', 'newstudent2@college.edu', '923007654321', '25-SWT-04', NULL, 1, '2025-10-13 07:27:36', '2025-10-14 20:56:23', 2025, 1, 'Evening', 'SWT', NULL, 0, '1st', 'B', 'SWT', 4, 0.00, '25-SWT-04'),
-(123, '25-CIT-03', '25-CIT-03', 'New Student 3', 'newstudent3@college.edu', '923009876543', '25-CIT-03', NULL, 1, '2025-10-13 07:27:36', '2025-10-14 20:56:23', 2025, 1, 'Morning', 'CIT', NULL, 0, '1st', 'A', 'CIT', 13, 0.00, '25-CIT-03'),
-(128, '25-SWT-05', '25-SWT-05', 'Moiz', 'moiziqbal@gmail.com', '1234413532', '25-SWT-05', NULL, 1, '2025-10-14 05:05:11', '2025-10-14 20:56:23', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', NULL, NULL, 0.00, '25-SWT-05'),
-(130, '25-SWT-07', '25-SWT-07', 'Naheed Akhter', 'basitsem.us@gmail.com', '4351324512', '25-SWT-07', NULL, 1, '2025-10-14 07:03:26', '2025-10-14 20:56:23', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', NULL, NULL, 0.00, '25-SWT-07'),
-(132, '25-SWT-25', '25-SWT-25', 'saif', 'saif@gmail.com', '1231231231', '25-SWT-25', NULL, 1, '2025-10-14 08:01:54', '2025-10-14 20:56:23', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', NULL, NULL, 0.00, '25-SWT-25'),
-(134, '25-SWT-26', '25-SWT-26', 'saif', 'saif@gmail.com', '123321122', '25-SWT-26', NULL, 1, '2025-10-14 08:05:07', '2025-10-14 20:56:23', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', NULL, NULL, 0.00, '25-SWT-26'),
-(135, '22-ESWT-03', '22-ESWT-03', 'Naheed Akhter', 'aniquecodes1@gmail.com', '12332123421', '22-ESWT-03', NULL, 1, '2025-10-14 20:57:38', '2025-10-14 20:57:38', 2022, 1, 'Evening', 'SWT', NULL, 0, '2nd', 'B', NULL, NULL, 0.00, '22-ESWT-03'),
-(136, '25-SWT-583', '25-SWT-583', 'Sample Student 1', 'student1_1760561193583@college.edu', '923001234567', NULL, NULL, 1, '2025-10-15 20:53:30', '2025-10-15 20:53:30', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', 'SWT', 1, 0.00, NULL),
-(137, '25-SWT-584', '25-SWT-584', 'Sample Student 2', 'student2_1760561193583@college.edu', '923007654321', NULL, NULL, 1, '2025-10-15 20:53:30', '2025-10-15 20:53:30', 2025, 1, 'Evening', 'SWT', NULL, 0, '1st', 'B', 'SWT', 4, 0.00, NULL),
-(138, '25-CIT-585', '25-CIT-585', 'Sample Student 3', 'student3_1760561193583@college.edu', '923009876543', NULL, NULL, 1, '2025-10-15 20:53:30', '2025-10-15 20:53:30', 2025, 1, 'Morning', 'CIT', NULL, 0, '1st', 'A', 'CIT', 13, 0.00, NULL),
-(139, '25-CIT-586', '25-CIT-586', 'Sample Student 4', 'student4_1760561193583@college.edu', '923001112233', NULL, NULL, 1, '2025-10-15 20:53:30', '2025-10-15 20:53:30', 2025, 1, 'Evening', 'CIT', NULL, 0, '1st', 'B', 'CIT', 16, 0.00, NULL);
+(141, '24-ESWT-01', '24-ESWT-01', 'Anique Ali', 'aniqueali000@gmail.com', '+923010020668', '24-ESWT-01', NULL, 1, '2025-10-16 05:57:41', '2025-10-16 05:57:41', 2024, 1, 'Evening', 'SWT', NULL, 0, '2nd', 'A', NULL, NULL, 0.00, '24-ESWT-01'),
+(142, '25-SWT-595', '25-SWT-595', 'Sample Student 1', 'student1_1760603294595@college.edu', '923001234567', NULL, NULL, 1, '2025-10-16 08:28:34', '2025-10-16 08:28:34', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', 'SWT', 1, 0.00, NULL),
+(143, '25-SWT-596', '25-SWT-596', 'Sample Student 2', 'student2_1760603294595@college.edu', '923007654321', NULL, NULL, 1, '2025-10-16 08:28:34', '2025-10-16 08:28:34', 2025, 1, 'Evening', 'SWT', NULL, 0, '1st', 'B', 'SWT', 4, 0.00, NULL),
+(144, '25-CIT-597', '25-CIT-597', 'Sample Student 3', 'student3_1760603294595@college.edu', '923009876543', NULL, NULL, 1, '2025-10-16 08:28:34', '2025-10-16 08:28:34', 2025, 1, 'Morning', 'CIT', NULL, 0, '1st', 'A', 'CIT', 13, 0.00, NULL),
+(145, '25-CIT-598', '25-CIT-598', 'Sample Student 4', 'student4_1760603294595@college.edu', '923001112233', NULL, NULL, 1, '2025-10-16 08:28:34', '2025-10-16 08:28:34', 2025, 1, 'Evening', 'CIT', NULL, 0, '1st', 'B', 'CIT', 16, 0.00, NULL),
+(146, '25-SWT-599', '25-SWT-599', 'Sample Student 1', 'student1_17606032945953@college.edu', '9.23003E+12', NULL, NULL, 1, '2025-10-16 08:43:15', '2025-10-16 08:43:15', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', 'SWT', 1, 0.00, NULL),
+(147, '25-SWT-600', '25-SWT-600', 'Sample Student 2', 'student2_17606032945952@college.edu', '9.23003E+12', NULL, NULL, 1, '2025-10-16 08:43:15', '2025-10-16 08:43:15', 2025, 1, 'Evening', 'SWT', NULL, 0, '1st', 'B', 'SWT', 4, 0.00, NULL),
+(148, '25-CIT-601', '25-CIT-601', 'Sample Student 3', 'student3_17606032945915@college.edu', '9.23005E+12', NULL, NULL, 1, '2025-10-16 08:43:15', '2025-10-16 08:43:15', 2025, 1, 'Morning', 'CIT', NULL, 0, '1st', 'A', 'CIT', 13, 0.00, NULL),
+(149, '25-CIT-602', '25-CIT-602', 'Sample Student 4', 'student4_176060329459345@college.edu', '9.2301E+12', NULL, NULL, 1, '2025-10-16 08:43:15', '2025-10-16 08:43:15', 2025, 1, 'Evening', 'CIT', NULL, 0, '1st', 'B', 'CIT', 16, 0.00, NULL);
 
 -- --------------------------------------------------------
 
@@ -448,37 +462,37 @@ CREATE TABLE `system_settings` (
 --
 
 INSERT INTO `system_settings` (`id`, `setting_key`, `setting_value`, `setting_type`, `category`, `description`, `validation_rules`, `last_updated`, `updated_by`, `created_at`) VALUES
-(1, 'morning_checkin_start', '01:00', 'time', 'shift_timings', 'Morning shift check-in start time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(2, 'morning_checkin_end', '05:40', 'time', 'shift_timings', 'Morning shift check-in end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(3, 'morning_checkout_start', '04:12', 'time', 'shift_timings', 'Morning shift check-out start time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(4, 'morning_checkout_end', '10:40', 'time', 'shift_timings', 'Morning shift check-out end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(5, 'morning_class_end', '10:40', 'time', 'shift_timings', 'Morning shift class end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(6, 'evening_checkin_start', '01:00', 'time', 'shift_timings', 'Evening shift check-in start time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(7, 'evening_checkin_end', '04:00', 'time', 'shift_timings', 'Evening shift check-in end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(8, 'evening_checkout_start', '02:00', 'time', 'shift_timings', 'Evening shift check-out start time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(9, 'evening_checkout_end', '06:00', 'time', 'shift_timings', 'Evening shift check-out end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(10, 'evening_class_end', '06:00', 'time', 'shift_timings', 'Evening shift class end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(11, 'minimum_duration_minutes', '130', 'integer', 'system_config', 'Minimum duration in minutes for attendance', '{\"required\":true,\"min\":30,\"max\":480}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(12, 'sync_interval_seconds', '30', 'integer', 'system_config', 'Automatic sync interval in seconds', '{\"required\":true,\"min\":10,\"max\":300}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(13, 'timezone', 'Asia/Karachi', 'string', 'system_config', 'System timezone', '{\"required\":true,\"options\":[\"Asia\\/Karachi\",\"UTC\",\"America\\/New_York\",\"Europe\\/London\"]}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(14, 'academic_year_start_month', '9', 'integer', 'system_config', 'Academic year start month (1-12)', '{\"required\":true,\"min\":1,\"max\":12}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(15, 'auto_absent_morning_hour', '11', 'integer', 'system_config', 'Hour to mark morning shift absent (24h format)', '{\"required\":true,\"min\":8,\"max\":16}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(16, 'auto_absent_evening_hour', '17', 'integer', 'system_config', 'Hour to mark evening shift absent (24h format)', '{\"required\":true,\"min\":14,\"max\":20}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(17, 'website_url', 'http://localhost/qr_attendance/public', 'url', 'integration', 'Base URL of the web application', '{\"required\":true,\"type\":\"url\"}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(18, 'api_endpoint_attendance', '/api/api_attendance.php', 'string', 'integration', 'Attendance API endpoint', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(19, 'api_endpoint_checkin', '/api/checkin_api.php', 'string', 'integration', 'Check-in API endpoint', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(20, 'api_endpoint_dashboard', '/api/dashboard_api.php', 'string', 'integration', 'Dashboard API endpoint', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(21, 'api_key', 'attendance_2025_xyz789_secure', 'string', 'integration', 'API authentication key', '{\"required\":true,\"min_length\":10}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(22, 'api_timeout_seconds', '30', 'integer', 'integration', 'API request timeout in seconds', '{\"required\":true,\"min\":5,\"max\":120}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(23, 'debug_mode', 'true', 'boolean', 'advanced', 'Enable debug mode for development', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(24, 'log_errors', 'true', 'boolean', 'advanced', 'Enable error logging', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(25, 'show_errors', 'true', 'boolean', 'advanced', 'Show errors in development mode', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(26, 'session_timeout_seconds', '3600', 'integer', 'advanced', 'Session timeout seconds', '{\"required\":true,\"min\":300,\"max\":86400}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(27, 'max_login_attempts', '5', 'integer', 'advanced', 'Max login attempts', '{\"required\":true,\"min\":3,\"max\":10}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(28, 'login_lockout_minutes', '15', 'integer', 'advanced', 'Login lockout minutes', '{\"required\":true,\"min\":5,\"max\":60}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(29, 'password_min_length', '8', 'integer', 'advanced', 'Password min length', '{\"required\":true,\"min\":6,\"max\":32}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(30, 'max_sync_records', '1000', 'integer', 'advanced', 'Max sync records', '{\"required\":true,\"min\":100,\"max\":10000}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
-(31, 'api_rate_limit', '100', 'integer', 'advanced', 'Api rate limit', '{\"required\":true,\"min\":10,\"max\":1000}', '2025-10-15 23:55:58', 'admin', '2025-10-12 00:09:58'),
+(1, 'morning_checkin_start', '09:00', 'time', 'shift_timings', 'Morning shift check-in start time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(2, 'morning_checkin_end', '12:00', 'time', 'shift_timings', 'Morning shift check-in end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(3, 'morning_checkout_start', '12:00', 'time', 'shift_timings', 'Morning shift check-out start time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(4, 'morning_checkout_end', '13:40', 'time', 'shift_timings', 'Morning shift check-out end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(5, 'morning_class_end', '13:40', 'time', 'shift_timings', 'Morning shift class end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(6, 'evening_checkin_start', '09:00', 'time', 'shift_timings', 'Evening shift check-in start time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(7, 'evening_checkin_end', '12:00', 'time', 'shift_timings', 'Evening shift check-in end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(8, 'evening_checkout_start', '09:00', 'time', 'shift_timings', 'Evening shift check-out start time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(9, 'evening_checkout_end', '14:00', 'time', 'shift_timings', 'Evening shift check-out end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(10, 'evening_class_end', '14:00', 'time', 'shift_timings', 'Evening shift class end time', '{\"required\":true,\"type\":\"time\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(11, 'minimum_duration_minutes', '130', 'integer', 'system_config', 'Minimum duration in minutes for attendance', '{\"required\":true,\"min\":30,\"max\":480}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(12, 'sync_interval_seconds', '30', 'integer', 'system_config', 'Automatic sync interval in seconds', '{\"required\":true,\"min\":10,\"max\":300}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(13, 'timezone', 'Asia/Karachi', 'string', 'system_config', 'System timezone', '{\"required\":true,\"options\":[\"Asia\\/Karachi\",\"UTC\",\"America\\/New_York\",\"Europe\\/London\"]}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(14, 'academic_year_start_month', '9', 'integer', 'system_config', 'Academic year start month (1-12)', '{\"required\":true,\"min\":1,\"max\":12}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(15, 'auto_absent_morning_hour', '11', 'integer', 'system_config', 'Hour to mark morning shift absent (24h format)', '{\"required\":true,\"min\":8,\"max\":16}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(16, 'auto_absent_evening_hour', '17', 'integer', 'system_config', 'Hour to mark evening shift absent (24h format)', '{\"required\":true,\"min\":14,\"max\":20}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(17, 'website_url', 'http://localhost/qr_attendance/public', 'url', 'integration', 'Base URL of the web application', '{\"required\":true,\"type\":\"url\"}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(18, 'api_endpoint_attendance', '/api/api_attendance.php', 'string', 'integration', 'Attendance API endpoint', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(19, 'api_endpoint_checkin', '/api/checkin_api.php', 'string', 'integration', 'Check-in API endpoint', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(20, 'api_endpoint_dashboard', '/api/dashboard_api.php', 'string', 'integration', 'Dashboard API endpoint', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(21, 'api_key', 'attendance_2025_xyz789_secure', 'string', 'integration', 'API authentication key', '{\"required\":true,\"min_length\":10}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(22, 'api_timeout_seconds', '30', 'integer', 'integration', 'API request timeout in seconds', '{\"required\":true,\"min\":5,\"max\":120}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(23, 'debug_mode', 'true', 'boolean', 'advanced', 'Enable debug mode for development', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(24, 'log_errors', 'true', 'boolean', 'advanced', 'Enable error logging', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(25, 'show_errors', 'true', 'boolean', 'advanced', 'Show errors in development mode', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(26, 'session_timeout_seconds', '3600', 'integer', 'advanced', 'Session timeout seconds', '{\"required\":true,\"min\":300,\"max\":86400}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(27, 'max_login_attempts', '5', 'integer', 'advanced', 'Max login attempts', '{\"required\":true,\"min\":3,\"max\":10}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(28, 'login_lockout_minutes', '15', 'integer', 'advanced', 'Login lockout minutes', '{\"required\":true,\"min\":5,\"max\":60}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(29, 'password_min_length', '8', 'integer', 'advanced', 'Password min length', '{\"required\":true,\"min\":6,\"max\":32}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(30, 'max_sync_records', '1000', 'integer', 'advanced', 'Max sync records', '{\"required\":true,\"min\":100,\"max\":10000}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
+(31, 'api_rate_limit', '100', 'integer', 'advanced', 'Api rate limit', '{\"required\":true,\"min\":10,\"max\":1000}', '2025-10-16 09:31:42', 'admin', '2025-10-12 00:09:58'),
 (56, 'qr_code_size', '200', 'integer', 'qr_code', 'Qr code size', '{\"required\":true,\"min\":100,\"max\":500}', '2025-10-13 15:44:27', 'admin', '2025-10-12 00:29:17'),
 (57, 'qr_code_margin', '10', 'integer', 'qr_code', 'Qr code margin', '{\"required\":true,\"min\":0,\"max\":50}', '2025-10-13 15:44:27', 'admin', '2025-10-12 00:29:17'),
 (58, 'max_file_size_mb', '5', 'integer', 'file_upload', 'Max file size mb', '{\"required\":true,\"min\":1,\"max\":100}', '2025-10-13 15:44:27', 'admin', '2025-10-12 00:29:17'),
@@ -490,11 +504,11 @@ INSERT INTO `system_settings` (`id`, `setting_key`, `setting_value`, `setting_ty
 (98, 'allowed_extensions', 'csv,json,xlsx', 'string', 'file_upload', 'Comma-separated list of allowed file extensions', '[]', '2025-10-13 15:44:27', 'admin', '2025-10-13 08:03:02'),
 (101, 'smtp_username', '', 'string', 'email', 'SMTP authentication username', '[]', '2025-10-13 15:44:27', 'admin', '2025-10-13 08:03:02'),
 (102, 'smtp_password', '', 'string', 'email', 'SMTP authentication password', '[]', '2025-10-13 15:44:27', 'admin', '2025-10-13 08:03:02'),
-(1725, 'globalSearchInput', '', 'string', 'general', 'System setting', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-15 21:16:01'),
-(1726, 'searchAll', 'all', 'string', 'general', 'System setting', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-15 21:16:01'),
-(1727, 'searchStudents', 'students', 'string', 'general', 'System setting', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-15 21:16:01'),
-(1728, 'searchPrograms', 'programs', 'string', 'general', 'System setting', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-15 21:16:01'),
-(1729, 'searchAttendance', 'attendance', 'string', 'general', 'System setting', '[]', '2025-10-15 23:55:58', 'admin', '2025-10-15 21:16:01');
+(1725, 'globalSearchInput', '', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01'),
+(1726, 'searchAll', 'all', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01'),
+(1727, 'searchStudents', 'students', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01'),
+(1728, 'searchPrograms', 'programs', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01'),
+(1729, 'searchAttendance', 'attendance', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01');
 
 -- --------------------------------------------------------
 
@@ -520,7 +534,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `role`, `student_id`, `is_active`, `last_login`, `created_at`, `updated_at`) VALUES
-(10, 'admin', 'aniquecodes@gmail.com', '$2y$10$uzcDa0cHVM014FnZlgTIGeqg.LKPZHTWJolarBF.F8asMD0dRBHF2', 'admin', NULL, 1, '2025-10-15 21:31:29', '2025-10-11 12:02:11', '2025-10-15 21:31:29');
+(10, 'admin', 'aniquecodes@gmail.com', '$2y$10$uzcDa0cHVM014FnZlgTIGeqg.LKPZHTWJolarBF.F8asMD0dRBHF2', 'admin', NULL, 1, '2025-10-16 08:53:07', '2025-10-11 12:02:11', '2025-10-16 08:53:07');
 
 -- --------------------------------------------------------
 
@@ -751,19 +765,19 @@ ALTER TABLE `academic_years`
 -- AUTO_INCREMENT for table `attendance`
 --
 ALTER TABLE `attendance`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `check_in_sessions`
 --
 ALTER TABLE `check_in_sessions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `import_logs`
 --
 ALTER TABLE `import_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `programs`
@@ -775,7 +789,7 @@ ALTER TABLE `programs`
 -- AUTO_INCREMENT for table `qr_codes`
 --
 ALTER TABLE `qr_codes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
 
 --
 -- AUTO_INCREMENT for table `sections`
@@ -793,7 +807,7 @@ ALTER TABLE `shift_timings`
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=140;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=150;
 
 --
 -- AUTO_INCREMENT for table `sync_logs`
