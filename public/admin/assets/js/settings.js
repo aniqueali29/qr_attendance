@@ -15,26 +15,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setupFormChangeDetection();
 });
 
-// Fallback alert function if global showAlert is not available
-function showAlert(message, type = 'info') {
-    // Check if global showAlert exists and is not this function
-    if (typeof window.showAlert === 'function' && window.showAlert !== showAlert) {
-        window.showAlert(message, type);
-        return;
-    }
-    
-    // Fallback to browser alert for critical messages
-    if (type === 'danger' || type === 'error') {
-        alert(message);
-        return;
-    }
-    
-    // For other types, try to show in status area
-    const statusElement = document.getElementById('settingsStatus');
-    if (statusElement) {
-        updateSettingsStatus(message, type);
-    }
-}
 
 function initializeTabs() {
     // Ensure tab content is visible

@@ -77,14 +77,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Popover(popoverTriggerEl);
     });
     
-    // Auto-hide alerts after 5 seconds
-    setTimeout(function() {
-        var alerts = document.querySelectorAll('.alert-dismissible');
-        alerts.forEach(function(alert) {
-            var bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
-        });
-    }, 5000);
     
     // Confirm delete actions
     document.querySelectorAll('[data-confirm]').forEach(function(element) {
@@ -111,24 +103,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Global admin functions
 window.adminUtils = {
-    showAlert: function(message, type = 'info') {
-        var alertHtml = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
-                       message +
-                       '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
-                       '</div>';
-        
-        var container = document.getElementById('alert-container') || document.body;
-        container.insertAdjacentHTML('afterbegin', alertHtml);
-        
-        // Auto-hide after 5 seconds
-        setTimeout(function() {
-            var alert = container.querySelector('.alert');
-            if (alert) {
-                var bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            }
-        }, 5000);
-    },
     
     showLoading: function(show) {
         var loadingElements = document.querySelectorAll('.loading');

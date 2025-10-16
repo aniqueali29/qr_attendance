@@ -195,6 +195,10 @@ include 'partials/navbar.php';
                                 <i class="bx bx-key me-1"></i>
                                 <span class="bulk-btn-text">Password Reset</span>
                             </button>
+        <button class="btn btn-sm btn-info" onclick="bulkExportCards()">
+            <i class="bx bx-id-card me-1"></i>
+            <span class="bulk-btn-text">Export Cards</span>
+        </button>
                         </div>
                     </div>
                 </div>
@@ -555,7 +559,7 @@ include 'partials/navbar.php';
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <i class="bx bx-x me-1"></i>Close
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="alert('Edit Student')">
+                    <button type="button" class="btn btn-primary" onclick="showAlert('Edit Student', 'info')">
                         <i class="bx bx-edit me-1"></i>Edit Student
                     </button>
                 </div>
@@ -948,8 +952,82 @@ include 'partials/navbar.php';
     </div>
 </div>
 
-<!-- Alert Container -->
-<div id="alert-container"></div>
+<!-- Bulk Export Cards Modal -->
+<div class="modal fade" id="bulkExportCardsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title d-flex align-items-center">
+                    <i class="bx bx-id-card me-2"></i>Export Student Cards
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <!-- Student Count Info -->
+                <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                    <i class="bx bx-info-circle fs-5 me-2"></i>
+                    <span><span id="export-student-count" class="fw-bold">0</span> student(s) selected for export</span>
+                </div>
+                
+                <!-- Export Format Selection -->
+                <div class="mb-4">
+                    <label class="form-label fw-semibold mb-3">Select Export Format</label>
+                    <div class="row g-3">
+                        <!-- PNG Option -->
+                        <div class="col-md-6">
+                            <input class="btn-check" type="radio" name="exportFormat" id="exportFormatPNG" value="png" checked>
+                            <label class="btn btn-outline-primary w-100 p-3 text-start" for="exportFormatPNG" style="height: 100%; border: 2px solid;">
+                                <div class="d-flex flex-column align-items-center text-center">
+                                    <i class="bx bx-image" style="font-size: 48px; margin-bottom: 12px;"></i>
+                                    <strong class="fs-6 mb-1">PNG Images</strong>
+                                    <small class="text-muted">Individual card images in ZIP</small>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <!-- PDF Option -->
+                        <div class="col-md-6">
+                            <input class="btn-check" type="radio" name="exportFormat" id="exportFormatPDF" value="pdf">
+                            <label class="btn btn-outline-danger w-100 p-3 text-start" for="exportFormatPDF" style="height: 100%; border: 2px solid;">
+                                <div class="d-flex flex-column align-items-center text-center">
+                                    <i class="bx bx-file-blank" style="font-size: 48px; margin-bottom: 12px;"></i>
+                                    <strong class="fs-6 mb-1">PDF Document</strong>
+                                    <small class="text-muted">All cards in single PDF</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- QR Code Info -->
+                <div class="alert alert-light border d-flex align-items-start mb-3" role="alert">
+                    <i class="bx bx-info-circle text-info fs-5 me-2 mt-1"></i>
+                    <small class="text-muted">QR codes will be automatically generated for students that don't have one yet.</small>
+                </div>
+                
+                <!-- Progress Indicator -->
+                <div id="export-progress" class="mt-3" style="display: none;">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span id="export-progress-text" class="text-muted">Preparing export...</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div id="export-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary px-4" onclick="processBulkCardExport()" id="exportCardsBtn">
+                    <i class="bx bx-download me-1"></i>Export Cards
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <!-- Core JS -->
 <script src="<?php echo getAdminAssetUrl('vendor/libs/jquery/jquery.js'); ?>"></script>
@@ -983,7 +1061,7 @@ window.addEventListener('error', function(e) {
     if (typeof window.adminUtils !== 'undefined') {
         adminUtils.showError('JavaScript Error: ' + e.message);
     } else {
-        alert('JavaScript Error: ' + e.message);
+        showAlert('JavaScript Error: ' + e.message, 'error');
     }
 });
 
@@ -1009,7 +1087,7 @@ window.addEventListener('unhandledrejection', function(e) {
     if (typeof window.adminUtils !== 'undefined') {
         adminUtils.showError('Promise Error: ' + e.reason);
     } else {
-        alert('Promise Error: ' + e.reason);
+        showAlert('Promise Error: ' + e.reason, 'error');
     }
 });
 </script>
@@ -1351,7 +1429,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof window.adminUtils !== 'undefined') {
             adminUtils.showError('Error initializing page: ' + error.message);
         } else {
-            alert('Error initializing page: ' + error.message);
+            showAlert('Error initializing page: ' + error.message, 'error');
         }
     }
 });
@@ -1829,7 +1907,7 @@ function updateStudentsTable(students) {
     tbody.innerHTML = students.map(student => `
         <tr>
             <td class="bulk-checkbox-column">
-                <input type="checkbox" data-student-id="${student.id}" onchange="updateSelectedStudentsCount()">
+                <input type="checkbox" data-student-id="${student.id}" data-roll-number="${escapeHtml(student.student_id || student.roll_number)}" onchange="updateSelectedStudentsCount()">
             </td>
             <td><strong>${escapeHtml(student.student_id || student.roll_number)}</strong></td>
             <td>${escapeHtml(student.name)}</td>
@@ -1851,6 +1929,13 @@ function updateStudentsTable(students) {
                         </a></li>
                         <li><a class="dropdown-item" href="#" onclick="viewAttendance(${student.id}, event)">
                             <i class="bx bx-clipboard me-2"></i>Attendance
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportStudentCard('${student.roll_number}', 'png')">
+                            <i class="bx bx-download me-2"></i>Export Card (PNG)
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportStudentCard('${student.roll_number}', 'pdf')">
+                            <i class="bx bx-file me-2"></i>Export Card (PDF)
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="#" onclick="confirmDelete(${student.id})">
@@ -4173,6 +4258,195 @@ function confirmBulkPasswordReset() {
     document.addEventListener('DOMContentLoaded', function() {
         FilterPresets.init('students');
     });
+
+// ========================================
+// Card Export Functions
+// ========================================
+
+/**
+ * Export individual student card
+ */
+function exportStudentCard(studentId, format) {
+    // Show loading indicator
+    showAlert('Generating student card...', 'info');
+    
+    // Prepare data as URL-encoded
+    const params = new URLSearchParams({
+        action: 'export_card',
+        student_ids: JSON.stringify([studentId]),
+        format: format,
+        type: 'individual'
+    });
+
+    // Send request to the API
+    fetch('../api/card_export_api.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params
+    })
+    .then(response => {
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showAlert('Card generated successfully! Opening in new window...', 'success');
+            
+            // Open file in new window
+            if (data.data && data.data.download_url) {
+                // Open in new window for all formats (HTML will display with print button)
+                const cardWindow = window.open('../' + data.data.download_url, '_blank');
+                if (!cardWindow) {
+                    showAlert('Please allow pop-ups to view the card', 'warning');
+                }
+            }
+        } else {
+            showAlert('Failed to generate card: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('An error occurred while generating the card', 'error');
+    });
+}
+
+/**
+ * Open bulk export cards modal
+ */
+function bulkExportCards() {
+    const selectedStudents = getSelectedStudents();
+    
+    if (selectedStudents.length === 0) {
+        showAlert('Please select at least one student to export cards', 'warning');
+        return;
+    }
+    
+    // Update count in modal
+    document.getElementById('export-student-count').textContent = selectedStudents.length;
+    
+    // Reset progress
+    document.getElementById('export-progress').style.display = 'none';
+    document.getElementById('exportCardsBtn').disabled = false;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('bulkExportCardsModal'));
+    modal.show();
+}
+
+/**
+ * Process bulk card export
+ */
+function processBulkCardExport() {
+    const selectedStudents = getSelectedStudents();
+    const format = document.querySelector('input[name="exportFormat"]:checked').value;
+    
+    if (selectedStudents.length === 0) {
+        showAlert('No students selected', 'warning');
+        return;
+    }
+    
+    // Disable export button
+    const exportBtn = document.getElementById('exportCardsBtn');
+    exportBtn.disabled = true;
+    
+    // Show progress
+    const progressDiv = document.getElementById('export-progress');
+    const progressText = document.getElementById('export-progress-text');
+    const progressBar = document.getElementById('export-progress-bar');
+    
+    progressDiv.style.display = 'block';
+    progressText.textContent = 'Generating QR codes and preparing cards...';
+    progressBar.style.width = '20%';
+    
+    // Get student roll numbers from the selected checkboxes
+    const studentRollNumbers = [];
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][data-student-id]:checked');
+    checkboxes.forEach(checkbox => {
+        const rollNumber = checkbox.dataset.rollNumber;
+        if (rollNumber) {
+            studentRollNumbers.push(rollNumber);
+        }
+    });
+    
+    if (studentRollNumbers.length === 0) {
+        showAlert('Failed to get student roll numbers', 'error');
+        exportBtn.disabled = false;
+        progressDiv.style.display = 'none';
+        return;
+    }
+    
+    // Prepare data as URL-encoded
+    const params = new URLSearchParams({
+        action: 'export_card',
+        student_ids: JSON.stringify(studentRollNumbers),
+        format: format,
+        type: 'bulk'
+    });
+
+    progressBar.style.width = '40%';
+    progressText.textContent = 'Generating cards...';
+
+    // Send request
+    fetch('../api/card_export_api.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params
+    })
+    .then(response => response.json())
+    .then(data => {
+        progressBar.style.width = '80%';
+        progressText.textContent = 'Preparing download...';
+        
+        if (data.success) {
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Download ready!';
+            
+            showAlert(`${data.data.count} cards generated successfully!`, 'success');
+            
+            // Download file
+            if (data.data && data.data.download_url) {
+                setTimeout(() => {
+                    // Open in new window for viewing/printing
+                    const cardWindow = window.open('../' + data.data.download_url, '_blank');
+                    if (!cardWindow) {
+                        showAlert('Please allow pop-ups to view the cards', 'warning');
+                    }
+                    
+                    // Close modal after a delay
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('bulkExportCardsModal'));
+                        if (modal) {
+                            modal.hide();
+                        }
+                        exportBtn.disabled = false;
+                        progressDiv.style.display = 'none';
+                        progressBar.style.width = '0%';
+                    }, 1500);
+                }, 500);
+            }
+        } else {
+            showAlert('Failed to generate cards: ' + data.message, 'error');
+            exportBtn.disabled = false;
+            progressDiv.style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('An error occurred while generating cards', 'error');
+        exportBtn.disabled = false;
+        progressDiv.style.display = 'none';
+    });
+}
+
+/**
+ * Get selected students
+ */
+// getSelectedStudents() function already defined above (line 3412)
+// This duplicate has been removed to prevent conflicts
+
+
     </script>
 
 </body>

@@ -2,3 +2,4 @@
 [2025-10-16 10:51:23] [ERROR] PHP Error: Undefined array key "current_year" in C:\xampp\htdocs\qr_attendance\public\api\checkin_api.php on line 199
 [2025-10-16 11:01:07] [ERROR] PHP Error: Undefined array key "current_year" in C:\xampp\htdocs\qr_attendance\public\api\checkin_api.php on line 183
 [2025-10-16 11:01:07] [ERROR] PHP Error: Undefined array key "current_year" in C:\xampp\htdocs\qr_attendance\public\api\checkin_api.php on line 199
+[2025-10-16 12:54:08] [ERROR] Uncaught Exception: Call to undefined function imagecreatetruecolor()

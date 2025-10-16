@@ -541,7 +541,6 @@ include 'partials/navbar.php';
 <!-- Content wrapper -->
 
 <!-- Alert Container -->
-<div id="alert-container" class="toast-container"></div>
 </div>
 <!-- / Layout page -->
 </div>

@@ -1173,42 +1173,6 @@ function showLoading(containerId) {
     }
 }
 
-/**
- * Show alert message
- */
-function showAlert(message, type = 'info') {
-    const alertContainer = document.getElementById('alert-container');
-    if (!alertContainer) return;
-    
-    const alert = document.createElement('div');
-    alert.className = `alert ${type}`;
-    alert.innerHTML = `
-        <i class="fas fa-${getAlertIcon(type)}"></i>
-        ${message}
-    `;
-    
-    alertContainer.appendChild(alert);
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        if (alert.parentNode) {
-            alert.remove();
-        }
-    }, 5000);
-}
-
-/**
- * Get alert icon based on type
- */
-function getAlertIcon(type) {
-    const icons = {
-        success: 'check-circle',
-        error: 'exclamation-triangle',
-        warning: 'exclamation-triangle',
-        info: 'info-circle'
-    };
-    return icons[type] || 'info-circle';
-}
 
 /**
  * Close all modals

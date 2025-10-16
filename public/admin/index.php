@@ -1171,27 +1171,6 @@ function refreshActivity() {
 }
 
 // Fallback showAlert function if adminUtils is not available
-function showAlert(message, type = 'info') {
-    // Try to use adminUtils if available
-    if (typeof adminUtils !== 'undefined' && adminUtils.showAlert) {
-        adminUtils.showAlert(message, type);
-        return;
-    }
-    
-    // Fallback to browser alert or console
-    if (type === 'error' || type === 'danger') {
-        console.error(message);
-    } else {
-        console.log(message);
-    }
-    
-    // Try to show a simple alert
-    try {
-        alert(message);
-    } catch (e) {
-        console.log('Alert message:', message);
-    }
-}
 
 function setTrendPeriod(days) {
     // Update trend period and reload data

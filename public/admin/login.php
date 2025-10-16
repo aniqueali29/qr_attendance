@@ -209,32 +209,6 @@ if ($adminAuth->isLoggedIn()) {
         });
     });
     
-    function showAlert(message, type) {
-        // Remove existing alerts
-        const existingAlerts = document.querySelectorAll('.alert');
-        existingAlerts.forEach(alert => alert.remove());
-        
-        // Create new alert
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
-        alertDiv.setAttribute('role', 'alert');
-        alertDiv.innerHTML = `
-            <i class="bx bx-${type === 'error' ? 'error-circle' : 'check-circle'} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        // Insert after the form
-        const form = document.getElementById('formAuthentication');
-        form.parentNode.insertBefore(alertDiv, form.nextSibling);
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
-            }
-        }, 5000);
-    }
     </script>
 </body>
 </html>

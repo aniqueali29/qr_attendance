@@ -287,7 +287,6 @@ include 'partials/navbar.php';
 </div>
 
 <!-- Alert Container -->
-<div id="alert-container"></div>
 
 <!-- Core JS -->
 <script src="<?php echo getAdminAssetUrl('vendor/libs/jquery/jquery.js'); ?>"></script>
@@ -968,36 +967,6 @@ function exportAttendance() {
     window.open(`api/attendance.php?action=export&${params}`, '_blank');
 }
 
-function showAlert(message, type = 'info') {
-    // Create alert container if it doesn't exist
-    let alertContainer = document.getElementById('alert-container');
-    if (!alertContainer) {
-        alertContainer = document.createElement('div');
-        alertContainer.id = 'alert-container';
-        alertContainer.style.position = 'fixed';
-        alertContainer.style.top = '20px';
-        alertContainer.style.right = '20px';
-        alertContainer.style.zIndex = '9999';
-        document.body.appendChild(alertContainer);
-    }
-    
-    // Create alert element
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    alertContainer.appendChild(alertDiv);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.parentNode.removeChild(alertDiv);
-        }
-    }, 5000);
-}
 
 // Bulk Operations Functions for Attendance
 function toggleBulkModeAttendance() {

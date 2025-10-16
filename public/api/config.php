@@ -77,11 +77,13 @@ if (DEBUG_MODE) {
 // Timezone
 date_default_timezone_set('Asia/Karachi');
 
-// Session Configuration
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
-ini_set('session.use_strict_mode', 1);
-ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
+// Session Configuration (only if session not yet started)
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
+    ini_set('session.use_strict_mode', 1);
+    ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
+}
 
 // Database Connection
 try {

@@ -483,7 +483,6 @@ include 'partials/navbar.php';
 </div>
 
 <!-- Alert Container -->
-<div id="alert-container"></div>
 
 <!-- Core JS -->
 <script src="<?php echo getAdminAssetUrl('vendor/libs/jquery/jquery.js'); ?>"></script>
@@ -1357,51 +1356,6 @@ function debounce(func, wait) {
 }
 
 // Alert system (if not already defined)
-function showAlert(message, type = 'info') {
-    // Create alert container if it doesn't exist
-    let alertContainer = document.getElementById('alert-container');
-    if (!alertContainer) {
-        alertContainer = document.createElement('div');
-        alertContainer.id = 'alert-container';
-        alertContainer.className = 'position-fixed top-0 end-0 p-3';
-        alertContainer.style.zIndex = '9999';
-        document.body.appendChild(alertContainer);
-    }
-    
-    // Generate unique ID for alert
-    const alertId = 'alert-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    
-    // Get icon and color based on type
-    const typeConfig = {
-        'success': { icon: 'bx-check-circle', color: 'success' },
-        'error': { icon: 'bx-x-circle', color: 'danger' },
-        'warning': { icon: 'bx-error-circle', color: 'warning' },
-        'info': { icon: 'bx-info-circle', color: 'info' },
-        'danger': { icon: 'bx-x-circle', color: 'danger' }
-    };
-    
-    const config = typeConfig[type] || typeConfig['info'];
-    
-    // Create alert HTML
-    const alertHtml = `
-        <div id="${alertId}" class="alert alert-${config.color} alert-dismissible fade show" role="alert">
-            <i class="bx ${config.icon} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    `;
-    
-    // Add alert to container
-    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
-    
-    // Auto-remove alert after 5 seconds
-    setTimeout(() => {
-        const alertElement = document.getElementById(alertId);
-        if (alertElement) {
-            alertElement.remove();
-        }
-    }, 5000);
-}
 </script>
 
 </body>
