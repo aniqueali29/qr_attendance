@@ -79,8 +79,10 @@ include 'partials/navbar.php';
                         <label for="program-filter" class="form-label">Program</label>
                         <select id="program-filter" class="form-select">
                             <option value="">All Programs</option>
-                            <option value="SWT">Software Technology</option>
-                            <option value="CIT">Computer Information Technology</option>
+                            <option value="SWT">SWT - Software Technology (Morning)</option>
+                            <option value="ESWT">ESWT - Software Technology (Evening)</option>
+                            <option value="CIT">CIT - Computer Information Technology (Morning)</option>
+                            <option value="ECIT">ECIT - Computer Information Technology (Evening)</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -1831,7 +1833,7 @@ function updateStudentsTable(students) {
             </td>
             <td><strong>${escapeHtml(student.student_id || student.roll_number)}</strong></td>
             <td>${escapeHtml(student.name)}</td>
-            <td><span class="badge bg-primary">${escapeHtml(student.program)}</span></td>
+            <td><span class="badge bg-primary">${escapeHtml(student.shift === 'Evening' ? 'E' + student.program : student.program)}</span></td>
             <td><span class="badge bg-${student.shift === 'Morning' ? 'success' : 'info'}">${escapeHtml(student.shift)}</span></td>
             <td>${escapeHtml(student.year_level)}</td>
             <td>Section ${escapeHtml(student.section)}</td>
@@ -2345,11 +2347,11 @@ async function parseRollNumber(rollNumber) {
                 console.log('Admission year filled:', data.admission_year);
             }
             
-            // Fill program
+            // Fill program using base program code
             if (programSelect) {
-                console.log('Looking for program:', data.program_code);
+                console.log('Looking for program:', data.base_program_code);
                 for (let option of programSelect.options) {
-                    if (option.value === data.program_code) {
+                    if (option.value === data.base_program_code) {
                         option.selected = true;
                         programSelect.style.backgroundColor = '#e8f5e8';
                         programSelect.style.borderColor = '#4caf50';

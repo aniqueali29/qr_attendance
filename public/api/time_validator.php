@@ -13,9 +13,9 @@ class TimeValidator {
     const MORNING_CHECKOUT_START = '12:00:00';   // 12:00 PM (12pm)
     const MORNING_CHECKOUT_END = '13:40:00';    // 1:40 PM
     
-    const EVENING_CHECKIN_START = '15:00:00';   // 3:00 PM
-    const EVENING_CHECKIN_END = '18:00:00';     // 6:00 PM (extended to allow free check-in/out)
-    const EVENING_CLASS_END = '18:00:00';       // 6:00 PM
+    const EVENING_CHECKIN_START = '09:00:00';   // 9:00 AM
+    const EVENING_CHECKIN_END = '12:00:00';     // 12:00 PM (12 PM)
+    const EVENING_CLASS_END = '14:00:00';       // 2:00 PM
     
     const MINIMUM_DURATION_MINUTES = 120;  // 2 hours minimum
     
@@ -51,8 +51,8 @@ class TimeValidator {
                 'checkout_start' => self::EVENING_CHECKIN_START,  // Same as checkin for free access
                 'checkout_end' => self::EVENING_CLASS_END,
                 'class_end' => self::EVENING_CLASS_END,
-                'checkin_window_hours' => 3,  // Extended to 3 hours
-                'total_class_hours' => 3
+                'checkin_window_hours' => 3,  // 9 AM to 12 PM = 3 hours
+                'total_class_hours' => 5  // 9 AM to 2 PM = 5 hours
             ];
         } else {
             throw new InvalidArgumentException("Invalid shift: {$shift}. Must be 'Morning' or 'Evening'");

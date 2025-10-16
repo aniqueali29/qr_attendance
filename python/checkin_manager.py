@@ -90,30 +90,33 @@ class CheckInManager:
             return False, str(e)
     
     def get_student_status(self, student_id):
-        """Get current status of a student from local data"""
+        """Get current status of a student from server database"""
         try:
-            # Load students from local JSON file
-            from app import load_students
-            students = load_students()
-            
-            if student_id not in students:
-                return False, "Student not found in local database"
-            
-            student = students[student_id]
-            
-            # Check if student is active
-            if not student.get('is_active', True):
-                return True, {'status': 'Inactive', 'message': 'Student is inactive'}
-            
-            # For now, assume all students are "Not checked in" 
-            # In a real implementation, you'd check local attendance records
-            return True, {
-                'status': 'Not checked in',
-                'student_id': student_id,
-                'name': student.get('name', 'Unknown'),
-                'shift': student.get('shift', 'Unknown'),
-                'program': student.get('program', 'Unknown')
+            # Call PHP API to get real server status
+            data = {
+                'action': 'get_status',
+                'student_id': student_id
             }
+            
+            response = self.session.post(self.checkin_api, json=data, timeout=10)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    server_data = result.get('data', {})
+                    return True, {
+                        'status': server_data.get('status', 'Not checked in'),
+                        'student_id': student_id,
+                        'name': server_data.get('student_name', 'Unknown'),
+                        'shift': server_data.get('shift', 'Unknown'),
+                        'program': server_data.get('program', 'Unknown'),
+                        'check_in_time': server_data.get('check_in_time'),
+                        'check_out_time': server_data.get('check_out_time')
+                    }
+                else:
+                    return False, result.get('message', 'Unknown error')
+            else:
+                return False, f"HTTP Error: {response.status_code}"
                 
         except Exception as e:
             return False, str(e)

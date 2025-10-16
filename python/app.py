@@ -597,8 +597,12 @@ def sync_attendance_from_website():
                     local_ts_str = str(local_df.at[idx, 'Timestamp'])
                     local_ts = datetime.strptime(local_ts_str, '%Y-%m-%d %H:%M:%S') if local_ts_str and 'AM' not in local_ts_str and 'PM' not in local_ts_str else datetime.strptime(local_ts_str, '%Y-%m-%d %I:%M:%S %p')
                     
-                    # Update if server record is newer OR if timestamps are equal but status is different
-                    should_update = (server_ts > local_ts) or (server_ts == local_ts and str(local_df.at[idx, 'Status']) != str(r['Status']))
+                    # Calculate time difference in seconds
+                    time_diff = abs((server_ts - local_ts).total_seconds())
+                    
+                    # Update if server record is newer OR if timestamps are within 5 seconds (tolerance for sync delays)
+                    # OR if timestamps are equal but status is different
+                    should_update = (server_ts > local_ts) or (time_diff <= 5) or (server_ts == local_ts and str(local_df.at[idx, 'Status']) != str(r['Status']))
                 except Exception:
                     # If timestamp parsing fails, use server data (fallback to server-wins)
                     should_update = True
@@ -954,7 +958,22 @@ def log_attendance(student_id, sync_manager=None):
         print(f"  Current Time: {time_validation['current_time']}")
         return False
     
-    # Process attendance directly (no API calls needed)
+    # Call PHP API to create check-in session and attendance record
+    try:
+        checkin_manager = CheckInManager()
+        success, result = checkin_manager.check_in_student(student_id)
+        
+        if not success:
+            print(f"PHP API CHECK-IN FAILED: {result}")
+            return False
+            
+        print(f"PHP API CHECK-IN SUCCESS: {result}")
+        
+    except Exception as e:
+        print(f"Error calling PHP API for check-in: {e}")
+        return False
+    
+    # Update local CSV to match server
     action = "Check-in"  # Mark as check-in for better clarity
     
     print(f"SUCCESS: {student_name} ({student_id}) - {action} at {timestamp}")
@@ -994,7 +1013,7 @@ def log_attendance(student_id, sync_manager=None):
     return True
 
 def log_checkout(student_id):
-    """Log student check-out by creating a separate 'Present' record."""
+    """Log student check-out by calling PHP API and updating local CSV."""
     from checkin_manager import CheckInManager
     
     timestamp = format_time()
@@ -1041,7 +1060,22 @@ def log_checkout(student_id):
         print(f"  Current Time: {time_validation['current_time']}")
         return False
     
-    # Update the existing check-in record to Present status
+    # Call PHP API to update server database
+    try:
+        checkin_manager = CheckInManager()
+        success, result = checkin_manager.check_out_student(student_id)
+        
+        if not success:
+            print(f"PHP API CHECK-OUT FAILED: {result}")
+            return False
+            
+        print(f"PHP API CHECK-OUT SUCCESS: {result}")
+        
+    except Exception as e:
+        print(f"Error calling PHP API for checkout: {e}")
+        return False
+    
+    # Update local CSV to match server
     try:
         # Load the CSV file
         if not os.path.exists(CSV_FILE):
@@ -1064,7 +1098,7 @@ def log_checkout(student_id):
                 
         # Update the record to Present status with checkout timestamp and duration
         df.loc[mask, 'Status'] = 'Present'
-        df.loc[mask, 'Timestamp'] = timestamp
+        # Keep Timestamp as original check-in time (don't modify it to avoid duplicate entries)
         df.loc[mask, 'Check_In_Time'] = check_in_time
         df.loc[mask, 'Check_Out_Time'] = timestamp
         df.loc[mask, 'Duration_Minutes'] = duration_minutes
@@ -1082,7 +1116,7 @@ def log_checkout(student_id):
         return True
             
     except Exception as e:
-        print(f"Error updating check-out record: {e}")
+        print(f"Error updating local check-out record: {e}")
         return False
 
 def calculate_duration_minutes(check_in_time, check_out_time):
@@ -1111,7 +1145,28 @@ def calculate_duration(check_in_time, check_out_time):
 
 def process_qr_scan(student_id, sync_manager):
     """Process QR code scan and determine check-in or check-out."""
-    # Check current status
+    # First check server status to avoid conflicts
+    try:
+        from checkin_manager import CheckInManager
+        checkin_manager = CheckInManager()
+        
+        # Get server status
+        success, server_status = checkin_manager.get_student_status(student_id)
+        print(f"🔍 Server status check: success={success}, status={server_status}")
+        
+        if success and server_status.get('status') == 'Checked-in':
+            # Server says student is checked in, so they need to check out
+            print(f"🔴 CHECK-OUT: {student_id} (Server shows checked in)")
+            return log_checkout(student_id)
+        elif success and server_status.get('status') == 'Not checked in':
+            # Server confirms student is not checked in
+            print(f"🟢 CHECK-IN: {student_id}")
+            return log_attendance(student_id, sync_manager)
+    except Exception as e:
+        print(f"⚠️ Could not check server status: {e}")
+        # Fallback to local status check
+    
+    # Fallback: Check local status
     current_status = get_student_status_for_date(student_id)
     
     if current_status['status'] == 'Not checked in':

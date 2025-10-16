@@ -157,19 +157,15 @@ function handleCheckIn($pdo) {
         $pdo->beginTransaction();
         
         try {
-            // Create new check-in session with enhanced metadata
+            // Create new check-in session (only use columns that exist in the table)
             $stmt = $pdo->prepare("
-                INSERT INTO check_in_sessions (student_id, student_name, check_in_time, is_active, shift, program, current_year, admission_year) 
-                VALUES (?, ?, ?, 1, ?, ?, ?, ?)
+                INSERT INTO check_in_sessions (student_id, student_name, check_in_time, is_active) 
+                VALUES (?, ?, ?, 1)
             ");
             $stmt->execute([
                 $student_id, 
                 $student['name'], 
-                $current_time_str,
-                $roll_data['shift'],
-                $roll_data['program'],
-                $roll_data['current_year'],
-                $roll_data['admission_year']
+                $current_time_str
             ]);
             
             // Record attendance with Check-in status and enhanced metadata
@@ -274,14 +270,15 @@ function handleCheckOut($pdo) {
             return;
         }
         
-        // For morning shift, still check minimum duration (2 hours)
+        // Calculate session duration for all shifts
+        $check_in_time = new DateTime($session['check_in_time']);
+        $current_time_obj = new DateTime($current_time);
+        $time_diff = $current_time_obj->diff($check_in_time);
+        $total_minutes = ($time_diff->h * 60) + $time_diff->i;
+        
+        // For morning shift, check minimum duration (2 hours)
         // For evening shift, allow immediate checkout (free access)
         if ($roll_data['shift'] === 'Morning') {
-            $check_in_time = new DateTime($session['check_in_time']);
-            $current_time_obj = new DateTime($current_time);
-            $time_diff = $current_time_obj->diff($check_in_time);
-            $total_minutes = ($time_diff->h * 60) + $time_diff->i;
-            
             if ($total_minutes < 120) { // 2 hours = 120 minutes
                 $remaining_minutes = 120 - $total_minutes;
                 echo json_encode([
@@ -297,10 +294,10 @@ function handleCheckOut($pdo) {
         $pdo->beginTransaction();
         
         try {
-            // Update attendance record to Checked-out
+            // Update attendance record to Present (student completed check-in and check-out)
             $stmt = $pdo->prepare("
                 UPDATE attendance 
-                SET status = 'Checked-out', check_out_time = ?, session_duration = ?
+                SET status = 'Present', check_out_time = ?, session_duration = ?
                 WHERE student_id = ? AND DATE(timestamp) = DATE(?) AND status = 'Check-in'
             ");
             $stmt->execute([$current_time, $total_minutes, $student_id, $current_time]);
@@ -324,7 +321,7 @@ function handleCheckOut($pdo) {
                     'check_in_time' => $session['check_in_time'],
                     'check_out_time' => $current_time,
                     'session_duration' => $total_minutes,
-                    'status' => 'Checked-out'
+                    'status' => 'Present'
                 ]
             ]);
             
@@ -370,10 +367,10 @@ function getStudentStatus($pdo) {
             return;
         }
         
-        // Check if student has an active session
+        // Check if student has an active session (shift, program, current_year not in check_in_sessions table)
         $stmt = $pdo->prepare("
-            SELECT id, check_in_time, student_name, last_activity, shift, program, current_year
-            FROM check_in_sessions 
+            SELECT id, check_in_time, student_name, last_activity
+            FROM check_in_sessions
             WHERE student_id = ? AND is_active = 1
         ");
         $stmt->execute([$student_id]);
@@ -385,20 +382,20 @@ function getStudentStatus($pdo) {
             $time_diff = $current_time->diff($check_in_time);
             $total_minutes = ($time_diff->h * 60) + $time_diff->i;
             
-            // Get shift information for checkout validation
-            $session_shift = $session['shift'] ?? $student['shift'];
-            
+            // Get shift information from students table (not in check_in_sessions)
+            $session_shift = $student['shift'];
+
             // Validate checkout time based on shift
             $time_validator = new TimeValidator();
             $checkout_validation = $time_validator->validateCheckoutTime($student_id, $current_time, $session_shift);
-            
+
             // For morning shift, still check minimum duration (2 hours)
             // For evening shift, allow immediate checkout (free access)
             $can_checkout = $checkout_validation['valid'];
             if ($session_shift === 'Morning') {
                 $can_checkout = $can_checkout && $total_minutes >= 120;
             }
-            
+
             echo json_encode([
                 'success' => true,
                 'data' => [
@@ -410,8 +407,8 @@ function getStudentStatus($pdo) {
                     'can_checkout' => $can_checkout,
                     'remaining_minutes' => $can_checkout ? 0 : (120 - $total_minutes),
                     'shift' => $session_shift,
-                    'program' => $session['program'] ?? $student['program'],
-                    'current_year' => $session['current_year'] ?? $student['current_year'],
+                    'program' => $student['program'],
+                    'current_year' => $student['current_year'],
                     'admission_year' => $student['admission_year'],
                     'is_graduated' => $student['is_graduated'],
                     'checkout_validation' => [

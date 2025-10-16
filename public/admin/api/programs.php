@@ -172,6 +172,31 @@ function validateDescription($description) {
     return ['valid' => true];
 }
 
+/**
+ * Get program code for specific shift
+ * @param string $baseCode - Base program code (e.g., "SWT", "CIT")
+ * @param string $shift - Shift ("Morning" or "Evening")
+ * @return string - Computed program code
+ */
+function getProgramCodeForShift($baseCode, $shift) {
+    if ($shift === 'Evening') {
+        return 'E' . $baseCode;
+    }
+    return $baseCode;
+}
+
+/**
+ * Extract base program code from display code
+ * @param string $displayCode - Display program code (e.g., "ESWT", "SWT")
+ * @return string - Base program code
+ */
+function getBaseProgramCode($displayCode) {
+    if (strpos($displayCode, 'E') === 0) {
+        return substr($displayCode, 1);
+    }
+    return $displayCode;
+}
+
 try {
     $action = $_REQUEST['action'] ?? '';
 
@@ -328,6 +353,34 @@ try {
             $response = [
                 'success' => true,
                 'data' => $programs
+            ];
+            break;
+
+        case 'programs_with_shift':
+            // Get programs with computed codes for both shifts
+            $stmt = $pdo->query("
+                SELECT id, code, name, is_active
+                FROM programs
+                WHERE is_active = 1
+                ORDER BY name ASC
+            ");
+            $basePrograms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $programsWithShift = [];
+            foreach ($basePrograms as $program) {
+                $programsWithShift[] = [
+                    'id' => $program['id'],
+                    'base_code' => $program['code'],
+                    'name' => $program['name'],
+                    'morning_code' => getProgramCodeForShift($program['code'], 'Morning'),
+                    'evening_code' => getProgramCodeForShift($program['code'], 'Evening'),
+                    'is_active' => $program['is_active']
+                ];
+            }
+            
+            $response = [
+                'success' => true,
+                'data' => $programsWithShift
             ];
             break;
 

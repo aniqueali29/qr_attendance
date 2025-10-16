@@ -169,13 +169,18 @@ function parseRollNumber($pdo) {
     $stmt->execute([$program['id'], $status, $shift]);
     $available_sections = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Compute display program code based on shift
+    $display_program_code = $shift === 'Evening' ? 'E' . $program['code'] : $program['code'];
+    
     echo json_encode([
         'success' => true,
         'data' => [
             'roll_number' => $roll_number,
             'admission_year' => $admission_year,
             'program_id' => $program['id'],
-            'program_code' => $program['code'],
+            'program_code' => $program['code'], // Backward compatibility
+            'base_program_code' => $program['code'], // Store base code for database
+            'display_program_code' => $display_program_code, // Computed code for display
             'program_name' => $program['name'],
             'shift' => $shift,
             'serial_number' => $serial_part,

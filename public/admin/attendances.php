@@ -102,22 +102,24 @@ include 'partials/navbar.php';
                             <option value="">All Students</option>
                         </select>
                     </div>
+                    
                     <div class="col-md-3">
                         <label for="status-filter" class="form-label">Status</label>
                         <select id="status-filter" class="form-select">
                             <option value="">All Status</option>
-                            <option value="Present">Present</option>
-                            <option value="Absent">Absent</option>
                             <option value="Check-in">Check-in</option>
-                            <option value="Checked-out">Checked-out</option>
+                            <option value="Absent">Absent</option>
+                            <option value="Present">Present</option>
                         </select>
                     </div>
                     <div class="col-md-4">
                         <label for="program-filter" class="form-label">Program</label>
                         <select id="program-filter" class="form-select">
                             <option value="">All Programs</option>
-                            <option value="SWT">Software Technology</option>
-                            <option value="CIT">Computer Information Technology</option>
+                            <option value="SWT">SWT - Software Technology (Morning)</option>
+                            <option value="ESWT">ESWT - Software Technology (Evening)</option>
+                            <option value="CIT">CIT - Computer Information Technology (Morning)</option>
+                            <option value="ECIT">ECIT - Computer Information Technology (Evening)</option>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -241,10 +243,9 @@ include 'partials/navbar.php';
                     <div class="mb-3">
                         <label for="edit-status" class="form-label">Status *</label>
                         <select id="edit-status" name="status" class="form-select" required>
-                            <option value="Present">Present</option>
-                            <option value="Absent">Absent</option>
                             <option value="Check-in">Check-in</option>
-                            <option value="Checked-out">Checked-out</option>
+                            <option value="Absent">Absent</option>
+                            <option value="Present">Present</option>
                         </select>
                     </div>
                     
@@ -544,14 +545,18 @@ function updateAttendanceTable(records) {
         return;
     }
     
-    tbody.innerHTML = records.map(record => `
+    tbody.innerHTML = records.map(record => {
+        // Compute display program code based on shift
+        const displayProgramCode = record.shift === 'Evening' ? 'E' + record.program : record.program;
+        
+        return `
         <tr>
             <td class="bulk-checkbox-column">
                 <input type="checkbox" data-attendance-id="${record.id}" onchange="updateSelectedAttendanceCount()">
             </td>
             <td><strong>${record.roll_number}</strong></td>
             <td>${record.student_name}</td>
-            <td><span class="badge bg-primary">${record.program}</span></td>
+            <td><span class="badge bg-primary">${displayProgramCode}</span></td>
             <td><span class="badge bg-${record.shift === 'Morning' ? 'success' : 'info'}">${record.shift}</span></td>
             <td>
                 <div>${record.date}</div>
@@ -581,7 +586,8 @@ function updateAttendanceTable(records) {
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function updatePagination(pagination) {
@@ -1140,10 +1146,9 @@ function showBulkStatusChangeModal(selectedIds) {
                             <label class="form-label">New Status</label>
                             <select id="bulk-status-select" class="form-select">
                                 <option value="">Select Status</option>
-                                <option value="Present">Present</option>
-                                <option value="Absent">Absent</option>
                                 <option value="Check-in">Check-in</option>
-                                <option value="Checked-out">Checked-out</option>
+                                <option value="Absent">Absent</option>
+                                <option value="Present">Present</option>
                             </select>
                         </div>
                         <div class="mb-3">

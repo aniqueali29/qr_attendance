@@ -4,6 +4,43 @@
 (function () {
   'use strict';
 
+  // Program Code Utility Functions
+  window.ProgramCodeUtils = {
+    /**
+     * Get program code for specific shift
+     * @param {string} baseCode - Base program code (e.g., "SWT", "CIT")
+     * @param {string} shift - Shift ("Morning" or "Evening")
+     * @returns {string} - Computed program code
+     */
+    getProgramCodeForShift: function(baseCode, shift) {
+      if (shift === 'Evening') {
+        return 'E' + baseCode;
+      }
+      return baseCode;
+    },
+
+    /**
+     * Extract base program code from display code
+     * @param {string} displayCode - Display program code (e.g., "ESWT", "SWT")
+     * @returns {string} - Base program code
+     */
+    getBaseProgramCode: function(displayCode) {
+      if (displayCode && displayCode.startsWith('E')) {
+        return displayCode.substring(1);
+      }
+      return displayCode;
+    },
+
+    /**
+     * Check if a program code is for evening shift
+     * @param {string} code - Program code to check
+     * @returns {boolean} - True if evening code
+     */
+    isEveningCode: function(code) {
+      return code && code.startsWith('E');
+    }
+  };
+
   function mapYearNumericToLabel(n) {
     if (n === 1) return '1st';
     if (n === 2) return '2nd';

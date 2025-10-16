@@ -345,7 +345,7 @@ include 'partials/navbar.php';
                     <div class="mb-3">
                         <label for="program-code" class="form-label">Program Code *</label>
                         <input type="text" id="program-code" name="code" class="form-control" placeholder="e.g., SWT, CIT" required>
-                        <div class="form-text">2-10 uppercase letters</div>
+                        <div class="form-text">2-10 uppercase letters. Evening programs automatically get "E" prefix (e.g., SWT becomes ESWT for evening)</div>
                     </div>
                     
                     <div class="mb-3">
@@ -669,7 +669,15 @@ function updateProgramsTable(programs) {
     
     tbody.innerHTML = programs.map(program => `
         <tr>
-            <td><strong>${escapeHtml(program.code)}</strong></td>
+            <td>
+                <div>
+                    <strong>${escapeHtml(program.code)}</strong>
+                    <br>
+                    <small class="text-muted">
+                        Morning: ${escapeHtml(program.code.startsWith('E') ? program.code.substring(1) : program.code)} | Evening: ${escapeHtml(program.code.startsWith('E') ? program.code : 'E' + program.code)}
+                    </small>
+                </div>
+            </td>
             <td>${escapeHtml(program.name)}</td>
             <td><span class="badge bg-primary">${escapeHtml(program.total_students || 0)}</span></td>
             <td><span class="badge bg-info">${escapeHtml(program.section_count)}</span></td>

@@ -81,6 +81,10 @@ function parseRollNumber($pdo) {
     $is_evening = strpos($roll_number, '-E') !== false;
     $shift = $is_evening ? 'Evening' : 'Morning';
     
+    // For evening shifts, the program_part already includes the E prefix
+    // We need to extract the base program code for database lookup
+    $base_program_code = $program_part;
+    
     // Convert 2-digit year to 4-digit year
     $admission_year = 2000 + intval($year_part);
     
@@ -94,9 +98,9 @@ function parseRollNumber($pdo) {
         return;
     }
     
-    // Get program details from database
+    // Get program details from database using base program code
     $stmt = $pdo->prepare("SELECT id, code, name FROM programs WHERE code = ? AND is_active = TRUE");
-    $stmt->execute([$program_part]);
+    $stmt->execute([$base_program_code]);
     $program = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$program) {
@@ -107,7 +111,7 @@ function parseRollNumber($pdo) {
         
         echo json_encode([
             'success' => false, 
-            'error' => 'Unknown program code: ' . $program_part,
+            'error' => 'Unknown program code: ' . $base_program_code,
             'available_programs' => $available_programs
         ]);
         return;
@@ -139,13 +143,18 @@ function parseRollNumber($pdo) {
     $stmt->execute([$program['id'], $status, $shift]);
     $available_sections = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Compute display program code based on shift
+    $display_program_code = $shift === 'Evening' ? 'E' . $program['code'] : $program['code'];
+    
     echo json_encode([
         'success' => true,
         'data' => [
             'roll_number' => $roll_number,
             'admission_year' => $admission_year,
             'program_id' => $program['id'],
-            'program_code' => $program['code'],
+            'program_code' => $program['code'], // Backward compatibility
+            'base_program_code' => $program['code'], // Store base code for database
+            'display_program_code' => $display_program_code, // Computed code for display
             'program_name' => $program['name'],
             'shift' => $shift,
             'serial_number' => $serial_part,
@@ -182,13 +191,16 @@ function validateRollNumber($pdo) {
     
     $program_part = $matches[2];
     
-    // Check if program exists
+    // Extract base program code for database lookup
+    $base_program_code = $program_part;
+    
+    // Check if program exists using base code
     $stmt = $pdo->prepare("SELECT code, name FROM programs WHERE code = ? AND is_active = TRUE");
-    $stmt->execute([$program_part]);
+    $stmt->execute([$base_program_code]);
     $program = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$program) {
-        echo json_encode(['success' => false, 'error' => 'Unknown program code: ' . $program_part]);
+        echo json_encode(['success' => false, 'error' => 'Unknown program code: ' . $base_program_code]);
         return;
     }
     
