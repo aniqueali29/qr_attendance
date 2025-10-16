@@ -24,7 +24,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Simple API key authentication (you can change this)
-$api_key = 'your-secret-api-key-123'; // Change this to a secure key
+$api_key = 'attendance_2025_xyz789_secure'; // Match main API key
 
 function authenticateAPI() {
     global $api_key;

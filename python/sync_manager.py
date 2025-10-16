@@ -55,8 +55,29 @@ class SyncManager:
     def check_internet_connection(self):
         """Check if internet connection is available."""
         try:
-            response = requests.get("https://www.google.com", timeout=3, verify=False)
-            return response.status_code == 200
+            # First try local server - if it's accessible, we have connectivity
+            try:
+                response = requests.get(self.WEBSITE_URL, timeout=3, verify=False)
+                if response.status_code in [200, 404, 403]:
+                    return True
+            except:
+                pass
+            
+            # Try external URLs for full internet connectivity
+            test_urls = [
+                "https://www.google.com",
+                "https://httpbin.org/get",
+                "https://www.github.com"
+            ]
+            
+            for url in test_urls:
+                try:
+                    response = requests.get(url, timeout=3, verify=False)
+                    if response.status_code == 200:
+                        return True
+                except:
+                    continue
+            return False
         except:
             return False
     
@@ -71,7 +92,27 @@ class SyncManager:
             # Try the API endpoint directly
             api_url = self.WEBSITE_URL + self.API_ENDPOINT
             response = requests.get(api_url, timeout=5, verify=False)
-            return response.status_code in [200, 404, 405]  # 404/405 means server is running but endpoint might not exist
+            if response.status_code in [200, 404, 405]:  # 404/405 means server is running but endpoint might not exist
+                return True
+            
+            # Try alternative URLs if main URL fails
+            alternative_urls = [
+                "http://127.0.0.1/qr_attendance/public",
+                "http://localhost:80/qr_attendance/public",
+                "http://127.0.0.1:80/qr_attendance/public"
+            ]
+            
+            for alt_url in alternative_urls:
+                try:
+                    response = requests.get(alt_url, timeout=3, verify=False)
+                    if response.status_code in [200, 404, 405]:
+                        print(f"Found working URL: {alt_url}")
+                        self.WEBSITE_URL = alt_url  # Update the URL for future use
+                        return True
+                except:
+                    continue
+            
+            return False
         except Exception as e:
             print(f"Website connection check failed: {e}")
             return False
@@ -79,9 +120,14 @@ class SyncManager:
     def get_auth_headers(self):
         """Get authentication headers for API requests"""
         return {
-            'X-API-Key': self.API_KEY,
             'Content-Type': 'application/json',
             'User-Agent': 'Python-QR-Attendance/1.0'
+        }
+    
+    def get_auth_params(self):
+        """Get authentication parameters for GET requests"""
+        return {
+            'api_key': self.API_KEY
         }
     
     def load_local_data(self):
@@ -138,7 +184,15 @@ class SyncManager:
     
     def sync_to_website(self):
         """Sync local data to website using admin panel API."""
-        if not self.check_internet_connection() or not self.check_website_connection():
+        internet_ok = self.check_internet_connection()
+        website_ok = self.check_website_connection()
+        
+        if not internet_ok:
+            print("❌ No internet connection - cannot sync attendance")
+            return False
+        
+        if not website_ok:
+            print("❌ Website not accessible - check XAMPP is running")
             return False
         
         try:
@@ -151,8 +205,9 @@ class SyncManager:
             url = self.WEBSITE_URL + self.CHECKIN_ENDPOINT
             headers = self.get_auth_headers()
             
-            # Prepare API data
+            # Prepare API data with API key
             api_data = {
+                "api_key": self.API_KEY,
                 "action": "bulk_checkin",
                 "attendance_data": offline_data
             }
@@ -181,7 +236,15 @@ class SyncManager:
     
     def sync_from_website(self):
         """Sync data from admin panel to local storage."""
-        if not self.check_internet_connection() or not self.check_website_connection():
+        internet_ok = self.check_internet_connection()
+        website_ok = self.check_website_connection()
+        
+        if not internet_ok:
+            print("❌ No internet connection - cannot sync settings")
+            return False
+        
+        if not website_ok:
+            print("❌ Website not accessible - check XAMPP is running")
             return False
         
         try:
@@ -189,8 +252,9 @@ class SyncManager:
             url = self.WEBSITE_URL + self.DASHBOARD_API
             headers = self.get_auth_headers()
             
-            # Request attendance data using GET with query parameters
+            # Request attendance data using GET with query parameters including API key
             params = {
+                "api_key": self.API_KEY,
                 "action": "attendance-trends",
                 "period": "7"  # Last 7 days
             }
@@ -328,11 +392,16 @@ class SyncManager:
             # Send to website API
             api_url = f"{self.WEBSITE_URL}/admin/api/attendance.php?action=bulk_sync"
             headers = {
-                'X-API-Key': self.API_KEY,
                 'Content-Type': 'application/json'
             }
             
-            response = requests.post(api_url, json={'records': records}, headers=headers, timeout=10, verify=False)
+            # Include API key in the JSON data
+            api_data = {
+                'api_key': self.API_KEY,
+                'records': records
+            }
+            
+            response = requests.post(api_url, json=api_data, headers=headers, timeout=10, verify=False)
             
             if response.status_code == 200:
                 data = response.json()
@@ -624,6 +693,7 @@ class SyncManager:
             import requests
             url = f"{self.WEBSITE_URL}/api/sync_api.php"
             response = requests.post(url, json={
+                'api_key': self.API_KEY,
                 'action': 'log_sync',
                 'sync_data': sync_log
             }, timeout=10, verify=False)

@@ -968,10 +968,16 @@ function loadProgramDistribution() {
             return response.json();
         })
         .then(data => {
-            if (data.success) {
-                updateProgramDistribution(data.data);
+            if (data && data.success && data.data) {
+                // Additional validation for the API response
+                if (Array.isArray(data.data)) {
+                    updateProgramDistribution(data.data);
+                } else {
+                    logger.warn('API returned non-array data for program distribution');
+                    updateProgramDistribution([]);
+                }
             } else {
-                logger.error('API error:', data.message);
+                logger.error('API error:', data?.message || 'Unknown error');
                 updateProgramDistribution([]);
             }
         })
@@ -990,7 +996,18 @@ function updateProgramDistribution(data) {
     const listElement = document.getElementById('program-distribution-list');
     if (listElement) {
         listElement.innerHTML = '';
-        const safeData = Array.isArray(data) ? data.filter(p => p) : [];
+        
+        // Enhanced data validation
+        let safeData = [];
+        if (Array.isArray(data)) {
+            safeData = data.filter(program => {
+                return program && 
+                       typeof program === 'object' && 
+                       program.program_name && 
+                       program.student_count !== undefined;
+            });
+        }
+        
         if (safeData.length > 0) {
             safeData.forEach(program => {
                 const listItem = document.createElement('li');
@@ -1036,10 +1053,23 @@ function updateProgramDistribution(data) {
         }
     }
     
-    // Update the donut chart with new data
+    // Update the donut chart with new data - with enhanced validation
     if (typeof updateOrderStatisticsChart === 'function') {
-        const safeData = Array.isArray(data) ? data.filter(p => p) : [];
-        updateOrderStatisticsChart(safeData);
+        try {
+            // Use the same validation logic as above
+            let safeData = [];
+            if (Array.isArray(data)) {
+                safeData = data.filter(program => {
+                    return program && 
+                           typeof program === 'object' && 
+                           program.program_name && 
+                           program.student_count !== undefined;
+                });
+            }
+            updateOrderStatisticsChart(safeData);
+        } catch (error) {
+            console.error('Error updating order statistics chart:', error);
+        }
     }
 }
 
@@ -1134,12 +1164,10 @@ function updateRecentActivity(activities) {
 
 function refreshCharts() {
     loadDashboardData();
-    showAlert('Charts refreshed successfully', 'success');
 }
 
 function refreshActivity() {
     loadRecentActivity();
-    showAlert('Activity refreshed successfully', 'success');
 }
 
 // Fallback showAlert function if adminUtils is not available

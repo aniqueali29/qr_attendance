@@ -462,6 +462,14 @@ function getStudentStatus($pdo) {
 function handleBulkCheckIn($pdo) {
     try {
         $input = json_decode(file_get_contents('php://input'), true);
+        
+        // Validate API key
+        $api_key = $input['api_key'] ?? '';
+        if ($api_key !== 'attendance_2025_xyz789_secure') {
+            echo json_encode(['success' => false, 'message' => 'Invalid API key']);
+            return;
+        }
+        
         $attendance_data = $input['attendance_data'] ?? [];
         
         if (empty($attendance_data)) {
@@ -479,6 +487,10 @@ function handleBulkCheckIn($pdo) {
                 $student_name = $record['Name'] ?? $record['student_name'] ?? 'Unknown';
                 $timestamp = $record['Timestamp'] ?? $record['timestamp'] ?? date('Y-m-d H:i:s');
                 $status = $record['Status'] ?? $record['status'] ?? 'present';
+                $shift = $record['Shift'] ?? 'Morning';
+                $program = $record['Program'] ?? '';
+                $current_year = $record['Current_Year'] ?? $record['current_year'] ?? 1;
+                $admission_year = $record['Admission_Year'] ?? $record['admission_year'] ?? date('Y');
                 
                 if (empty($student_id)) {
                     $error_count++;
@@ -486,13 +498,13 @@ function handleBulkCheckIn($pdo) {
                     continue;
                 }
                 
-                // Insert attendance record
+                // Insert attendance record with all required fields
                 $stmt = $pdo->prepare("
-                    INSERT INTO attendance (student_id, check_in_time, status, created_at) 
-                    VALUES (?, ?, ?, NOW())
+                    INSERT INTO attendance (student_id, student_name, timestamp, status, shift, program, current_year, admission_year, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 ");
                 
-                $stmt->execute([$student_id, $timestamp, $status]);
+                $stmt->execute([$student_id, $student_name, $timestamp, $status, $shift, $program, $current_year, $admission_year]);
                 $success_count++;
                 
             } catch (Exception $e) {
@@ -503,7 +515,7 @@ function handleBulkCheckIn($pdo) {
         
         echo json_encode([
             'success' => true,
-            'message' => "Bulk check-in completed",
+            'message' => "Bulk check-in completed: {$success_count} success, {$error_count} errors",
             'data' => [
                 'success_count' => $success_count,
                 'error_count' => $error_count,

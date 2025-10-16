@@ -53,33 +53,56 @@ try {
         // Process each attendance record
         foreach ($input['attendance_data'] as $record) {
             try {
-                // Validate required fields
-                if (!isset($record['ID']) || !isset($record['Name']) || 
-                    !isset($record['Timestamp']) || !isset($record['Status'])) {
+                // Validate required fields (support both old and new field names)
+                $student_id = $record['ID'] ?? $record['student_id'] ?? null;
+                $name = $record['Name'] ?? $record['name'] ?? null;
+                $timestamp = $record['Timestamp'] ?? $record['timestamp'] ?? null;
+                $status = $record['Status'] ?? $record['status'] ?? null;
+                
+                if (!$student_id || !$name || !$timestamp || !$status) {
                     $errors[] = 'Missing required fields in record';
+                    continue;
+                }
+                
+                // Validate status is one of the allowed ENUM values
+                $allowed_statuses = ['Check-in', 'Present', 'Absent'];
+                if (!in_array($status, $allowed_statuses)) {
+                    $errors[] = "Invalid status '$status'. Must be one of: " . implode(', ', $allowed_statuses);
                     continue;
                 }
                 
                 // Check if record already exists (prevent duplicates)
                 $stmt = $pdo->prepare("SELECT id FROM attendance WHERE student_id = ? AND timestamp = ?");
-                $stmt->execute([$record['ID'], $record['Timestamp']]);
+                $stmt->execute([$student_id, $timestamp]);
                 
                 if ($stmt->fetch()) {
                     // Record already exists, skip
                     continue;
                 }
                 
-                // Insert attendance record
+                // Extract duration fields
+                $check_in_time = $record['Check_In_Time'] ?? $record['check_in_time'] ?? null;
+                $check_out_time = $record['Check_Out_Time'] ?? $record['check_out_time'] ?? null;
+                $session_duration = $record['Duration_Minutes'] ?? $record['session_duration'] ?? null;
+                
+                // Insert attendance record with metadata and duration
                 $stmt = $pdo->prepare("
-                    INSERT INTO attendance (student_id, student_name, timestamp, status, created_at) 
-                    VALUES (?, ?, ?, ?, NOW())
+                    INSERT INTO attendance (student_id, student_name, timestamp, status, shift, program, current_year, admission_year, check_in_time, check_out_time, session_duration, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 ");
                 
                 $stmt->execute([
-                    $record['ID'],
-                    $record['Name'],
-                    $record['Timestamp'],
-                    $record['Status']
+                    $student_id,
+                    $name,
+                    $timestamp,
+                    $status,
+                    $record['Shift'] ?? $record['shift'] ?? 'Morning',
+                    $record['Program'] ?? $record['program'] ?? '',
+                    $record['Current_Year'] ?? $record['current_year'] ?? 1,
+                    $record['Admission_Year'] ?? $record['admission_year'] ?? date('Y'),
+                    $check_in_time,
+                    $check_out_time,
+                    $session_duration
                 ]);
                 
                 $success_count++;
@@ -98,6 +121,33 @@ try {
         ];
         
         echo json_encode($response);
+        
+    } elseif ($_SERVER['REQUEST_METHOD'] == 'DELETE') {
+        // Clean up corrupted records
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        // Validate API key
+        if (!isset($input['api_key']) || $input['api_key'] !== $API_KEY) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid API key']);
+            exit();
+        }
+        
+        if (isset($input['action']) && $input['action'] === 'delete_corrupted') {
+            // Delete records with invalid student_id format or empty timestamps
+            $stmt = $pdo->prepare("DELETE FROM attendance WHERE student_id = 'Morning' OR timestamp = '0000-00-00 00:00:00' OR student_id = '' OR student_name = ''");
+            $stmt->execute();
+            $deleted = $stmt->rowCount();
+            
+            echo json_encode([
+                'success' => true,
+                'deleted' => $deleted,
+                'message' => "Cleaned up $deleted corrupted records"
+            ]);
+        } else {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid action']);
+        }
         
     } elseif ($_SERVER['REQUEST_METHOD'] == 'GET') {
         // Provide attendance data for sync pulls with API key auth, pagination and optional since filter
@@ -124,7 +174,7 @@ try {
         }
 
         $sql = "
-            SELECT student_id, student_name, timestamp, status
+            SELECT student_id, student_name, timestamp, status, shift, program, current_year, admission_year, check_in_time, check_out_time, session_duration
             FROM attendance
             $where
             ORDER BY timestamp DESC

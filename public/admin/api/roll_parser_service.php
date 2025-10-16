@@ -62,13 +62,13 @@ function parseRollNumber($pdo) {
         return;
     }
     
-    // Parse roll number format: YY-[E]PROGRAM-NN
-    $pattern = '/^(\d{2})-E?([A-Z]{2,10})-(\d{2})$/';
+    // Parse roll number format: YY-[E]PROGRAM-NN (allow 2-3 digit serial numbers)
+    $pattern = '/^(\d{2})-E?([A-Z]{2,10})-(\d{2,3})$/';
     if (!preg_match($pattern, $roll_number, $matches)) {
         echo json_encode([
             'success' => false, 
             'error' => 'Invalid roll number format. Use: YY-PROGRAM-NN or YY-EPROGRAM-NN',
-            'expected_format' => 'YY-PROGRAM-NN (e.g., 24-SWT-01) or YY-EPROGRAM-NN (e.g., 24-ESWT-01)'
+            'expected_format' => 'YY-PROGRAM-NN (e.g., 24-SWT-01, 25-SWT-583) or YY-EPROGRAM-NN (e.g., 24-ESWT-01)'
         ]);
         return;
     }
@@ -113,21 +113,51 @@ function parseRollNumber($pdo) {
         return;
     }
     
-    // Calculate current year level
+    // Calculate current year level based on admission year and current date
     $current_date = new DateTime();
-    $current_academic_year = $current_date->format('Y');
+    $current_year = (int)$current_date->format('Y');
+    $current_month = (int)$current_date->format('n');
     
-    // Academic year starts in September
-    if ($current_date->format('n') < 9) {
-        $current_academic_year--;
+    // Calculate years difference from admission year
+    $years_difference = $current_year - $admission_year;
+    
+    // Academic year progression logic:
+    // - If current month is September or later, students progress to next year
+    // - If current month is before September, they're still in the same academic year
+    
+    if ($current_month >= 9) {
+        // After September: students have progressed to the next academic year
+        $year_level = $years_difference + 1;
+    } else {
+        // Before September: students are still in the same academic year
+        $year_level = $years_difference;
     }
     
-    $years_in_program = $current_academic_year - $admission_year + 1;
-    $year_level = min(max($years_in_program, 1), 3);
+    // Ensure year level is within valid range (1-3)
+    $year_level = max(1, min($year_level, 3));
     
     // Determine if student has completed the program
-    $is_completed = $years_in_program > 3;
-    $status = $is_completed ? 'Completed' : $year_level . 'st';
+    $is_completed = $years_difference >= 3;
+    
+    // Format the status
+    if ($is_completed) {
+        $status = 'Completed';
+    } else {
+        // Convert numeric year level to ordinal format
+        switch ($year_level) {
+            case 1:
+                $status = '1st';
+                break;
+            case 2:
+                $status = '2nd';
+                break;
+            case 3:
+                $status = '3rd';
+                break;
+            default:
+                $status = '1st';
+        }
+    }
     
     // Get available sections for this program, year, and shift
     $stmt = $pdo->prepare("
@@ -150,8 +180,11 @@ function parseRollNumber($pdo) {
             'shift' => $shift,
             'serial_number' => $serial_part,
             'year_level' => $status,
+            'year_level_numeric' => $year_level,
             'is_completed' => $is_completed,
-            'years_in_program' => $years_in_program,
+            'years_difference' => $years_difference,
+            'current_year' => $current_year,
+            'current_month' => $current_month,
             'available_sections' => $available_sections,
             'parsed_at' => date('Y-m-d H:i:s')
         ]

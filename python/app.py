@@ -27,7 +27,7 @@ settings = SettingsManager()
 CSV_FILE = "attendance.csv"
 STUDENTS_FILE = "students.json"
 OFFLINE_FILE = "offline_data.json"
-HEADERS = ["ID", "Name", "Timestamp", "Status"]
+HEADERS = ["ID", "Name", "Timestamp", "Status", "Shift", "Program", "Current_Year", "Admission_Year", "Check_In_Time", "Check_Out_Time", "Duration_Minutes"]
 
 # Timezone Configuration
 TIMEZONE = pytz.timezone(settings.get('timezone', 'Asia/Karachi'))
@@ -71,7 +71,7 @@ def initialize_students():
 def initialize_csv():
     """Create CSV file with headers if it doesn't exist."""
     if not os.path.exists(CSV_FILE):
-        df = pd.DataFrame(columns=HEADERS)
+        df = pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year', 'Check_In_Time', 'Check_Out_Time', 'Duration_Minutes'])
         df.to_csv(CSV_FILE, index=False)
         print(f"Created new attendance file: {CSV_FILE}")
     else:
@@ -103,7 +103,7 @@ def get_student_status_for_date(student_id, date=None):
         if not os.path.exists(CSV_FILE):
             return {'status': 'Not checked in', 'check_in_time': None, 'check_out_time': None}
         
-        df = pd.read_csv(CSV_FILE, names=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year'])
+        df = pd.read_csv(CSV_FILE)
         
         # Filter records for this student and date
         student_records = df[
@@ -119,26 +119,21 @@ def get_student_status_for_date(student_id, date=None):
         check_out_time = None
         
         for _, record in student_records.iterrows():
-            if record['Status'] == 'Check-in' and check_in_time is None:
+            status = str(record['Status'])
+            
+            if status == 'Check-in':
+                # Student is currently checked in
                 check_in_time = record['Timestamp']
-            elif record['Status'] == 'Check-in' and check_in_time is not None:
-                # Multiple check-ins detected
-                return {
-                    'status': 'Multiple check-ins detected',
-                    'check_in_time': check_in_time,
-                    'check_out_time': None,
-                    'error': 'Already checked in'
-                }
-            elif record['Status'] == 'Check-out' and check_in_time is not None:
+                check_out_time = None
+            elif status == 'Present':
+                # Student has completed attendance (checked out)
+                # Note: With new logic, this record was originally a check-in that got updated
+                check_in_time = record['Timestamp']  # This is now the check-out time
                 check_out_time = record['Timestamp']
-            elif record['Status'] == 'Check-out' and check_in_time is None:
-                # Check-out without check-in
-                return {
-                    'status': 'Invalid sequence',
-                    'check_in_time': None,
-                    'check_out_time': record['Timestamp'],
-                    'error': 'Check-out without check-in'
-                }
+            elif status == 'Absent':
+                # Student was marked absent
+                check_in_time = record['Timestamp']
+                check_out_time = record['Timestamp']
         
         # Determine current status
         if check_in_time and check_out_time:
@@ -155,9 +150,29 @@ def get_student_status_for_date(student_id, date=None):
 def check_internet_connection():
     """Check if internet connection is available."""
     try:
-        # Try to connect to a reliable server
-        response = requests.get("https://www.google.com", timeout=3, verify=False)
-        return response.status_code == 200
+        # First try local server - if it's accessible, we have connectivity
+        try:
+            response = requests.get(WEBSITE_URL, timeout=3, verify=False)
+            if response.status_code in [200, 404, 403]:
+                return True
+        except:
+            pass
+        
+        # Try external URLs for full internet connectivity
+        test_urls = [
+            "https://www.google.com",
+            "https://httpbin.org/get",
+            "https://www.github.com"
+        ]
+        
+        for url in test_urls:
+            try:
+                response = requests.get(url, timeout=3, verify=False)
+                if response.status_code == 200:
+                    return True
+            except:
+                continue
+        return False
     except:
         return False
 
@@ -303,7 +318,7 @@ def sync_students_from_website():
         
         # API configuration for student sync
         students_api_url = settings.get('students_api_url', f"{WEBSITE_URL}/api/students_sync.php")
-        students_api_key = settings.get('students_api_key', 'your-secret-api-key-123')
+        students_api_key = settings.get('students_api_key', settings.get('api_key', 'attendance_2025_xyz789_secure'))
         
         print(f"🔄 Syncing students from website...")
         print(f"   API URL: {students_api_url}")
@@ -380,11 +395,25 @@ def sync_attendance_to_website():
         # Prepare attendance data for API
         attendance_data = []
         for _, row in df.iterrows():
+            # Handle NaN values by converting to appropriate defaults
+            def safe_get(column, default):
+                value = row.get(column, default)
+                if pd.isna(value):
+                    return default
+                return value
+            
             attendance_data.append({
-                'student_id': row['ID'],
-                'name': row['Name'],
-                'timestamp': row['Timestamp'],
-                'status': row['Status']
+                'student_id': str(row['ID']),
+                'name': str(row['Name']),
+                'timestamp': str(row['Timestamp']),
+                'status': str(row['Status']),
+                'shift': str(safe_get('Shift', 'Morning')),
+                'program': str(safe_get('Program', '')),
+                'current_year': int(safe_get('Current_Year', 1)),
+                'admission_year': int(safe_get('Admission_Year', 2025)),
+                'check_in_time': str(safe_get('Check_In_Time', '')),
+                'check_out_time': str(safe_get('Check_Out_Time', '')),
+                'session_duration': int(safe_get('Duration_Minutes', 0))
             })
         
         # Send to website API
@@ -421,15 +450,15 @@ def sync_attendance_to_website():
 def _read_local_attendance_df():
     """Read local attendance CSV into a DataFrame with standard headers, tolerant of missing file."""
     if not os.path.exists(CSV_FILE):
-        return pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status'])
+        return pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year', 'Check_In_Time', 'Check_Out_Time', 'Duration_Minutes'])
     try:
         try:
             return pd.read_csv(CSV_FILE)
         except Exception:
             # Fallback to explicit names when file may not have header row
-            return pd.read_csv(CSV_FILE, names=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year'])
+            return pd.read_csv(CSV_FILE, names=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year', 'Check_In_Time', 'Check_Out_Time', 'Duration_Minutes'])
     except Exception:
-        return pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status'])
+        return pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year', 'Check_In_Time', 'Check_Out_Time', 'Duration_Minutes'])
 
 def _safe_write_attendance_df(df: pd.DataFrame):
     """Safely write DataFrame to CSV with header. Uses temp file then replace."""
@@ -438,7 +467,7 @@ def _safe_write_attendance_df(df: pd.DataFrame):
     os.replace(tmp_path, CSV_FILE)
 
 def sync_attendance_from_website():
-    """Pull recent attendance from server and reconcile into local CSV (server-wins)."""
+    """Pull recent attendance from server and reconcile into local CSV (timestamp-based conflict resolution)."""
     try:
         if not check_internet_connection():
             print("❌ No internet connection - cannot pull attendance")
@@ -477,7 +506,14 @@ def sync_attendance_from_website():
                     'ID': r.get('student_id') or r.get('studentId') or r.get('ID'),
                     'Name': r.get('student_name') or r.get('name') or r.get('Name'),
                     'Timestamp': r.get('timestamp') or r.get('Timestamp'),
-                    'Status': r.get('status') or r.get('Status')
+                    'Status': r.get('status') or r.get('Status'),
+                    'Shift': r.get('shift') or r.get('Shift'),
+                    'Program': r.get('program') or r.get('Program'),
+                    'Current_Year': r.get('current_year') or r.get('Current_Year'),
+                    'Admission_Year': r.get('admission_year') or r.get('Admission_Year'),
+                    'Check_In_Time': '' if (r.get('check_in_time') == '0000-00-00 00:00:00' or not r.get('check_in_time')) else (r.get('check_in_time') or r.get('Check_In_Time') or ''),
+                    'Check_Out_Time': '' if (r.get('check_out_time') == '0000-00-00 00:00:00' or not r.get('check_out_time')) else (r.get('check_out_time') or r.get('Check_Out_Time') or ''),
+                    'Duration_Minutes': r.get('session_duration') or r.get('Duration_Minutes') or 0
                 })
                 try:
                     ts_val = r.get('timestamp') or r.get('Timestamp')
@@ -504,13 +540,33 @@ def sync_attendance_from_website():
         # Reconcile into local CSV (server wins)
         local_df = _read_local_attendance_df()
         if local_df.empty:
-            local_df = pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status'])
+            local_df = pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year', 'Check_In_Time', 'Check_Out_Time', 'Duration_Minutes'])
 
         # Normalize local timestamps to strings
         if 'Timestamp' in local_df.columns:
             local_df['Timestamp'] = local_df['Timestamp'].astype(str)
 
-        local_index = {(str(row['ID']), str(row['Timestamp'])): idx for idx, row in local_df.reset_index().iterrows()}
+        # Remove duplicates from local data first (keep first occurrence)
+        local_df = local_df.drop_duplicates(subset=['ID', 'Timestamp'], keep='first')
+        
+        # Create index for existing records with normalized timestamps
+        local_index = {}
+        for idx, row in local_df.reset_index().iterrows():
+            student_id = str(row['ID'])
+            timestamp = str(row['Timestamp'])
+            
+            # Normalize timestamp for comparison
+            try:
+                if 'AM' not in timestamp and 'PM' not in timestamp:
+                    # Convert 24-hour format to 12-hour format for comparison
+                    dt = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+                    normalized_ts = dt.strftime('%Y-%m-%d %I:%M:%S %p')
+                else:
+                    normalized_ts = timestamp
+            except Exception:
+                normalized_ts = timestamp
+            
+            local_index[(student_id, normalized_ts)] = idx
 
         updated = 0
         added = 0
@@ -520,17 +576,42 @@ def sync_attendance_from_website():
             if not sid or not ts:
                 continue
 
-            key = (sid, ts)
+            # Normalize server timestamp for comparison
+            try:
+                if 'AM' not in ts and 'PM' not in ts:
+                    # Convert 24-hour format to 12-hour format for comparison
+                    dt = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
+                    normalized_ts = dt.strftime('%Y-%m-%d %I:%M:%S %p')
+                else:
+                    normalized_ts = ts
+            except Exception:
+                normalized_ts = ts
+
+            key = (sid, normalized_ts)
             if key in local_index:
                 idx = local_index[key]
-                # Overwrite status and name from server
-                if 'Status' in local_df.columns:
-                    if str(local_df.at[idx, 'Status']) != str(r['Status']):
-                        local_df.at[idx, 'Status'] = r['Status']
-                        updated += 1
-                if 'Name' in local_df.columns and r.get('Name'):
-                    if str(local_df.at[idx, 'Name']) != str(r['Name']):
-                        local_df.at[idx, 'Name'] = r['Name']
+                
+                # Parse timestamps for comparison
+                try:
+                    server_ts = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S') if ts and 'AM' not in ts and 'PM' not in ts else datetime.strptime(ts, '%Y-%m-%d %I:%M:%S %p')
+                    local_ts_str = str(local_df.at[idx, 'Timestamp'])
+                    local_ts = datetime.strptime(local_ts_str, '%Y-%m-%d %H:%M:%S') if local_ts_str and 'AM' not in local_ts_str and 'PM' not in local_ts_str else datetime.strptime(local_ts_str, '%Y-%m-%d %I:%M:%S %p')
+                    
+                    # Update if server record is newer OR if timestamps are equal but status is different
+                    should_update = (server_ts > local_ts) or (server_ts == local_ts and str(local_df.at[idx, 'Status']) != str(r['Status']))
+                except Exception:
+                    # If timestamp parsing fails, use server data (fallback to server-wins)
+                    should_update = True
+                
+                if should_update:
+                    # Overwrite status and name from server only if server is newer
+                    if 'Status' in local_df.columns:
+                        if str(local_df.at[idx, 'Status']) != str(r['Status']):
+                            local_df.at[idx, 'Status'] = r['Status']
+                            updated += 1
+                    if 'Name' in local_df.columns and r.get('Name'):
+                        if str(local_df.at[idx, 'Name']) != str(r['Name']):
+                            local_df.at[idx, 'Name'] = r['Name']
             else:
                 # Append new record if within lookback window
                 try:
@@ -539,18 +620,40 @@ def sync_attendance_from_website():
                 except Exception:
                     dt = None
                 if dt is None or dt >= lookback_cutoff.replace(tzinfo=None):
+                    # Normalize timestamp format to 12-hour format with AM/PM
+                    timestamp_str = r.get('Timestamp')
+                    try:
+                        # Parse the timestamp and convert to consistent format
+                        if timestamp_str and 'AM' not in timestamp_str and 'PM' not in timestamp_str:
+                            # Convert 24-hour format to 12-hour format
+                            dt_parsed = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                            normalized_timestamp = dt_parsed.strftime('%Y-%m-%d %I:%M:%S %p')
+                        else:
+                            # Already in 12-hour format, use as is
+                            normalized_timestamp = timestamp_str
+                    except Exception:
+                        # If parsing fails, use original timestamp
+                        normalized_timestamp = timestamp_str
+                    
                     new_row = {
                         'ID': r.get('ID'),
                         'Name': r.get('Name') or '',
-                        'Timestamp': r.get('Timestamp'),
-                        'Status': r.get('Status')
+                        'Timestamp': normalized_timestamp,
+                        'Status': r.get('Status'),
+                        'Shift': r.get('Shift') or '',
+                        'Program': r.get('Program') or '',
+                        'Current_Year': r.get('Current_Year') or 1,
+                        'Admission_Year': r.get('Admission_Year') or 2025,
+                        'Check_In_Time': r.get('Check_In_Time') or '',
+                        'Check_Out_Time': r.get('Check_Out_Time') or '',
+                        'Duration_Minutes': r.get('Duration_Minutes') or 0
                     }
                     local_df = pd.concat([local_df, pd.DataFrame([new_row])], ignore_index=True)
                     local_index[key] = len(local_df) - 1
                     added += 1
 
-        # Keep only standard columns when saving
-        cols = [c for c in ['ID', 'Name', 'Timestamp', 'Status'] if c in local_df.columns]
+        # Keep all 8 columns when saving
+        cols = [c for c in ['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year', 'Check_In_Time', 'Check_Out_Time', 'Duration_Minutes'] if c in local_df.columns]
         out_df = local_df[cols]
         _safe_write_attendance_df(out_df)
 
@@ -574,8 +677,8 @@ def bidirectional_sync():
     print("\n📤 Step 2: Syncing attendance to website...")
     attendance_synced = sync_attendance_to_website()
 
-    # Step 3: Pull attendance from website (server-wins)
-    print("\n📥 Step 3: Pulling attendance from website (server-wins)...")
+    # Step 3: Pull attendance from website (timestamp-based conflict resolution)
+    print("\n📥 Step 3: Pulling attendance from website (timestamp-based conflict resolution)...")
     attendance_pulled = sync_attendance_from_website()
     
     # Summary
@@ -606,8 +709,8 @@ def start_bidirectional_sync():
                 print("\n📥 Step 3: Fetching students from website...")
                 students_synced = sync_students_from_website()
                 
-                # Step 4: Pull attendance changes from website (server-wins)
-                print("\n📥 Step 4: Pulling attendance from website (server-wins)...")
+                # Step 4: Pull attendance changes from website (timestamp-based conflict resolution)
+                print("\n📥 Step 4: Pulling attendance from website (timestamp-based conflict resolution)...")
                 attendance_pulled = sync_attendance_from_website()
 
                 # Summary
@@ -655,7 +758,7 @@ def sync_settings_from_website():
         
         # API configuration for settings sync
         settings_api_url = settings.get('settings_api_url', f"{WEBSITE_URL}/api/settings_sync.php")
-        settings_api_key = settings.get('settings_api_key', 'your-secret-api-key-123')
+        settings_api_key = settings.get('settings_api_key', settings.get('api_key', 'attendance_2025_xyz789_secure'))
         
         print(f"🔄 Syncing settings from website...")
         print(f"   API URL: {settings_api_url}")
@@ -729,7 +832,7 @@ def sync_settings_to_website():
         
         # Send to website API
         api_data = {
-            "api_key": settings.get('settings_api_key', 'your-secret-api-key-123'),
+            "api_key": settings.get('settings_api_key', settings.get('api_key', 'attendance_2025_xyz789_secure')),
             "settings": settings_dict
         }
         
@@ -866,10 +969,17 @@ def log_attendance(student_id, sync_manager=None):
         "Shift": roll_data['shift'],
         "Program": roll_data['program'],
         "Current_Year": roll_data['current_year'],
-        "Admission_Year": roll_data['admission_year']
+        "Admission_Year": roll_data['admission_year'],
+        "Check_In_Time": timestamp,  # For check-in, this is the check-in time
+        "Check_Out_Time": "",  # Empty for check-in
+        "Duration_Minutes": 0  # 0 for check-in
     }
     
-    # Save to CSV
+    # Save to CSV - ensure header exists first
+    if not os.path.exists(CSV_FILE) or os.path.getsize(CSV_FILE) == 0:
+        header_df = pd.DataFrame(columns=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year', 'Check_In_Time', 'Check_Out_Time', 'Duration_Minutes'])
+        header_df.to_csv(CSV_FILE, index=False)
+    
     new_entry = pd.DataFrame([attendance_record])
     new_entry.to_csv(CSV_FILE, mode='a', header=False, index=False)
     
@@ -884,7 +994,7 @@ def log_attendance(student_id, sync_manager=None):
     return True
 
 def log_checkout(student_id):
-    """Log student check-out and update attendance record."""
+    """Log student check-out by creating a separate 'Present' record."""
     from checkin_manager import CheckInManager
     
     timestamp = format_time()
@@ -917,7 +1027,7 @@ def log_checkout(student_id):
         print(f"CHECK-OUT DENIED: {student_name} ({student_id}) - Must check in first")
         return False
     elif current_status['status'] == 'Checked out':
-        print(f"DUPLICATE CHECK-OUT DENIED: {student_name} ({student_id}) - Already checked out at {current_status['check_out_time']}")
+        print(f"DUPLICATE CHECK-OUT DENIED: {student_name} ({student_id}) - Already checked out")
         return False
     
     # Validate check-out time based on shift
@@ -931,54 +1041,61 @@ def log_checkout(student_id):
         print(f"  Current Time: {time_validation['current_time']}")
         return False
     
-    # Update the existing attendance record instead of creating a new one
+    # Update the existing check-in record to Present status
     try:
-        # Load existing attendance records
-        if os.path.exists(CSV_FILE):
-            df = pd.read_csv(CSV_FILE, names=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year'])
-            
-            # Find the student's check-in record for today
-            today = get_current_time().strftime("%Y-%m-%d")
-            student_records = df[
-                (df['ID'] == student_id) & 
-                (df['Timestamp'].str.startswith(today)) &
-                (df['Status'] == 'Check-in')
-            ]
-            
-            if not student_records.empty:
-                # Update the existing record to show check-out time
-                check_in_time = student_records.iloc[0]['Timestamp']
-                duration = calculate_duration(check_in_time, timestamp)
-                
-                # Update the record with check-out information
-                df.loc[
-                    (df['ID'] == student_id) & 
-                    (df['Timestamp'].str.startswith(today)) &
-                    (df['Status'] == 'Check-in'),
-                    'Status'
-                ] = f'Check-in (Checked out at {timestamp})'
-                
-                # Save updated CSV
-                df.to_csv(CSV_FILE, mode='w', header=False, index=False)
-                
-                print(f"SUCCESS: {student_name} ({student_id}) - Check-out at {timestamp}")
-                print(f"  Check-in: {check_in_time}")
-                print(f"  Check-out: {timestamp}")
-                print(f"  Duration: {duration}")
-                print(f"  Status: Present (Attended class)")
-                print(f"  Shift: {roll_data['shift']}, Program: {roll_data['program']}, Year: {roll_data['current_year']}")
-                
-                return True
-            else:
-                print(f"ERROR: No check-in record found for {student_name} ({student_id})")
-                return False
-        else:
+        # Load the CSV file
+        if not os.path.exists(CSV_FILE):
             print(f"ERROR: No attendance file found")
             return False
+        
+        df = pd.read_csv(CSV_FILE)
+        
+        # Find the student's check-in record for today
+        today = get_current_time().strftime("%Y-%m-%d")
+        mask = (df['ID'] == student_id) & (df['Timestamp'].str.startswith(today)) & (df['Status'] == 'Check-in')
+        
+        if not mask.any():
+            print(f"ERROR: No check-in record found for {student_name} ({student_id})")
+            return False
+        
+        # Get check-in time for duration calculation
+        check_in_time = df.loc[mask, 'Timestamp'].iloc[0]
+        duration_minutes = calculate_duration_minutes(check_in_time, timestamp)
+                
+        # Update the record to Present status with checkout timestamp and duration
+        df.loc[mask, 'Status'] = 'Present'
+        df.loc[mask, 'Timestamp'] = timestamp
+        df.loc[mask, 'Check_In_Time'] = check_in_time
+        df.loc[mask, 'Check_Out_Time'] = timestamp
+        df.loc[mask, 'Duration_Minutes'] = duration_minutes
+        
+        # Save the updated CSV
+        df.to_csv(CSV_FILE, index=False)
+        
+        print(f"SUCCESS: {student_name} ({student_id}) - Check-out at {timestamp}")
+        print(f"  Check-in: {check_in_time}")
+        print(f"  Check-out: {timestamp}")
+        print(f"  Duration: {duration_minutes} minutes")
+        print(f"  Status: Present (Attended class)")
+        print(f"  Shift: {roll_data['shift']}, Program: {roll_data['program']}, Year: {roll_data['current_year']}")
+        
+        return True
             
     except Exception as e:
-        print(f"Error updating attendance record: {e}")
+        print(f"Error updating check-out record: {e}")
         return False
+
+def calculate_duration_minutes(check_in_time, check_out_time):
+    """Calculate duration between check-in and check-out in minutes."""
+    try:
+        from datetime import datetime
+        check_in = datetime.strptime(check_in_time, '%Y-%m-%d %I:%M:%S %p')
+        check_out = datetime.strptime(check_out_time, '%Y-%m-%d %I:%M:%S %p')
+        duration = check_out - check_in
+        minutes = int(duration.total_seconds() / 60)
+        return minutes
+    except:
+        return 0
 
 def calculate_duration(check_in_time, check_out_time):
     """Calculate duration between check-in and check-out."""
@@ -1019,7 +1136,7 @@ def consolidate_attendance_records():
             return
         
         # Load attendance records
-        df = pd.read_csv(CSV_FILE, names=['ID', 'Name', 'Timestamp', 'Status', 'Shift', 'Program', 'Current_Year', 'Admission_Year'])
+        df = pd.read_csv(CSV_FILE)
         
         if df.empty:
             return
@@ -1125,12 +1242,33 @@ def mark_absent_students():
                 if not already_absent.empty:
                     continue
             
-            # Mark as absent
+            # Parse roll number to get metadata
+            roll_data = parse_roll_number(student_id)
+            if not roll_data['valid']:
+                # Use defaults if parsing fails
+                roll_data = {
+                    'shift': 'Morning',
+                    'program': '',
+                    'admission_year': 2025,
+                    'current_year': 1
+                }
+            
+            # Get academic year info
+            from roll_parser import get_academic_year_info
+            academic_info = get_academic_year_info(student_id)
+            if academic_info['valid']:
+                roll_data['current_year'] = academic_info['current_year']
+            
+            # Mark as absent with full metadata
             absent_entry = pd.DataFrame({
                 "ID": [student_id],
                 "Name": [student_info["name"]],
                 "Timestamp": [datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")],
-                "Status": ["Absent"]
+                "Status": ["Absent"],
+                "Shift": [roll_data['shift']],
+                "Program": [roll_data['program']],
+                "Current_Year": [roll_data['current_year']],
+                "Admission_Year": [roll_data['admission_year']]
             })
             absent_entry.to_csv(CSV_FILE, mode='a', header=False, index=False)
             absent_count += 1
@@ -1214,14 +1352,21 @@ def mark_absent_for_shift(shift):
             if not already_absent.empty:
                 continue
         
-        # Mark as absent
+        # Get academic year info
+        from roll_parser import get_academic_year_info
+        academic_info = get_academic_year_info(student_id)
+        current_year = academic_info['current_year'] if academic_info['valid'] else 1
+        
+        # Mark as absent with complete metadata
         absent_entry = pd.DataFrame({
             "ID": [student_id],
             "Name": [student_info["name"]],
             "Timestamp": [current_time.strftime("%Y-%m-%d %I:%M:%S %p")],
             "Status": ["Absent"],
-            "Shift": [shift],
-            "Auto_Marked": ["Yes"]
+            "Shift": [roll_data['shift']],
+            "Program": [roll_data['program']],
+            "Current_Year": [current_year],
+            "Admission_Year": [roll_data['admission_year']]
         })
         absent_entry.to_csv(CSV_FILE, mode='a', header=False, index=False)
         absent_count += 1
@@ -1372,12 +1517,32 @@ def manual_attendance_entry():
                     student_name = students[student_id]["name"]
                     timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
                     
-                    # Create absent record
+                    # Parse roll number to get metadata
+                    roll_data = parse_roll_number(student_id)
+                    if not roll_data['valid']:
+                        roll_data = {
+                            'shift': 'Morning',
+                            'program': '',
+                            'admission_year': 2025,
+                            'current_year': 1
+                        }
+                    
+                    # Get academic year info
+                    from roll_parser import get_academic_year_info
+                    academic_info = get_academic_year_info(student_id)
+                    if academic_info['valid']:
+                        roll_data['current_year'] = academic_info['current_year']
+                    
+                    # Create absent record with full metadata
                     absent_record = {
                         "ID": student_id,
                         "Name": student_name,
                         "Timestamp": timestamp,
-                        "Status": "Absent"
+                        "Status": "Absent",
+                        "Shift": roll_data['shift'],
+                        "Program": roll_data['program'],
+                        "Current_Year": roll_data['current_year'],
+                        "Admission_Year": roll_data['admission_year']
                     }
                     
                     # Save to CSV

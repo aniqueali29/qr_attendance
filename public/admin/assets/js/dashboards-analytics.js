@@ -547,18 +547,43 @@
    */
   function initializeOrderStatisticsChartWithData(programData) {
     const chartElement = document.getElementById('orderStatisticsChart');
-    if (!chartElement) return;
+    if (!chartElement) {
+      console.warn('initializeOrderStatisticsChartWithData: Chart element not found');
+      return;
+    }
     
-    if (programData && programData.length > 0) {
+    // Enhanced data validation and sanitization
+    let safeData = [];
+    if (Array.isArray(programData) && programData.length > 0) {
+      safeData = programData.filter(item => {
+        return item && 
+               typeof item === 'object' && 
+               item.program_name && 
+               item.student_count !== undefined;
+      }).map(item => ({
+        program_name: String(item.program_name || 'Unknown').trim(),
+        student_count: Math.max(0, parseInt(item.student_count) || 0)
+      }));
+    }
+    
+    if (safeData.length > 0) {
       // Prepare data for ApexCharts
-      const labels = programData.map(item => item.program_name);
-      const series = programData.map(item => parseInt(item.student_count));
+      const labels = safeData.map(item => item.program_name);
+      const series = safeData.map(item => item.student_count);
+      
+      // Validate series data
+      const hasValidSeries = series.every(val => typeof val === 'number' && !isNaN(val) && val >= 0);
+      if (!hasValidSeries) {
+        console.error('initializeOrderStatisticsChartWithData: Invalid series data:', series);
+        safeData = [];
+      }
+      
       const colors = [
-        config.colors.primary, 
-        config.colors.secondary, 
-        config.colors.success, 
-        config.colors.info,
-        config.colors.warning,
+        (config && config.colors && config.colors.primary) || '#696cff',
+        (config && config.colors && config.colors.secondary) || '#8592a3',
+        (config && config.colors && config.colors.success) || '#71dd37',
+        (config && config.colors && config.colors.info) || '#03c3ec',
+        (config && config.colors && config.colors.warning) || '#ffab00',
         '#ff3e1d', 
         '#ff5722', 
         '#9c27b0', 
@@ -574,10 +599,10 @@
           type: 'donut'
         },
         labels: labels,
-        colors: colors.slice(0, programData.length),
+        colors: colors.slice(0, safeData.length),
         stroke: {
           width: 5,
-          colors: cardColor
+          colors: cardColor || '#ffffff'
         },
         dataLabels: {
           enabled: false,
@@ -642,8 +667,14 @@
         orderStatisticsChart.destroy();
       }
       
+      try {
       orderStatisticsChart = new ApexCharts(chartElement, options);
       orderStatisticsChart.render();
+        console.log('initializeOrderStatisticsChartWithData: Chart created successfully with', safeData.length, 'data points');
+      } catch (chartError) {
+        console.error('initializeOrderStatisticsChartWithData: Error creating chart:', chartError);
+        orderStatisticsChart = null;
+      }
     } else {
       // Show empty state
       const options = {
@@ -706,8 +737,14 @@
         orderStatisticsChart.destroy();
       }
       
+      try {
       orderStatisticsChart = new ApexCharts(chartElement, options);
       orderStatisticsChart.render();
+        console.log('initializeOrderStatisticsChartWithData: Empty state chart created successfully');
+      } catch (chartError) {
+        console.error('initializeOrderStatisticsChartWithData: Error creating empty state chart:', chartError);
+        orderStatisticsChart = null;
+      }
     }
   }
 
@@ -970,29 +1007,200 @@
    * Update Order Statistics Chart with new data
    */
   function updateOrderStatisticsChart(data) {
-    if (!orderStatisticsChart) return;
-    
-    if (data && data.length > 0) {
-      const labels = data.map(item => item.program_name);
-      const series = data.map(item => parseInt(item.student_count));
+    // Check if chart element exists
+    const chartElement = document.getElementById('orderStatisticsChart');
+    if (!chartElement) {
+      console.warn('updateOrderStatisticsChart: Chart element not found in DOM');
+      return;
+    }
+
+    // Check if chart instance exists, if not try to initialize it
+    if (!orderStatisticsChart) {
+      console.warn('updateOrderStatisticsChart: Chart instance not found, attempting to initialize...');
+      try {
+        initializeOrderStatisticsChart();
+        // Wait a bit for initialization to complete
+        setTimeout(() => {
+          if (orderStatisticsChart) {
+            updateOrderStatisticsChart(data);
+          }
+        }, 100);
+      } catch (error) {
+        console.error('updateOrderStatisticsChart: Failed to initialize chart:', error);
+      }
+      return;
+    }
+
+    // Handle undefined, null, or non-array data
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      console.warn('updateOrderStatisticsChart: Invalid or empty data provided');
+      return;
+    }
+
+    // Validate data structure and filter out invalid items
+    const validData = data.filter(item => {
+      return item && 
+             typeof item === 'object' && 
+             item.program_name && 
+             item.student_count !== undefined;
+    });
+
+    if (validData.length === 0) {
+      console.warn('updateOrderStatisticsChart: No valid data items found');
+      return;
+    }
+
+    try {
+      // Enhanced data sanitization
+      const sanitizedData = validData.map(item => {
+        const sanitized = {
+          program_name: String(item.program_name || 'Unknown').trim(),
+          student_count: Math.max(0, parseInt(item.student_count) || 0)
+        };
+        
+        // Ensure program_name is not empty
+        if (!sanitized.program_name || sanitized.program_name === 'Unknown') {
+          sanitized.program_name = `Program ${Math.random().toString(36).substr(2, 5)}`;
+        }
+        
+        return sanitized;
+      }).filter(item => item.student_count >= 0);
+
+      if (sanitizedData.length === 0) {
+        console.warn('updateOrderStatisticsChart: No valid data after sanitization');
+        return;
+      }
+
+      const labels = sanitizedData.map(item => item.program_name);
+      const series = sanitizedData.map(item => item.student_count);
+      
+      // Debug logging with detailed data inspection
+      console.log('updateOrderStatisticsChart: Sanitized data:', {
+        labels: labels,
+        series: series,
+        originalLength: validData.length,
+        sanitizedLength: sanitizedData.length
+      });
+      
+      // Deep validation of each data point
+      console.log('updateOrderStatisticsChart: Detailed data inspection:', {
+        labels: labels.map((label, index) => ({ index, label, type: typeof label, length: label ? label.length : 0 })),
+        series: series.map((value, index) => ({ index, value, type: typeof value, isNaN: isNaN(value) }))
+      });
+
+      // Validate that all series values are numbers
+      const hasValidSeries = series.every(val => typeof val === 'number' && !isNaN(val) && val >= 0);
+      if (!hasValidSeries) {
+        console.error('updateOrderStatisticsChart: Invalid series data detected:', series);
+        return;
+      }
+      
+      // Additional validation for labels
+      const hasValidLabels = labels.every(label => typeof label === 'string' && label.length > 0);
+      if (!hasValidLabels) {
+        console.error('updateOrderStatisticsChart: Invalid labels detected:', labels);
+        return;
+      }
+      
+      // Ensure arrays have the same length
+      if (labels.length !== series.length) {
+        console.error('updateOrderStatisticsChart: Mismatched array lengths:', {
+          labelsLength: labels.length,
+          seriesLength: series.length
+        });
+        return;
+      }
+      
+      // Ensure we have at least one data point
+      if (labels.length === 0 || series.length === 0) {
+        console.warn('updateOrderStatisticsChart: No data to display');
+        return;
+      }
+
+      // Safe color configuration with fallbacks
       const colors = [
-        config.colors.primary, 
-        config.colors.secondary, 
-        config.colors.success, 
-        config.colors.info,
-        config.colors.warning,
-        '#ff3e1d', 
-        '#ff5722', 
-        '#9c27b0', 
-        '#607d8b', 
+        (config && config.colors && config.colors.primary) || '#696cff',
+        (config && config.colors && config.colors.secondary) || '#8592a3',
+        (config && config.colors && config.colors.success) || '#71dd37',
+        (config && config.colors && config.colors.info) || '#03c3ec',
+        (config && config.colors && config.colors.warning) || '#ffab00',
+        '#ff3e1d',
+        '#ff5722',
+        '#9c27b0',
+        '#607d8b',
         '#795548'
       ];
+
+      // Instead of updating, always recreate the chart to avoid ApexCharts internal errors
+      console.log('updateOrderStatisticsChart: Recreating chart with new data...');
       
-      orderStatisticsChart.updateOptions({
-        series: series,
-        labels: labels,
-        colors: colors.slice(0, data.length)
+      // Destroy existing chart if it exists
+      if (orderStatisticsChart) {
+        try {
+          orderStatisticsChart.destroy();
+          console.log('updateOrderStatisticsChart: Existing chart destroyed successfully');
+        } catch (destroyError) {
+          console.warn('updateOrderStatisticsChart: Error destroying existing chart:', destroyError);
+        }
+        orderStatisticsChart = null;
+      }
+      
+      // Verify chart element still exists before recreating
+      const chartElement = document.getElementById('orderStatisticsChart');
+      if (!chartElement) {
+        console.error('updateOrderStatisticsChart: Chart element not found, cannot recreate chart');
+        return;
+      }
+      
+      // Create a new chart with the sanitized data (with small delay to ensure DOM is ready)
+      setTimeout(() => {
+        try {
+          initializeOrderStatisticsChartWithData(sanitizedData);
+          console.log('updateOrderStatisticsChart: Chart recreated successfully');
+        } catch (recreateError) {
+          console.error('updateOrderStatisticsChart: Error recreating chart:', recreateError);
+          // Last resort: try with empty data
+          try {
+            initializeOrderStatisticsChartWithData([]);
+          } catch (finalError) {
+            console.error('updateOrderStatisticsChart: Final fallback failed:', finalError);
+          }
+        }
+      }, 50); // Small delay to ensure DOM is ready
+    } catch (error) {
+      console.error('updateOrderStatisticsChart: Error updating chart:', error);
+      console.error('updateOrderStatisticsChart: Error details:', {
+        message: error.message,
+        stack: error.stack,
+        validData: validData
       });
+      
+      // Try to reinitialize the chart as a fallback
+      try {
+        console.log('Attempting to reinitialize chart with data...');
+        // Destroy existing chart first
+        if (orderStatisticsChart) {
+          try {
+            orderStatisticsChart.destroy();
+          } catch (destroyError) {
+            console.warn('Error destroying chart during fallback:', destroyError);
+          }
+          orderStatisticsChart = null;
+        }
+        initializeOrderStatisticsChartWithData(validData);
+      } catch (reinitError) {
+        console.error('updateOrderStatisticsChart: Failed to reinitialize chart:', reinitError);
+        // Last resort: show empty chart
+        try {
+          if (orderStatisticsChart) {
+            orderStatisticsChart.destroy();
+            orderStatisticsChart = null;
+          }
+          initializeOrderStatisticsChartWithData([]);
+        } catch (finalError) {
+          console.error('updateOrderStatisticsChart: Final fallback failed:', finalError);
+        }
+      }
     }
   }
 

@@ -98,6 +98,7 @@ include 'partials/navbar.php';
                             <option value="1st">1st Year</option>
                             <option value="2nd">2nd Year</option>
                             <option value="3rd">3rd Year</option>
+                            <option value="Completed">Completed</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -219,7 +220,7 @@ include 'partials/navbar.php';
                         <div class="col-md-6">
                             <label for="student-roll" class="form-label">Roll Number *</label>
                             <input type="text" id="student-roll" name="roll_number" class="form-control" placeholder="e.g., 24-SWT-01" required>
-                            <div class="form-text">Format: YY-PROGRAM-NN (Morning) or YY-EPROGRAM-NN (Evening)</div>
+                            <div class="form-text">Format: YY-PROGRAM-NN (Morning) or YY-EPROGRAM-NN (Evening) - e.g., 25-SWT-01, 25-SWT-583</div>
                             <div id="roll-number-status" class="mt-2" style="display: none;"></div>
                             <div id="duplicate-actions" class="mt-2" style="display: none;">
                                 <button type="button" class="btn btn-sm btn-outline-info" onclick="clearDuplicateWarning()">
@@ -267,6 +268,7 @@ include 'partials/navbar.php';
                                 <option value="1st">1st Year</option>
                                 <option value="2nd">2nd Year</option>
                                 <option value="3rd">3rd Year</option>
+                                <option value="Completed">Completed</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -733,7 +735,7 @@ include 'partials/navbar.php';
                                         </li>
                                         <li class="mb-2">
                                             <i class="bx bx-check text-success me-2"></i>
-                                            <strong>Student ID Format:</strong> YY-PROGRAM-NN (e.g., 25-SWT-01)
+                                            <strong>Student ID Format:</strong> YY-PROGRAM-NN (e.g., 25-SWT-01, 25-SWT-583)
                                         </li>
                                         <li class="mb-0">
                                             <i class="bx bx-check text-success me-2"></i>

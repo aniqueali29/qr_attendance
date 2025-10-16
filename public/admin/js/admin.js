@@ -8,11 +8,48 @@
     if (n === 1) return '1st';
     if (n === 2) return '2nd';
     if (n === 3) return '3rd';
+    if (n >= 4) return 'Completed'; // For completed students
     return '';
+  }
+
+  function clearAutoFilledFields() {
+    const programSelect = document.getElementById('student-program');
+    const shiftSelect = document.getElementById('student-shift');
+    const yearLevelSelect = document.getElementById('student-year');
+    const admissionYearInput = document.getElementById('student-admission-year');
+    const sectionSelect = document.getElementById('student-section');
+    
+    // Clear selections and reset styling
+    if (programSelect) {
+      programSelect.selectedIndex = 0;
+      programSelect.style.backgroundColor = '';
+      programSelect.style.borderColor = '';
+    }
+    if (shiftSelect) {
+      shiftSelect.selectedIndex = 0;
+      shiftSelect.style.backgroundColor = '';
+      shiftSelect.style.borderColor = '';
+    }
+    if (yearLevelSelect) {
+      yearLevelSelect.selectedIndex = 0;
+      yearLevelSelect.style.backgroundColor = '';
+      yearLevelSelect.style.borderColor = '';
+    }
+    if (admissionYearInput) {
+      admissionYearInput.value = '';
+      admissionYearInput.style.backgroundColor = '';
+      admissionYearInput.style.borderColor = '';
+    }
+    if (sectionSelect) {
+      sectionSelect.innerHTML = '<option value="">Select Section</option>';
+    }
   }
 
   async function parseRollNumber(rollNumber) {
     if (!rollNumber || rollNumber.length < 5) return;
+
+    // Clear previous auto-filled values to ensure clean state
+    clearAutoFilledFields();
 
     try {
       const res = await fetch(`../api/roll_parser_simple.php?action=parse_roll&roll_number=${encodeURIComponent(rollNumber)}`);
@@ -75,15 +112,32 @@
         if (!desired) {
           desired = mapYearNumericToLabel(computeYearFromRoll(rollNumber));
         }
+        
+        console.log('Year level update:', {
+          rollNumber: rollNumber,
+          dataYearLevel: data.year_level,
+          dataYearLevelNumeric: data.year_level_numeric,
+          computedDesired: desired,
+          availableOptions: Array.from(yearLevelSelect.options).map(o => o.value)
+        });
+        
         if (desired) {
+          let found = false;
           for (let opt of yearLevelSelect.options) {
             if (opt.value === desired) {
               opt.selected = true;
               yearLevelSelect.style.backgroundColor = '#e8f5e8';
               yearLevelSelect.style.borderColor = '#4caf50';
+              console.log('Year level selected:', opt.value, opt.text);
+              found = true;
               break;
             }
           }
+          if (!found) {
+            console.warn('Year level option not found:', desired);
+          }
+        } else {
+          console.warn('No year level determined for roll number:', rollNumber);
         }
       }
 
@@ -117,19 +171,41 @@
   }
 
   function computeYearFromRoll(roll) {
-    // Expect YY-...-NN or YY-E...-NN
-    const m = /^(\d{2})-E?[A-Za-z]{2,10}-(\d{2})$/.exec(roll.trim());
+    // Expect YY-...-NN or YY-E...-NN (allow 2-3 digit serial numbers)
+    const m = /^(\d{2})-E?[A-Za-z]{2,10}-(\d{2,3})$/.exec(roll.trim());
     if (!m) return 0;
+    
     const yy = parseInt(m[1], 10);
     const admissionYear = 2000 + yy;
     const now = new Date();
-    const month = now.getMonth() + 1; // 1-12
-    let academicYear = now.getFullYear();
-    if (month < 9) academicYear -= 1; // starts in September
-    let yearsInProgram = academicYear - admissionYear + 1;
-    if (yearsInProgram < 1) yearsInProgram = 1;
-    if (yearsInProgram > 3) yearsInProgram = 3;
-    return yearsInProgram;
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    
+    // Calculate years difference from admission year
+    const yearsDifference = currentYear - admissionYear;
+    
+    // Academic year progression logic:
+    // - If current month is September or later, students progress to next year
+    // - If current month is before September, they're still in the same academic year
+    
+    let yearLevel;
+    if (currentMonth >= 9) {
+      // After September: students have progressed to the next academic year
+      yearLevel = yearsDifference + 1;
+    } else {
+      // Before September: students are still in the same academic year
+      yearLevel = yearsDifference;
+    }
+    
+    // For completed students (3+ years), return 4 to indicate completion
+    if (yearsDifference >= 3) {
+      return 4; // This will be mapped to 'Completed' by mapYearNumericToLabel
+    }
+    
+    // Ensure year level is within valid range (1-3) for active students
+    yearLevel = Math.max(1, Math.min(yearLevel, 3));
+    
+    return yearLevel;
   }
 
   function clientSideFillFromRoll(roll) {
@@ -137,7 +213,7 @@
     const shiftSelect = document.getElementById('student-shift');
     const yearLevelSelect = document.getElementById('student-year');
     const admissionYearInput = document.getElementById('student-admission-year');
-    const m = /^(\d{2})-(E)?([A-Za-z]{2,10})-(\d{2})$/.exec(roll.trim());
+    const m = /^(\d{2})-(E)?([A-Za-z]{2,10})-(\d{2,3})$/.exec(roll.trim());
     if (!m) return;
     const yy = parseInt(m[1], 10);
     const isE = !!m[2];

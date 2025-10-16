@@ -755,9 +755,9 @@ function validateStudentData($data) {
         if (empty($student['student_id'])) {
             $row_errors[] = 'Student ID is required';
         } else {
-            // Validate roll number format
-            if (!preg_match('/^\d{2}-[A-Z]{2,10}-\d{2}$/', $student['student_id'])) {
-                $row_errors[] = 'Invalid student ID format. Use: YY-PROGRAM-NN (e.g., 25-SWT-01)';
+            // Validate roll number format (allow 2-3 digit serial numbers)
+            if (!preg_match('/^\d{2}-[A-Z]{2,10}-\d{2,3}$/', $student['student_id'])) {
+                $row_errors[] = 'Invalid student ID format. Use: YY-PROGRAM-NN (e.g., 25-SWT-01 or 25-SWT-583)';
             }
         }
         
