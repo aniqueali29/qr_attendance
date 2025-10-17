@@ -21,6 +21,106 @@ include 'partials/sidebar.php';
 include 'partials/navbar.php';
 ?>
 
+<style>
+/* Responsive button styling */
+@media (max-width: 768px) {
+    .btn-text { 
+        display: none; 
+    }
+    .d-flex.flex-wrap.gap-2 .btn {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    .d-flex.flex-wrap.gap-2 .btn i {
+        font-size: 1rem;
+        margin: 0 !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .d-flex.flex-wrap.gap-2 .btn i.me-1 {
+        margin-right: 0.5rem !important;
+    }
+}
+
+/* Bulk Actions Toolkit - Professional Design */
+.bulk-actions {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 12px !important;
+}
+
+.bulk-actions .bulk-btn-text {
+    display: none !important;
+}
+
+.bulk-actions .btn {
+    padding: 0.55rem;
+    font-size: 0.9rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 38px;
+    min-height: 38px;
+}
+
+.bulk-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bulk-actions .btn i {
+    margin: 0 !important;
+    font-size: 1.25rem;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Professional color scheme */
+.bulk-actions .btn-success {
+    background: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+.bulk-actions .btn-warning {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: white;
+}
+
+.bulk-actions .btn-danger {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+}
+
+.bulk-actions .btn-info {
+    background: #06b6d4;
+    border-color: #06b6d4;
+    color: white;
+}
+
+.bulk-actions .btn-primary {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.bulk-actions #selected-students-count {
+    color: #374151;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+</style>
+
 
 <!-- Content wrapper -->
 <div class="content-wrapper">
@@ -63,10 +163,7 @@ include 'partials/navbar.php';
                                 <i class="bx bx-filter me-1"></i>
                                 <span class="btn-text">Filters</span>
                             </button>
-                            <button class="btn btn-warning" onclick="toggleBulkMode()">
-                                <i class="bx bx-checkbox-square me-1"></i>
-                                <span class="btn-text">Bulk Actions</span>
-                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -130,6 +227,10 @@ include 'partials/navbar.php';
                         <button class="btn btn-secondary" onclick="clearFilters()">
                             <i class="bx bx-x me-1"></i>Clear Filters
                         </button>
+                        <button class="btn btn-warning" onclick="toggleBulkMode()">
+                                <i class="bx bx-checkbox-square me-1"></i>
+                                <span class="btn-text">Bulk Actions</span>
+                            </button>
                     </div>
                 </div>
             </div>
@@ -176,8 +277,8 @@ include 'partials/navbar.php';
                         <span class="text-muted fw-semibold" id="selected-students-count">0 selected</span>
                         <div class="ms-auto d-flex flex-wrap gap-2">
                             <button class="btn btn-sm btn-success" onclick="bulkActivateStudents()">
-                                <i class="bx bx-check me-1"></i>
-                                <span class="bulk-btn-text">Activate</span>
+                                <i class="bx bx-check me-1 "></i>
+                                <span class="bulk-btn-text ">Activate</span>
                             </button>
                             <button class="btn btn-sm btn-warning" onclick="bulkDeactivateStudents()">
                                 <i class="bx bx-x me-1"></i>
@@ -1271,10 +1372,7 @@ window.addEventListener('unhandledrejection', function(e) {
     100% { background-position: 40px 0; }
 }
 
-.table-responsive {
-    max-height: 300px;
-    overflow-y: auto;
-}
+/* Table responsive styling removed to allow natural height */
 
 .display-1 {
     font-size: 4rem;
@@ -1830,6 +1928,7 @@ function loadStudents(page = 1) {
     
     const params = new URLSearchParams({
         page: page,
+        limit: 20,
         ...currentFilters
     });
     
@@ -4254,9 +4353,7 @@ function confirmBulkPasswordReset() {
     </style>
 
     <script>
-    // Initialize filter presets for students page
     document.addEventListener('DOMContentLoaded', function() {
-        FilterPresets.init('students');
     });
 
 // ========================================

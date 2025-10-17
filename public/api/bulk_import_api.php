@@ -419,10 +419,10 @@ function createStudentFromImport($pdo, $student, $row_number) {
         $year_level = trim($student['year_level']);
         $section_name = trim($student['section']);
         
-        // Generate password
-        $password = generatePassword();
+        // Use roll number as username and password
+        $password = $student_id; // Use roll number as password (e.g., 25-CIT-597)
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
-        $username = strtolower(str_replace('-', '', $student_id));
+        $username = $student_id; // Use roll number as username (e.g., 25-CIT-597)
         
         // Get section ID
         $stmt = $pdo->prepare("
@@ -455,15 +455,15 @@ function createStudentFromImport($pdo, $student, $row_number) {
         
         // Create student record
         $stmt = $pdo->prepare("
-            INSERT INTO students (student_id, name, email, phone, user_id, program, shift, year_level, section, section_id, admission_year, roll_prefix, created_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO students (student_id, name, email, phone, user_id, program, shift, year_level, section, section_id, admission_year, roll_prefix, username, password, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         $admission_year = '20' . substr($student_id, 0, 2);
         $roll_prefix = explode('-', $student_id)[1];
         
         $stmt->execute([
             $student_id, $name, $email, $phone, $user_id, $program, $shift, $year_level, $section_name, 
-            $section_id, $admission_year, $roll_prefix
+            $section_id, $admission_year, $roll_prefix, $username, $password
         ]);
         
         // Save to students.json

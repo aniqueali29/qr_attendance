@@ -238,13 +238,18 @@ function generateBulkCards($students, $format) {
         $zip_filepath = generateBulkPNGZip($students, $zip_filename);
         
         if ($zip_filepath) {
+            // Check if we're using fallback (HTML instead of ZIP)
+            $is_fallback = !class_exists('ZipArchive') || strpos($zip_filepath, '.html') !== false;
+            $actual_filename = $is_fallback ? "student_cards_bulk_{$timestamp}.html" : $zip_filename;
+            
             return [
                 'success' => true,
-                'message' => 'Bulk cards generated successfully',
+                'message' => $is_fallback ? 'Bulk cards generated as HTML (ZIP not available)' : 'Bulk cards generated successfully',
                 'data' => [
-                    'download_url' => 'api/card_download.php?file=' . urlencode($zip_filepath) . '&filename=' . urlencode($zip_filename),
-                    'filename' => $zip_filename,
-                    'count' => count($students)
+                    'download_url' => 'api/card_download.php?file=' . urlencode($zip_filepath) . '&filename=' . urlencode($actual_filename),
+                    'filename' => $actual_filename,
+                    'count' => count($students),
+                    'fallback' => $is_fallback
                 ]
             ];
         } else {
@@ -321,6 +326,23 @@ function generateCardPDF($student) {
  * Generate bulk PNG ZIP (HTML files for now)
  */
 function generateBulkPNGZip($students, $zip_filename) {
+    // Check if ZipArchive is available
+    if (!class_exists('ZipArchive')) {
+        // Fallback: save HTML file and return path
+        $temp_dir = sys_get_temp_dir() . '/qr_cards/';
+        if (!is_dir($temp_dir)) {
+            mkdir($temp_dir, 0755, true);
+        }
+        
+        $html_filename = str_replace('.zip', '.html', $zip_filename);
+        $html_path = $temp_dir . $html_filename;
+        
+        $html_content = generateBulkCardHTML($students);
+        file_put_contents($html_path, $html_content);
+        
+        return $html_path;
+    }
+    
     $temp_dir = sys_get_temp_dir() . '/qr_cards/';
     if (!is_dir($temp_dir)) {
         mkdir($temp_dir, 0755, true);
@@ -330,7 +352,14 @@ function generateBulkPNGZip($students, $zip_filename) {
     $zip = new ZipArchive();
     
     if ($zip->open($zip_path, ZipArchive::CREATE) !== TRUE) {
-        return false;
+        // Fallback: save HTML file and return path
+        $html_filename = str_replace('.zip', '.html', $zip_filename);
+        $html_path = $temp_dir . $html_filename;
+        
+        $html_content = generateBulkCardHTML($students);
+        file_put_contents($html_path, $html_content);
+        
+        return $html_path;
     }
     
     foreach ($students as $student) {
@@ -469,6 +498,12 @@ function generateCardHTML($student, $for_pdf = false, $for_png = false) {
                 align-items: center;
                 justify-content: center;
                 flex-shrink: 0;
+                overflow: hidden;
+            }
+            .logo-section img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
             }
             .header-text {
                 flex: 1;
@@ -568,7 +603,7 @@ function generateCardHTML($student, $for_pdf = false, $for_png = false) {
         <div class="attendance-card">
             <div class="card-header">
                 <div class="logo-section">
-                    <div style="font-size: 14px; font-weight: 800; color: #1e3a8a;">JPI</div>
+                    <img src="../assets/img/logo.jpeg" alt="JPI Logo" />
                 </div>
                 <div class="header-text">
                     <div class="institution-name">JINNAH POLYTECHNIC INSTITUTE</div>
@@ -620,7 +655,7 @@ function generateCardHTML($student, $for_pdf = false, $for_png = false) {
 /**
  * Generate bulk card HTML for PDF
  */
-function generateBulkCardHTML($students) {
+function generateBulkCardHTML($students, $filename = null) {
     $html = '<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -681,6 +716,12 @@ function generateBulkCardHTML($students) {
                 align-items: center;
                 justify-content: center;
                 flex-shrink: 0;
+                overflow: hidden;
+            }
+            .logo-section img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
             }
             .header-text {
                 flex: 1;
@@ -805,7 +846,7 @@ function generateBulkCardHTML($students) {
     </head>
     <body>';
     
-    $cards_per_page = 8; // 2 columns x 4 rows per A4 page
+    $cards_per_page = 10; // 2 columns x 4 rows per A4 page
     $current_page = 0;
     $card_count = 0;
     
@@ -827,7 +868,7 @@ function generateBulkCardHTML($students) {
         <div class="attendance-card">
             <div class="card-header">
                 <div class="logo-section">
-                    <div style="font-size: 14px; font-weight: 800; color: #1e3a8a;">JPI</div>
+                    <img src="../assets/img/logo.jpeg" alt="JPI Logo" />
                 </div>
                 <div class="header-text">
                     <div class="institution-name">JINNAH POLYTECHNIC INSTITUTE</div>

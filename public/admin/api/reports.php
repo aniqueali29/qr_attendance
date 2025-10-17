@@ -32,8 +32,37 @@ try {
             break;
             
         case 'trends':
-            $trends = getAttendanceTrends($pdo);
+            $days = $_GET['days'] ?? 7;
+            $trends = getAttendanceTrends($pdo, $days);
             echo json_encode(['success' => true, 'data' => $trends]);
+            break;
+            
+        case 'monthly_comparison':
+            $comparison = getMonthlyComparison($pdo);
+            echo json_encode(['success' => true, 'data' => $comparison]);
+            break;
+            
+        case 'get_programs':
+            $programs = getPrograms($pdo);
+            echo json_encode(['success' => true, 'data' => $programs]);
+            break;
+            
+        case 'get_shifts':
+            $shifts = getShifts($pdo);
+            echo json_encode(['success' => true, 'data' => $shifts]);
+            break;
+            
+        case 'get_year_levels':
+            $yearLevels = getYearLevels($pdo);
+            echo json_encode(['success' => true, 'data' => $yearLevels]);
+            break;
+            
+        case 'get_sections':
+            $program = $_GET['program'] ?? '';
+            $yearLevel = $_GET['year_level'] ?? '';
+            $shift = $_GET['shift'] ?? '';
+            $sections = getSections($pdo, $program, $yearLevel, $shift);
+            echo json_encode(['success' => true, 'data' => $sections]);
             break;
             
         case 'generate_report':
@@ -65,28 +94,19 @@ function getQuickStats($pdo) {
     ");
     $presentToday = $stmt->fetchColumn();
     
-    // Average attendance (last 30 days)
+    // Average attendance (last 11 months) - percentage of students who have attended at least once
     $stmt = $pdo->query("
         SELECT ROUND(
-            (COUNT(CASE WHEN status IN ('Present', 'Check-in') THEN 1 END) * 100.0 / 
-            NULLIF(COUNT(*), 0)), 2
+            (COUNT(DISTINCT a.student_id) * 100.0 / 
+            NULLIF((SELECT COUNT(*) FROM students WHERE is_active = 1), 0)), 2
         ) as avg_attendance
-        FROM attendance
-        WHERE timestamp >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        FROM attendance a
+        WHERE a.timestamp >= DATE_SUB(CURDATE(), INTERVAL 11 MONTH)
     ");
     $avgAttendance = $stmt->fetchColumn() ?? 0;
     
-    // This month attendance
-    $stmt = $pdo->query("
-        SELECT ROUND(
-            (COUNT(CASE WHEN status IN ('Present', 'Check-in') THEN 1 END) * 100.0 / 
-            NULLIF(COUNT(*), 0)), 2
-        ) as month_attendance
-        FROM attendance
-        WHERE YEAR(timestamp) = YEAR(CURDATE())
-        AND MONTH(timestamp) = MONTH(CURDATE())
-    ");
-    $monthAttendance = $stmt->fetchColumn() ?? 0;
+    // 11 months average attendance (same calculation)
+    $monthAttendance = $avgAttendance;
     
     return [
         'total_students' => (int)$totalStudents,
@@ -100,25 +120,29 @@ function getQuickStats($pdo) {
  * Get program-wise statistics
  */
 function getProgramStats($pdo) {
+    // Get program-wise attendance statistics
     $stmt = $pdo->query("
         SELECT 
             s.program,
             COUNT(DISTINCT s.id) as total_students,
+            COUNT(DISTINCT a.student_id) as students_with_attendance,
+            COUNT(a.id) as total_attendance_records,
+            COUNT(CASE WHEN a.status IN ('Present', 'Check-in') THEN 1 END) as present_records,
             ROUND(
-                (COUNT(CASE WHEN a.status IN ('Present', 'Check-in') THEN 1 END) * 100.0 / 
-                NULLIF(COUNT(a.id), 0)), 2
+                (COUNT(DISTINCT a.student_id) * 100.0 / 
+                NULLIF(COUNT(DISTINCT s.id), 0)), 2
             ) as attendance_percentage
         FROM students s
-        LEFT JOIN attendance a ON s.student_id = a.student_id
+        LEFT JOIN attendance a ON s.student_id = a.student_id 
+            AND a.timestamp >= DATE_SUB(CURDATE(), INTERVAL 11 MONTH)
         WHERE s.is_active = 1
-        AND (a.timestamp >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) OR a.id IS NULL)
         GROUP BY s.program
         ORDER BY s.program
     ");
     
     $stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Format percentages
+    // Format percentages - percentage of students who have attended at least once
     foreach ($stats as &$stat) {
         $stat['attendance_percentage'] = $stat['attendance_percentage'] ?? 0;
     }
@@ -130,25 +154,29 @@ function getProgramStats($pdo) {
  * Get shift-wise statistics
  */
 function getShiftStats($pdo) {
+    // Get shift-wise attendance statistics
     $stmt = $pdo->query("
         SELECT 
             s.shift,
             COUNT(DISTINCT s.id) as total_students,
+            COUNT(DISTINCT a.student_id) as students_with_attendance,
+            COUNT(a.id) as total_attendance_records,
+            COUNT(CASE WHEN a.status IN ('Present', 'Check-in') THEN 1 END) as present_records,
             ROUND(
-                (COUNT(CASE WHEN a.status IN ('Present', 'Check-in') THEN 1 END) * 100.0 / 
-                NULLIF(COUNT(a.id), 0)), 2
+                (COUNT(DISTINCT a.student_id) * 100.0 / 
+                NULLIF(COUNT(DISTINCT s.id), 0)), 2
             ) as attendance_percentage
         FROM students s
-        LEFT JOIN attendance a ON s.student_id = a.student_id
+        LEFT JOIN attendance a ON s.student_id = a.student_id 
+            AND a.timestamp >= DATE_SUB(CURDATE(), INTERVAL 11 MONTH)
         WHERE s.is_active = 1
-        AND (a.timestamp >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) OR a.id IS NULL)
         GROUP BY s.shift
         ORDER BY s.shift
     ");
     
     $stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Format percentages
+    // Format percentages - percentage of students who have attended at least once
     foreach ($stats as &$stat) {
         $stat['attendance_percentage'] = $stat['attendance_percentage'] ?? 0;
     }
@@ -157,10 +185,15 @@ function getShiftStats($pdo) {
 }
 
 /**
- * Get attendance trends (last 7 days)
+ * Get attendance trends (last N days)
  */
-function getAttendanceTrends($pdo) {
-    $stmt = $pdo->query("
+function getAttendanceTrends($pdo, $days = 7) {
+    $days = max(1, min(365, (int)$days)); // Limit between 1 and 365 days
+    
+    // Get total active students count
+    $totalStudents = $pdo->query("SELECT COUNT(*) FROM students WHERE is_active = 1")->fetchColumn();
+    
+    $stmt = $pdo->prepare("
         SELECT 
             DATE(timestamp) as date,
             COUNT(CASE WHEN status IN ('Present', 'Check-in') THEN 1 END) as present,
@@ -168,14 +201,15 @@ function getAttendanceTrends($pdo) {
             COUNT(*) as total,
             ROUND(
                 (COUNT(CASE WHEN status IN ('Present', 'Check-in') THEN 1 END) * 100.0 / 
-                NULLIF(COUNT(*), 0)), 2
+                NULLIF(?, 0)), 2
             ) as percentage
         FROM attendance
-        WHERE timestamp >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+        WHERE timestamp >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
         GROUP BY DATE(timestamp)
         ORDER BY DATE(timestamp) DESC
     ");
     
+    $stmt->execute([$totalStudents, $days - 1]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -189,6 +223,9 @@ function generateReport($pdo) {
     $format = $_GET['format'] ?? 'pdf';
     $studentId = $_GET['student'] ?? '';
     $program = $_GET['program'] ?? '';
+    $shift = $_GET['shift'] ?? '';
+    $yearLevel = $_GET['year_level'] ?? '';
+    $sectionId = $_GET['section'] ?? '';
     
     // Build query based on filters
     $whereConditions = [];
@@ -214,6 +251,21 @@ function generateReport($pdo) {
         $params[] = $program;
     }
     
+    if ($shift) {
+        $whereConditions[] = "s.shift = ?";
+        $params[] = $shift;
+    }
+    
+    if ($yearLevel) {
+        $whereConditions[] = "s.year_level = ?";
+        $params[] = $yearLevel;
+    }
+    
+    if ($sectionId) {
+        $whereConditions[] = "s.section_id = ?";
+        $params[] = $sectionId;
+    }
+    
     $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
     
     // Get report data
@@ -223,6 +275,8 @@ function generateReport($pdo) {
             s.name as 'Student Name',
             s.program as 'Program',
             s.shift as 'Shift',
+            s.year_level as 'Year Level',
+            sec.section_name as 'Section',
             COUNT(a.id) as 'Total Records',
             COUNT(CASE WHEN a.status IN ('Present', 'Check-in') THEN 1 END) as 'Present',
             COUNT(CASE WHEN a.status = 'Absent' THEN 1 END) as 'Absent',
@@ -232,8 +286,9 @@ function generateReport($pdo) {
             ) as 'Attendance %'
         FROM students s
         LEFT JOIN attendance a ON s.student_id = a.student_id
+        LEFT JOIN sections sec ON s.section_id = sec.id
         $whereClause
-        GROUP BY s.id, s.student_id, s.name, s.program, s.shift
+        GROUP BY s.id, s.student_id, s.name, s.program, s.shift, s.year_level, sec.section_name
         ORDER BY s.name
     ";
     
@@ -242,22 +297,44 @@ function generateReport($pdo) {
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Export based on format
+    $filters = [
+        'type' => $type,
+        'from' => $fromDate,
+        'to' => $toDate,
+        'program' => $program,
+        'shift' => $shift,
+        'year_level' => $yearLevel,
+        'section' => $sectionId
+    ];
+    
     if ($format === 'csv') {
-        exportCSV($data, 'attendance_report_' . date('Y-m-d') . '.csv');
+        exportCSV($data, 'attendance_report_' . date('Y-m-d') . '.csv', $filters);
     } elseif ($format === 'excel') {
-        exportExcel($data, 'attendance_report_' . date('Y-m-d') . '.xlsx');
+        exportExcel($data, 'attendance_report_' . date('Y-m-d') . '.xlsx', $filters);
     } else {
-        exportPDF($data, 'attendance_report_' . date('Y-m-d') . '.pdf', $type, $fromDate, $toDate);
+        exportPDF($data, 'attendance_report_' . date('Y-m-d') . '.pdf', $filters);
     }
 }
 
-function exportCSV($data, $filename) {
+function exportCSV($data, $filename, $filters = []) {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     
     $output = fopen('php://output', 'w');
     fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
     
+    // Add filter information as comments
+    if (!empty($filters)) {
+        fputcsv($output, ['# Report Filters']);
+        foreach ($filters as $key => $value) {
+            if (!empty($value)) {
+                fputcsv($output, ['# ' . ucfirst(str_replace('_', ' ', $key)) . ': ' . $value]);
+            }
+        }
+        fputcsv($output, ['# Generated: ' . date('Y-m-d H:i:s')]);
+        fputcsv($output, []); // Empty row
+    }
+    
     if (!empty($data)) {
         fputcsv($output, array_keys($data[0]));
         foreach ($data as $row) {
@@ -269,13 +346,25 @@ function exportCSV($data, $filename) {
     exit;
 }
 
-function exportExcel($data, $filename) {
+function exportExcel($data, $filename, $filters = []) {
     header('Content-Type: application/vnd.ms-excel');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     
     $output = fopen('php://output', 'w');
     fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
     
+    // Add filter information
+    if (!empty($filters)) {
+        fputcsv($output, ['Report Filters']);
+        foreach ($filters as $key => $value) {
+            if (!empty($value)) {
+                fputcsv($output, [ucfirst(str_replace('_', ' ', $key)) . ': ' . $value]);
+            }
+        }
+        fputcsv($output, ['Generated: ' . date('Y-m-d H:i:s')]);
+        fputcsv($output, []); // Empty row
+    }
+    
     if (!empty($data)) {
         fputcsv($output, array_keys($data[0]));
         foreach ($data as $row) {
@@ -287,17 +376,17 @@ function exportExcel($data, $filename) {
     exit;
 }
 
-function exportPDF($data, $filename, $reportType, $fromDate, $toDate) {
+function exportPDF($data, $filename, $filters = []) {
     header('Content-Type: text/html; charset=UTF-8');
     
-    $reportTitle = ucfirst($reportType) . ' Attendance Report';
+    $reportTitle = ucfirst($filters['type'] ?? 'Attendance') . ' Attendance Report';
     $dateRange = '';
-    if ($fromDate && $toDate) {
-        $dateRange = "From: $fromDate To: $toDate";
-    } elseif ($fromDate) {
-        $dateRange = "From: $fromDate";
-    } elseif ($toDate) {
-        $dateRange = "To: $toDate";
+    if (!empty($filters['from']) && !empty($filters['to'])) {
+        $dateRange = "From: {$filters['from']} To: {$filters['to']}";
+    } elseif (!empty($filters['from'])) {
+        $dateRange = "From: {$filters['from']}";
+    } elseif (!empty($filters['to'])) {
+        $dateRange = "To: {$filters['to']}";
     }
     
     $html = '<!DOCTYPE html>
@@ -329,20 +418,34 @@ function exportPDF($data, $filename, $reportType, $fromDate, $toDate) {
         $html .= '<p><strong>' . $dateRange . '</strong></p>';
     }
     
+    // Add other filter information
+    if (!empty($filters['program'])) {
+        $html .= '<p><strong>Program:</strong> ' . htmlspecialchars($filters['program'] ?? '') . '</p>';
+    }
+    if (!empty($filters['shift'])) {
+        $html .= '<p><strong>Shift:</strong> ' . htmlspecialchars($filters['shift'] ?? '') . '</p>';
+    }
+    if (!empty($filters['year_level'])) {
+        $html .= '<p><strong>Year Level:</strong> ' . htmlspecialchars($filters['year_level'] ?? '') . '</p>';
+    }
+    if (!empty($filters['section'])) {
+        $html .= '<p><strong>Section:</strong> ' . htmlspecialchars($filters['section'] ?? '') . '</p>';
+    }
+    
     $html .= '<p><strong>Total Records:</strong> ' . count($data) . '</p>
     </div>';
     
     if (!empty($data)) {
         $html .= '<table><thead><tr>';
         foreach (array_keys($data[0]) as $header) {
-            $html .= '<th>' . htmlspecialchars($header) . '</th>';
+            $html .= '<th>' . htmlspecialchars($header ?? '') . '</th>';
         }
         $html .= '</tr></thead><tbody>';
         
         foreach ($data as $row) {
             $html .= '<tr>';
             foreach ($row as $cell) {
-                $html .= '<td>' . htmlspecialchars($cell) . '</td>';
+                $html .= '<td>' . htmlspecialchars($cell ?? '') . '</td>';
             }
             $html .= '</tr>';
         }
@@ -354,5 +457,106 @@ function exportPDF($data, $filename, $reportType, $fromDate, $toDate) {
     
     echo $html;
     exit;
+}
+
+/**
+ * Get monthly comparison data (last 6 months)
+ */
+function getMonthlyComparison($pdo) {
+    $stmt = $pdo->query("
+        SELECT 
+            DATE_FORMAT(timestamp, '%b') as month,
+            DATE_FORMAT(timestamp, '%Y-%m') as month_key,
+            ROUND(
+                (COUNT(CASE WHEN status IN ('Present', 'Check-in') THEN 1 END) * 100.0 / 
+                NULLIF(COUNT(*), 0)), 2
+            ) as avg_attendance
+        FROM attendance
+        WHERE timestamp >= DATE_SUB(CURDATE(), INTERVAL 11 MONTH)
+        GROUP BY DATE_FORMAT(timestamp, '%Y-%m'), DATE_FORMAT(timestamp, '%b')
+        ORDER BY month_key ASC
+    ");
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get active programs from database
+ */
+function getPrograms($pdo) {
+    $stmt = $pdo->query("
+        SELECT code, name 
+        FROM programs 
+        WHERE is_active = 1 
+        ORDER BY code
+    ");
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get available shifts
+ */
+function getShifts($pdo) {
+    $stmt = $pdo->query("
+        SELECT DISTINCT shift 
+        FROM students 
+        WHERE is_active = 1 AND shift IS NOT NULL
+        ORDER BY shift
+    ");
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get available year levels
+ */
+function getYearLevels($pdo) {
+    $stmt = $pdo->query("
+        SELECT DISTINCT year_level 
+        FROM students 
+        WHERE is_active = 1 AND year_level IS NOT NULL
+        ORDER BY year_level
+    ");
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get sections filtered by program, year level, and shift
+ */
+function getSections($pdo, $program = '', $yearLevel = '', $shift = '') {
+    $whereConditions = ['s.is_active = 1'];
+    $params = [];
+    
+    if ($program) {
+        $whereConditions[] = "p.code = ?";
+        $params[] = $program;
+    }
+    
+    if ($yearLevel) {
+        $whereConditions[] = "s.year_level = ?";
+        $params[] = $yearLevel;
+    }
+    
+    if ($shift) {
+        $whereConditions[] = "s.shift = ?";
+        $params[] = $shift;
+    }
+    
+    $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
+    
+    $query = "
+        SELECT DISTINCT s.id, s.section_name, s.year_level, s.shift, p.code as program_code
+        FROM sections s
+        LEFT JOIN programs p ON s.program_id = p.id
+        $whereClause
+        ORDER BY s.section_name
+    ";
+    
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>

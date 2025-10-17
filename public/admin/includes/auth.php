@@ -235,33 +235,5 @@ function adminLogout() {
     return $adminAuth->logout();
 }
 
-// Handle API requests
-if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    header('Content-Type: application/json');
-    
-    switch ($_POST['action']) {
-        case 'login':
-            $username = $_POST['username'] ?? '';
-            $password = $_POST['password'] ?? '';
-            $remember = isset($_POST['remember']);
-            
-            $result = $adminAuth->login($username, $password, $remember);
-            echo json_encode($result);
-            break;
-            
-        case 'logout':
-            $result = $adminAuth->logout();
-            echo json_encode(['success' => $result, 'message' => 'Logged out successfully']);
-            break;
-            
-        case 'check':
-            echo json_encode(['authenticated' => $adminAuth->isLoggedIn()]);
-            break;
-            
-        default:
-            http_response_code(400);
-            echo json_encode(['error' => 'Invalid action']);
-    }
-    exit();
-}
+// API requests are now handled in api/auth.php
 ?>

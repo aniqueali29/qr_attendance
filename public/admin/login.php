@@ -106,8 +106,9 @@ if ($adminAuth->isLoggedIn()) {
                         
                         <!-- Alerts will be shown here via JavaScript -->
                         
-                        <form id="formAuthentication" class="mb-3" action="includes/auth.php" method="POST">
+                        <form id="formAuthentication" class="mb-3" action="api/login_api.php" method="POST">
                             <input type="hidden" name="action" value="login">
+                            <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                             <div class="mb-3">
                                 <label for="username" class="form-label">Username or Email</label>
                                 <input type="text" class="form-control" id="username" name="username" placeholder="Enter your username or email" autofocus required />
@@ -160,6 +161,7 @@ if ($adminAuth->isLoggedIn()) {
     
     <!-- Main JS -->
     <script src="<?php echo getAdminAssetUrl('js/main.js'); ?>"></script>
+    <script src="<?php echo getAdminAssetUrl('js/toast-notifications.js'); ?>"></script>
     
     <script>
     // Auto-hide alerts after 5 seconds
@@ -183,7 +185,7 @@ if ($adminAuth->isLoggedIn()) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Signing in...';
         
-        fetch('includes/auth.php', {
+        fetch('api/login_api.php', {
             method: 'POST',
             body: formData
         })

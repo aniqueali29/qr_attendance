@@ -93,7 +93,7 @@ include 'partials/navbar.php';
                                 </span>
                             </div>
                             <div>
-                                <small class="text-muted d-block">Avg Attendance</small>
+                                <small class="text-muted d-block">Avg Attendance (11 Months)</small>
                                 <h4 class="mb-0" id="stat-avg-attendance">-</h4>
                             </div>
                         </div>
@@ -111,7 +111,7 @@ include 'partials/navbar.php';
                                 </span>
                             </div>
                             <div>
-                                <small class="text-muted d-block">This Month</small>
+                                <small class="text-muted d-block">11 Months Avg</small>
                                 <h4 class="mb-0" id="stat-month-attendance">-</h4>
                             </div>
                         </div>
@@ -138,6 +138,7 @@ include 'partials/navbar.php';
                                 <option value="daily">Daily Summary</option>
                                 <option value="weekly">Weekly Report</option>
                                 <option value="monthly">Monthly Report</option>
+                                <option value="11months">11 Months Report</option>
                                 <option value="custom">Custom Date Range</option>
                                 <option value="student">Student-wise Report</option>
                                 <option value="program">Program-wise Report</option>
@@ -168,8 +169,30 @@ include 'partials/navbar.php';
                             <label class="form-label">Select Program</label>
                             <select id="program-select" class="form-select">
                                 <option value="">All Programs</option>
-                                <option value="SWT">Software Technology</option>
-                                <option value="CIT">Computer Information Technology</option>
+                            </select>
+                        </div>
+
+                        <!-- Shift Filter -->
+                        <div class="col-md-4" id="shift-select-container" style="display: none;">
+                            <label class="form-label">Select Shift</label>
+                            <select id="shift-select" class="form-select">
+                                <option value="">All Shifts</option>
+                            </select>
+                        </div>
+
+                        <!-- Year Level Filter -->
+                        <div class="col-md-4" id="year-level-select-container" style="display: none;">
+                            <label class="form-label">Select Year Level</label>
+                            <select id="year-level-select" class="form-select">
+                                <option value="">All Year Levels</option>
+                            </select>
+                        </div>
+
+                        <!-- Section Filter -->
+                        <div class="col-md-4" id="section-select-container" style="display: none;">
+                            <label class="form-label">Select Section</label>
+                            <select id="section-select" class="form-select">
+                                <option value="">All Sections</option>
                             </select>
                         </div>
 
@@ -204,12 +227,13 @@ include 'partials/navbar.php';
                 <div class="card">
                     <div class="card-header d-flex align-items-center justify-content-between">
                         <h5 class="card-title mb-0">
-                            <i class="bx bx-line-chart me-2"></i>Attendance Trend (Last 30 Days)
+                            <i class="bx bx-line-chart me-2"></i>Attendance Trend (Last 11 Months)
                         </h5>
                         <div class="btn-group btn-group-sm" role="group">
                             <button type="button" class="btn btn-outline-primary" onclick="loadTrendChart(7)">7 Days</button>
-                            <button type="button" class="btn btn-outline-primary active" onclick="loadTrendChart(30)">30 Days</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="loadTrendChart(30)">30 Days</button>
                             <button type="button" class="btn btn-outline-primary" onclick="loadTrendChart(90)">90 Days</button>
+                            <button type="button" class="btn btn-outline-primary active" onclick="loadTrendChart(330)">11 Months</button>
                         </div>
                     </div>
                     <div class="card-body">
@@ -366,6 +390,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadShiftStats();
     loadTrends();
     loadStudentOptions();
+    loadProgramOptions();
+    loadShiftOptions();
+    loadYearLevelOptions();
     
     // Setup form handlers
     setupReportForm();
@@ -377,11 +404,27 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupReportForm() {
     const form = document.getElementById('reportForm');
     const reportType = document.getElementById('report-type');
+    const programSelect = document.getElementById('program-select');
+    const yearLevelSelect = document.getElementById('year-level-select');
+    const shiftSelect = document.getElementById('shift-select');
     
     // Handle report type change
     reportType.addEventListener('change', function() {
         toggleFilters(this.value);
         setDateDefaults(this.value);
+    });
+    
+    // Handle cascading filters
+    programSelect.addEventListener('change', function() {
+        updateSectionOptions();
+    });
+    
+    yearLevelSelect.addEventListener('change', function() {
+        updateSectionOptions();
+    });
+    
+    shiftSelect.addEventListener('change', function() {
+        updateSectionOptions();
     });
     
     // Handle form submission
@@ -391,19 +434,42 @@ function setupReportForm() {
     });
 }
 
+function updateSectionOptions() {
+    const program = document.getElementById('program-select').value;
+    const yearLevel = document.getElementById('year-level-select').value;
+    const shift = document.getElementById('shift-select').value;
+    
+    loadSectionOptions(program, yearLevel, shift);
+}
+
 function toggleFilters(reportType) {
     const studentContainer = document.getElementById('student-select-container');
     const programContainer = document.getElementById('program-select-container');
+    const shiftContainer = document.getElementById('shift-select-container');
+    const yearLevelContainer = document.getElementById('year-level-select-container');
+    const sectionContainer = document.getElementById('section-select-container');
     
     // Hide all first
     studentContainer.style.display = 'none';
     programContainer.style.display = 'none';
+    shiftContainer.style.display = 'none';
+    yearLevelContainer.style.display = 'none';
+    sectionContainer.style.display = 'none';
     
-    // Show relevant filters
+    // Show relevant filters based on report type
     if (reportType === 'student') {
         studentContainer.style.display = 'block';
     } else if (reportType === 'program') {
         programContainer.style.display = 'block';
+        shiftContainer.style.display = 'block';
+        yearLevelContainer.style.display = 'block';
+        sectionContainer.style.display = 'block';
+    } else if (reportType === 'custom' || reportType === 'daily' || reportType === 'weekly' || reportType === 'monthly' || reportType === '11months') {
+        // Show all filters for custom date range reports
+        programContainer.style.display = 'block';
+        shiftContainer.style.display = 'block';
+        yearLevelContainer.style.display = 'block';
+        sectionContainer.style.display = 'block';
     }
 }
 
@@ -428,6 +494,12 @@ function setDateDefaults(reportType) {
             fromDate.value = formatDate(monthStart);
             toDate.value = formatDate(today);
             break;
+        case '11months':
+            const elevenMonthsAgo = new Date(today);
+            elevenMonthsAgo.setMonth(today.getMonth() - 11);
+            fromDate.value = formatDate(elevenMonthsAgo);
+            toDate.value = formatDate(today);
+            break;
         default:
             fromDate.value = '';
             toDate.value = '';
@@ -448,6 +520,9 @@ function generateReport() {
     const format = document.getElementById('export-format').value;
     const studentId = document.getElementById('student-select').value;
     const program = document.getElementById('program-select').value;
+    const shift = document.getElementById('shift-select').value;
+    const yearLevel = document.getElementById('year-level-select').value;
+    const section = document.getElementById('section-select').value;
     
     if (!reportType) {
         UIHelpers.showWarning('Please select a report type');
@@ -461,7 +536,10 @@ function generateReport() {
         to: toDate,
         format: format,
         student: studentId,
-        program: program
+        program: program,
+        shift: shift,
+        year_level: yearLevel,
+        section: section
     });
     
     UIHelpers.showInfo('Generating report...');
@@ -472,6 +550,9 @@ function resetReportForm() {
     document.getElementById('reportForm').reset();
     document.getElementById('student-select-container').style.display = 'none';
     document.getElementById('program-select-container').style.display = 'none';
+    document.getElementById('shift-select-container').style.display = 'none';
+    document.getElementById('year-level-select-container').style.display = 'none';
+    document.getElementById('section-select-container').style.display = 'none';
 }
 
 // Load quick statistics
@@ -612,6 +693,87 @@ function loadStudentOptions() {
         .catch(error => console.error('Error loading students:', error));
 }
 
+function loadProgramOptions() {
+    fetch('api/reports.php?action=get_programs')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const select = document.getElementById('program-select');
+                select.innerHTML = '<option value="">All Programs</option>';
+                
+                data.data.forEach(program => {
+                    const option = document.createElement('option');
+                    option.value = program.code;
+                    option.textContent = `${program.code} - ${program.name}`;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading programs:', error));
+}
+
+function loadShiftOptions() {
+    fetch('api/reports.php?action=get_shifts')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const select = document.getElementById('shift-select');
+                select.innerHTML = '<option value="">All Shifts</option>';
+                
+                data.data.forEach(shift => {
+                    const option = document.createElement('option');
+                    option.value = shift.shift;
+                    option.textContent = shift.shift;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading shifts:', error));
+}
+
+function loadYearLevelOptions() {
+    fetch('api/reports.php?action=get_year_levels')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const select = document.getElementById('year-level-select');
+                select.innerHTML = '<option value="">All Year Levels</option>';
+                
+                data.data.forEach(yearLevel => {
+                    const option = document.createElement('option');
+                    option.value = yearLevel.year_level;
+                    option.textContent = yearLevel.year_level;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading year levels:', error));
+}
+
+function loadSectionOptions(program = '', yearLevel = '', shift = '') {
+    const params = new URLSearchParams();
+    if (program) params.append('program', program);
+    if (yearLevel) params.append('year_level', yearLevel);
+    if (shift) params.append('shift', shift);
+    
+    fetch(`api/reports.php?action=get_sections&${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                const select = document.getElementById('section-select');
+                select.innerHTML = '<option value="">All Sections</option>';
+                
+                data.data.forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section.id;
+                    option.textContent = section.section_name;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading sections:', error));
+}
+
 function getProgressBarClass(percentage) {
     if (percentage >= 80) return 'bg-success';
     if (percentage >= 60) return 'bg-info';
@@ -640,7 +802,7 @@ let trendChart, programChart, shiftChart, monthlyChart;
 
 function initCharts() {
     // Initialize all charts
-    loadTrendChart(30);
+    loadTrendChart(330); // Default to 11 months
     loadProgramDistChart();
     loadShiftPerformanceChart();
     loadMonthlyComparisonChart();
@@ -853,19 +1015,18 @@ function loadMonthlyComparisonChart() {
     fetch('api/reports.php?action=monthly_comparison')
         .then(response => response.json())
         .then(data => {
-            if (!data.success) {
-                // Create sample data if API not implemented
+            if (data.success && data.data && data.data.length > 0) {
+                const monthData = data.data;
+                createMonthlyChart(
+                    monthData.map(m => m.month),
+                    monthData.map(m => m.avg_attendance)
+                );
+            } else {
+                // Create sample data if no real data available
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
                 const attendance = [85, 82, 88, 90, 87, 89];
                 createMonthlyChart(months, attendance);
-                return;
             }
-            
-            const monthData = data.data;
-            createMonthlyChart(
-                monthData.map(m => m.month),
-                monthData.map(m => m.avg_attendance)
-            );
         })
         .catch(error => {
             console.error('Error loading monthly chart:', error);

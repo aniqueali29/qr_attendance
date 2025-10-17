@@ -21,6 +21,106 @@ include 'partials/sidebar.php';
 include 'partials/navbar.php';
 ?>
 
+<style>
+/* Responsive button styling */
+@media (max-width: 768px) {
+    .btn-text { 
+        display: none; 
+    }
+    .d-flex.flex-wrap.gap-2 .btn {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    .d-flex.flex-wrap.gap-2 .btn i {
+        font-size: 1rem;
+        margin: 0 !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .d-flex.flex-wrap.gap-2 .btn i.me-1 {
+        margin-right: 0.5rem !important;
+    }
+}
+
+/* Bulk Actions Toolkit - Professional Design */
+.bulk-actions {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 12px !important;
+}
+
+.bulk-actions .bulk-btn-text {
+    display: none !important;
+}
+
+.bulk-actions .btn {
+    padding: 0.55rem;
+    font-size: 0.875rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 48px;
+}
+
+.bulk-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bulk-actions .btn i {
+    margin: 0 !important;
+    font-size: 1.25rem;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Professional color scheme */
+.bulk-actions .btn-success {
+    background: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+.bulk-actions .btn-warning {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: white;
+}
+
+.bulk-actions .btn-danger {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+}
+
+.bulk-actions .btn-info {
+    background: #06b6d4;
+    border-color: #06b6d4;
+    color: white;
+}
+
+.bulk-actions .btn-primary {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.bulk-actions #selected-attendance-count {
+    color: #374151;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+</style>
+
 <!-- Content wrapper -->
 <div class="content-wrapper">
     <!-- Content -->
@@ -61,10 +161,7 @@ include 'partials/navbar.php';
                                 <i class="bx bx-filter me-1"></i>
                                 <span class="btn-text">Filters</span>
                             </button>
-                            <button class="btn btn-warning" onclick="toggleBulkModeAttendance()">
-                                <i class="bx bx-checkbox-square me-1"></i>
-                                <span class="btn-text">Bulk Actions</span>
-                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -144,6 +241,10 @@ include 'partials/navbar.php';
                         <button class="btn btn-secondary" onclick="clearAllFilters()">
                             <i class="bx bx-x me-1"></i>Clear All
                         </button>
+                        <button class="btn btn-warning" onclick="toggleBulkModeAttendance()">
+                                <i class="bx bx-checkbox-square me-1"></i>
+                                <span class="btn-text">Bulk Actions</span>
+                            </button>
                     </div>
                 </div>
             </div>
@@ -189,13 +290,15 @@ include 'partials/navbar.php';
                 <div id="bulk-attendance-actions" class="bulk-actions">
                     <div class="d-flex align-items-center gap-3">
                         <span class="text-muted" id="selected-attendance-count">0 selected</span>
-                        <div class="ms-auto">
-                            <button class="btn btn-sm btn-danger" onclick="bulkDeleteAttendance()">
-                                <i class="bx bx-trash me-1"></i>Delete
-                            </button>
-                            <button class="btn btn-sm btn-primary" onclick="bulkChangeStatus()">
-                                <i class="bx bx-edit me-1"></i>Change Status
-                            </button>
+                        <div class="ms-auto d-flex flex-wrap gap-2">
+                             <button class="btn btn-sm btn-danger" onclick="bulkDeleteAttendance()">
+                                 <i class="bx bx-trash me-1"></i>
+                                 <span class="bulk-btn-text">Delete</span>
+                             </button>
+                             <button class="btn btn-sm btn-primary" onclick="bulkChangeStatus()">
+                                 <i class="bx bx-edit me-1"></i>
+                                 <span class="bulk-btn-text">Change Status</span>
+                             </button>
                         </div>
                     </div>
                 </div>
@@ -457,6 +560,7 @@ function loadAttendance(page = 1) {
     const params = new URLSearchParams({
         action: 'list',
         page: page,
+        limit: 20,
         ...currentFilters
     });
     
@@ -1154,9 +1258,22 @@ function showBulkStatusChangeModal(selectedIds) {
 
 function confirmBulkStatusChange() {
     const modal = document.getElementById('bulkStatusChangeModal');
-    const selectedIds = modal.dataset.selectedIds.split(',');
-    const status = document.getElementById('bulk-status-select').value;
-    const notes = document.getElementById('bulk-status-notes').value;
+    if (!modal) {
+        console.error('Bulk status change modal not found');
+        return;
+    }
+    
+    const selectedIds = modal.dataset.selectedIds ? modal.dataset.selectedIds.split(',') : [];
+    const statusSelect = document.getElementById('bulk-status-select');
+    const notesTextarea = document.getElementById('bulk-status-notes');
+    
+    if (!statusSelect || !notesTextarea) {
+        console.error('Bulk status change form elements not found');
+        return;
+    }
+    
+    const status = statusSelect.value;
+    const notes = notesTextarea.value;
     const submitBtn = modal.querySelector('.btn-primary');
     
     if (!status) {
@@ -1268,6 +1385,12 @@ function confirmBulkStatusChange() {
     .btn i.me-1 {
         margin-right: 0.5rem !important;
     }
+}
+
+/* Ensure attendance table has no height restrictions */
+.table-responsive {
+    max-height: none !important;
+    overflow-y: visible !important;
 }
 </style>
 

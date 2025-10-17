@@ -60,12 +60,18 @@ include 'partials/navbar.php';
     }
     
     .d-flex.flex-wrap.gap-2 .btn {
-        padding: 0.5rem 0.75rem;
+        padding: 0.375rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .d-flex.flex-wrap.gap-2 .btn i {
+        font-size: 1rem;
+        margin: 0 !important;
     }
 }
 
 @media (min-width: 769px) {
-    .btn i.me-1 {
+    .d-flex.flex-wrap.gap-2 .btn i.me-1 {
         margin-right: 0.5rem !important;
     }
 }

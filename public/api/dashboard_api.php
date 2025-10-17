@@ -371,7 +371,7 @@ function getAttendancePatterns() {
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as present
             FROM attendance 
-            WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 11 MONTH)
             GROUP BY DAYOFWEEK(timestamp), DAYNAME(timestamp)
             ORDER BY DAYOFWEEK(timestamp)
         ");

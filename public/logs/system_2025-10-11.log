@@ -1,1 +1,0 @@
-[2025-10-11 17:37:45] [ERROR] PHP Error: session_start(): Session cannot be started after headers have already been sent in C:\xampp\htdocs\qr_attendance\public\api\config.php on line 257

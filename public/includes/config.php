@@ -1,0 +1,193 @@
+<?php
+/**
+ * Student Portal Configuration
+ * Database connection and student-specific constants
+ */
+
+// Prevent direct access
+if (!defined('STUDENT_ACCESS')) {
+    define('STUDENT_ACCESS', true);
+}
+
+// Database Configuration (same as admin system)
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'qr_attendance');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_CHARSET', 'utf8');
+
+// Student Portal Configuration
+define('STUDENT_SITE_NAME', 'QR Attendance Student Portal');
+define('STUDENT_SITE_URL', 'http://localhost/qr_attendance/public');
+define('STUDENT_SESSION_TIMEOUT', 7200); // 2 hours
+define('STUDENT_MAX_LOGIN_ATTEMPTS', 5);
+define('STUDENT_LOGIN_LOCKOUT_TIME', 900); // 15 minutes
+
+// Asset Paths (relative to /public/)
+define('STUDENT_ASSETS_URL', STUDENT_SITE_URL . '/assets');
+define('STUDENT_CSS_URL', STUDENT_ASSETS_URL . '/css');
+define('STUDENT_JS_URL', STUDENT_ASSETS_URL . '/js');
+define('STUDENT_IMG_URL', STUDENT_ASSETS_URL . '/img');
+define('STUDENT_VENDOR_URL', STUDENT_ASSETS_URL . '/vendor');
+
+// API Paths
+define('STUDENT_API_URL', STUDENT_SITE_URL . '/api');
+define('ADMIN_API_URL', 'http://localhost/qr_attendance/public/admin/api');
+
+// Security Configuration
+define('STUDENT_CSRF_TOKEN_NAME', 'student_csrf_token');
+define('STUDENT_SESSION_NAME', 'student_session');
+
+// Error Reporting
+if (!defined('DEBUG_MODE')) {
+    define('DEBUG_MODE', true);
+}
+
+if (DEBUG_MODE) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
+
+// Timezone
+date_default_timezone_set('Asia/Karachi');
+
+// Session Configuration
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
+ini_set('session.use_strict_mode', 1);
+ini_set('session.gc_maxlifetime', STUDENT_SESSION_TIMEOUT);
+ini_set('session.name', STUDENT_SESSION_NAME);
+ini_set('session.cookie_path', '/qr_attendance/public/');
+ini_set('session.cookie_domain', '');
+ini_set('session.cookie_samesite', 'Lax');
+
+// Database Connection
+try {
+    $pdo = new PDO(
+        "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET,
+        DB_USER,
+        DB_PASS,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]
+    );
+} catch (PDOException $e) {
+    if (DEBUG_MODE) {
+        die("Database connection failed: " . $e->getMessage());
+    } else {
+        die("Database connection failed. Please contact administrator.");
+    }
+}
+
+// Helper Functions
+function getStudentAssetUrl($path) {
+    return STUDENT_ASSETS_URL . '/' . ltrim($path, '/');
+}
+
+function getStudentApiUrl($endpoint) {
+    return STUDENT_API_URL . '/' . ltrim($endpoint, '/');
+}
+
+function getAdminApiUrl($endpoint) {
+    return ADMIN_API_URL . '/' . ltrim($endpoint, '/');
+}
+
+function getStudentBaseUrl() {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $path = dirname($_SERVER['SCRIPT_NAME']);
+    return $protocol . '://' . $host . $path;
+}
+
+function sanitizeInput($input) {
+    if (is_array($input)) {
+        return array_map('sanitizeInput', $input);
+    }
+    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+}
+
+function sanitizeOutput($data) {
+    if (is_array($data)) {
+        return array_map('sanitizeOutput', $data);
+    }
+    return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+}
+
+function logStudentAction($action, $details = '') {
+    if (!defined('LOG_STUDENT_ACTIONS') || !LOG_STUDENT_ACTIONS) return;
+    
+    $logFile = 'logs/student_' . date('Y-m-d') . '.log';
+    $timestamp = date('Y-m-d H:i:s');
+    $user = $_SESSION['student_username'] ?? 'unknown';
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $logEntry = "[$timestamp] [$user] [$ip] $action: $details" . PHP_EOL;
+    
+    file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+}
+
+// Initialize session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// CSRF Protection
+function generateCSRFToken() {
+    if (!isset($_SESSION['student_csrf_token'])) {
+        $_SESSION['student_csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['student_csrf_token'];
+}
+
+function validateCSRFToken($token) {
+    return isset($_SESSION['student_csrf_token']) && hash_equals($_SESSION['student_csrf_token'], $token);
+}
+
+// Rate Limiting for login attempts
+function checkLoginRateLimit($ip) {
+    $key = "student_login_attempts_$ip";
+    $current_time = time();
+    $window_start = $current_time - STUDENT_LOGIN_LOCKOUT_TIME;
+    
+    if (!isset($_SESSION[$key])) {
+        $_SESSION[$key] = [];
+    }
+    
+    // Clean old attempts
+    $_SESSION[$key] = array_filter($_SESSION[$key], function($timestamp) use ($window_start) {
+        return $timestamp > $window_start;
+    });
+    
+    // Check if limit exceeded
+    if (count($_SESSION[$key]) >= STUDENT_MAX_LOGIN_ATTEMPTS) {
+        return false;
+    }
+    
+    // Add current attempt
+    $_SESSION[$key][] = $current_time;
+    return true;
+}
+
+// Get client IP address
+function getClientIP() {
+    $ip_keys = ['HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'];
+    foreach ($ip_keys as $key) {
+        if (array_key_exists($key, $_SERVER) === true) {
+            foreach (explode(',', $_SERVER[$key]) as $ip) {
+                $ip = trim($ip);
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
+                    return $ip;
+                }
+            }
+        }
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+}
+
+// Set CSRF token
+generateCSRFToken();
+?>

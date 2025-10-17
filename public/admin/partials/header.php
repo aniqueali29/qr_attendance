@@ -57,7 +57,6 @@ $pageJS = $pageJS ?? [];
     <!-- Feature Enhancements -->
     <script src="js/advanced-search.js"></script>
     <script src="js/keyboard-shortcuts.js"></script>
-    <script src="js/filter-presets.js"></script>
     
     <!-- Toast Notification System -->
     <script src="<?php echo getAdminAssetUrl('js/toast-notifications.js?v=' . time()); ?>"></script>
