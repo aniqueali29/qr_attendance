@@ -8,6 +8,9 @@
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
+// Include unified session configuration first
+require_once '../../unified_session_config.php';
+
 // Start output buffering to catch any unexpected output
 ob_start();
 
@@ -849,7 +852,7 @@ function updateAttendance() {
             $csrf_token = $_POST['csrf_token'] ?? '';
         }
         
-        if (!validateCSRFToken($csrf_token)) {
+        if (!validateUnifiedCSRFTokenFromPost($csrf_token)) {
             error_log("CSRF validation failed for attendance update");
             http_response_code(403);
             return ['success' => false, 'error' => 'Invalid security token'];

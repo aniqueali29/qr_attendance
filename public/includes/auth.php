@@ -57,10 +57,6 @@ function authenticateStudent($username, $password) {
         $stmt->execute([$username, $username, $username]);
         $student = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Debug: Log the query result (remove in production)
-        if (DEBUG_MODE && $student) {
-            error_log("Student login attempt - Found student: " . $student['student_id']);
-        }
         
         if (!$student) {
             return ['success' => false, 'message' => 'Student not found or inactive'];
@@ -68,18 +64,25 @@ function authenticateStudent($username, $password) {
         
         // Check password - handle both hashed and plain text passwords
         $password_hash = $student['password_hash'] ?? null;
-        $plain_password = $student['password'] ?? null;
+        $student_password = $student['password'] ?? null;
         
         $password_valid = false;
         
-        // First try hashed password (newer records)
+        // First try hashed password from users table (newer records)
         if ($password_hash) {
             $password_valid = password_verify($password, $password_hash);
         }
         
-        // If hashed password fails or doesn't exist, try plain text (older records)
-        if (!$password_valid && $plain_password) {
-            $password_valid = ($password === $plain_password);
+        // If no user record or hashed password fails, try student password field
+        if (!$password_valid && $student_password) {
+            // Check if student password is hashed (60+ characters) or plain text
+            if (strlen($student_password) > 20) {
+                // It's a hash, verify it
+                $password_valid = password_verify($password, $student_password);
+            } else {
+                // It's plain text, compare directly
+                $password_valid = ($password === $student_password);
+            }
         }
         
         if (!$password_valid) {

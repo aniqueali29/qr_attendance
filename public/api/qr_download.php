@@ -366,7 +366,6 @@ function renderAttendanceCard($student, $student_id, $qr_url, $qr) {
         
         <script>
             window.addEventListener('load', function() {
-                console.log('Attendance card loaded successfully');
             });
         </script>
     </body>

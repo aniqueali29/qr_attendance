@@ -40,7 +40,7 @@ define('STUDENT_SESSION_NAME', 'student_session');
 
 // Error Reporting
 if (!defined('DEBUG_MODE')) {
-    define('DEBUG_MODE', true);
+    define('DEBUG_MODE', false);
 }
 
 if (DEBUG_MODE) {
@@ -60,7 +60,7 @@ ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
 ini_set('session.use_strict_mode', 1);
 ini_set('session.gc_maxlifetime', STUDENT_SESSION_TIMEOUT);
 ini_set('session.name', STUDENT_SESSION_NAME);
-ini_set('session.cookie_path', '/qr_attendance/public/');
+ini_set('session.cookie_path', '/qr_attendance/');
 ini_set('session.cookie_domain', '');
 ini_set('session.cookie_samesite', 'Lax');
 
@@ -77,11 +77,7 @@ try {
         ]
     );
 } catch (PDOException $e) {
-    if (DEBUG_MODE) {
-        die("Database connection failed: " . $e->getMessage());
-    } else {
-        die("Database connection failed. Please contact administrator.");
-    }
+    die("Database connection failed. Please contact administrator.");
 }
 
 // Helper Functions
@@ -187,6 +183,23 @@ function getClientIP() {
     }
     return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 }
+
+// Profile Picture Configuration
+define('PROFILE_PICTURE_PATH', __DIR__ . '/../uploads/profile_pictures/');
+define('PROFILE_PICTURE_URL', STUDENT_SITE_URL . '/uploads/profile_pictures/');
+define('MAX_PROFILE_PICTURE_SIZE', 2 * 1024 * 1024); // 2MB
+define('ALLOWED_IMAGE_TYPES', ['image/jpeg', 'image/png', 'image/gif']);
+define('VERIFICATION_CODE_EXPIRY', 900); // 15 minutes in seconds
+
+// Email Configuration
+// Devistars hosting SMTP settings
+define('SMTP_HOST', 'smtp.devistars.com');
+define('SMTP_PORT', 465); // SSL port as shown in your config
+define('SMTP_USERNAME', 'jpi@devistars.com');
+define('SMTP_PASSWORD', 'Anique0ali@'); // ⚠️ REPLACE WITH YOUR ACTUAL EMAIL PASSWORD
+define('SMTP_FROM_EMAIL', 'jpi@devistars.com');
+define('SMTP_FROM_NAME', 'JPI');
+define('EMAIL_DEBUG_MODE', false); // Set to false for production email sending
 
 // Set CSRF token
 generateCSRFToken();

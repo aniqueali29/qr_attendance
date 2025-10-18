@@ -230,52 +230,6 @@ class AuthSystem {
         }
     }
     
-    /**
-     * Register new student user
-     */
-    public function registerStudent($username, $email, $password, $student_id, $name, $phone = null) {
-        try {
-            // Check if username or email already exists
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
-            $stmt->execute([$username, $email]);
-            if ($stmt->fetch()) {
-                return ['success' => false, 'message' => 'Username or email already exists'];
-            }
-            
-            // Check if student_id already exists
-            $stmt = $this->pdo->prepare("SELECT id FROM students WHERE student_id = ?");
-            $stmt->execute([$student_id]);
-            if ($stmt->fetch()) {
-                return ['success' => false, 'message' => 'Student ID already exists'];
-            }
-            
-            $this->pdo->beginTransaction();
-            
-            // Create user account
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $this->pdo->prepare("
-                INSERT INTO users (username, email, password_hash, role, student_id) 
-                VALUES (?, ?, ?, 'student', ?)
-            ");
-            $stmt->execute([$username, $email, $password_hash, $student_id]);
-            $user_id = $this->pdo->lastInsertId();
-            
-            // Create student record
-            $stmt = $this->pdo->prepare("
-                INSERT INTO students (student_id, name, email, phone, user_id) 
-                VALUES (?, ?, ?, ?, ?)
-            ");
-            $stmt->execute([$student_id, $name, $email, $phone, $user_id]);
-            
-            $this->pdo->commit();
-            
-            return ['success' => true, 'message' => 'Registration successful'];
-            
-        } catch (Exception $e) {
-            $this->pdo->rollback();
-            return ['success' => false, 'message' => 'Registration failed: ' . $e->getMessage()];
-        }
-    }
     
     /**
      * Change user password

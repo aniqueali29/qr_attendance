@@ -54,12 +54,17 @@ if (DEBUG_MODE) {
 // Timezone
 date_default_timezone_set('Asia/Karachi');
 
-// Session Configuration
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
-ini_set('session.use_strict_mode', 1);
-ini_set('session.gc_maxlifetime', ADMIN_SESSION_TIMEOUT);
-ini_set('session.name', ADMIN_SESSION_NAME);
+// Session Configuration (only if unified system is not being used)
+if (!defined('UNIFIED_SESSION_ACCESS')) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
+    ini_set('session.use_strict_mode', 1);
+    ini_set('session.gc_maxlifetime', ADMIN_SESSION_TIMEOUT);
+    ini_set('session.name', ADMIN_SESSION_NAME);
+    ini_set('session.cookie_path', '/qr_attendance/');
+    ini_set('session.cookie_domain', '');
+    ini_set('session.cookie_samesite', 'Lax');
+}
 
 // Database Connection
 try {
@@ -127,8 +132,8 @@ function logAdminAction($action, $details = '') {
     file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
 }
 
-// Initialize session
-if (session_status() === PHP_SESSION_NONE) {
+// Initialize session only if not already started by unified config
+if (session_status() === PHP_SESSION_NONE && !defined('SESSION_ALREADY_STARTED')) {
     session_start();
 }
 
@@ -185,6 +190,8 @@ function getClientIP() {
     return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 }
 
-// Set CSRF token
-generateCSRFToken();
+// Set CSRF token only if unified system is not being used
+if (!defined('UNIFIED_SESSION_ACCESS')) {
+    generateCSRFToken();
+}
 ?>
