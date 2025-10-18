@@ -10,9 +10,11 @@ require_once 'roll_parser.php';
 require_once 'time_validator.php';
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// SECURITY FIX: Restrict CORS to specific domains
+header('Access-Control-Allow-Origin: http://localhost');
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, X-API-Key');
+header('Access-Control-Allow-Credentials: true');
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -460,9 +462,11 @@ function handleBulkCheckIn($pdo) {
     try {
         $input = json_decode(file_get_contents('php://input'), true);
         
-        // Validate API key
+        // Validate API key - SECURITY FIX: Use secure config
+        require_once __DIR__ . '/../../includes/secure_config.php';
+        $config = SecureConfig::load();
         $api_key = $input['api_key'] ?? '';
-        if ($api_key !== 'attendance_2025_xyz789_secure') {
+        if (!hash_equals($config['API_KEY'], $api_key)) {
             echo json_encode(['success' => false, 'message' => 'Invalid API key']);
             return;
         }

@@ -9,12 +9,13 @@ require_once 'includes/auth.php';
 require_once 'includes/helpers.php';
 
 // Require student authentication
+requireStudentAuth();
+
 if (DEBUG_MODE) {
     error_log("Dashboard accessed - Session ID: " . session_id());
     error_log("Dashboard - isStudentLoggedIn(): " . (isStudentLoggedIn() ? 'TRUE' : 'FALSE'));
     error_log("Dashboard - Session variables: " . json_encode($_SESSION));
 }
-requireStudentAuth();
 
 // Get current student data
 $current_student = getCurrentStudent();

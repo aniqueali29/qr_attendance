@@ -8,16 +8,15 @@
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
-// Include unified session configuration first
-require_once '../../unified_session_config.php';
-
 // Start output buffering to catch any unexpected output
 ob_start();
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// SECURITY FIX: Restrict CORS to specific domains
+header('Access-Control-Allow-Origin: http://localhost');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key, X-CSRF-Token');
+header('Access-Control-Allow-Credentials: true');
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -47,10 +46,12 @@ if (!isAdminLoggedIn()) {
             $headers = getallheaders();
             $apiKey = $headers['X-API-Key'] ?? '';
             
-            // Validate API key (should be from environment)
-            $validApiKey = getenv('API_KEY') ?: 'attendance_2025_xyz789_secure';
+            // SECURITY FIX: Use secure configuration for API key
+            require_once __DIR__ . '/../../../includes/secure_config.php';
+            $config = SecureConfig::load();
+            $validApiKey = $config['API_KEY'];
             
-            if ($apiKey !== $validApiKey) {
+            if (!hash_equals($validApiKey, $apiKey)) {
                 ob_clean();
                 http_response_code(401);
                 echo json_encode(['success' => false, 'error' => 'Invalid API key']);
@@ -101,14 +102,11 @@ try {
             handleDeleteRequest($action);
             break;
         default:
-            http_response_code(405);
-            echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+            sendJsonResponse(['success' => false, 'error' => 'Method not allowed'], 405);
     }
 } catch (Exception $e) {
     // Clear any output and return JSON error
-    ob_clean();
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+    sendJsonResponse(['success' => false, 'error' => 'Server error: ' . $e->getMessage()], 500);
 }
 
 /**
@@ -344,11 +342,10 @@ function handlePutRequest($action) {
 function handleDeleteRequest($action) {
     switch ($action) {
         case 'delete':
-            echo json_encode(deleteAttendance());
+            sendJsonResponse(deleteAttendance());
             break;
         default:
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Invalid action']);
+            sendJsonResponse(['success' => false, 'error' => 'Invalid action'], 400);
     }
 }
 
@@ -688,7 +685,10 @@ function bulkSyncAttendance() {
         $headers = getallheaders();
         $apiKey = $headers['X-API-Key'] ?? '';
         
-        if ($apiKey !== 'attendance_2025_xyz789_secure') {
+        // SECURITY FIX: Use secure configuration for API key
+        require_once __DIR__ . '/../../../includes/secure_config.php';
+        $config = SecureConfig::load();
+        if (!hash_equals($config['API_KEY'], $apiKey)) {
             return ['success' => false, 'error' => 'Invalid API key'];
         }
         
@@ -852,9 +852,8 @@ function updateAttendance() {
             $csrf_token = $_POST['csrf_token'] ?? '';
         }
         
-        if (!validateUnifiedCSRFTokenFromPost($csrf_token)) {
+        if (!validateCSRFToken($csrf_token)) {
             error_log("CSRF validation failed for attendance update");
-            http_response_code(403);
             return ['success' => false, 'error' => 'Invalid security token'];
         }
         
@@ -918,6 +917,10 @@ function updateAttendance() {
  */
 function deleteAttendance() {
     global $pdo;
+    
+    // SECURITY FIX: Add CSRF protection
+    require_once __DIR__ . '/../../../includes/csrf_protection.php';
+    CSRFProtection::requireValidation();
     
     try {
         $attendanceId = $_GET['id'] ?? 0;

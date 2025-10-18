@@ -1,0 +1,73 @@
+# Environment Configuration
+config.env
+.env
+.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+qr_codes/
+
+# Sessions
+sessions/
+
+# Backups
+backups/
+
+# Temporary files
+temp/
+tmp/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Composer
+vendor/
+composer.lock
+
+# Node modules (if any)
+node_modules/
+
+# Cache
+cache/
+
+# Security sensitive files
+*.key
+*.pem
+*.crt
+*.p12
+
+# Database dumps
+*.sql
+*.dump
+
+# Configuration backups
+config.php.backup
+*.backup
+
+# Test files
+test/
+tests/
+phpunit.xml
+
+# Documentation builds
+docs/_build/
+
+# Coverage reports
+coverage/
+
+# Local development
+local/
+dev/

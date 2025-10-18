@@ -9,11 +9,17 @@ if (!defined('ADMIN_ACCESS')) {
     define('ADMIN_ACCESS', true);
 }
 
+// Load secure configuration
+require_once __DIR__ . '/../../../includes/secure_config.php';
+
+// Initialize secure configuration
+$config = SecureConfig::load();
+
 // Database Configuration (same as main system)
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'qr_attendance');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_HOST', $config['DB_HOST']);
+define('DB_NAME', $config['DB_NAME']);
+define('DB_USER', $config['DB_USER']);
+define('DB_PASS', $config['DB_PASS']);
 define('DB_CHARSET', 'utf8');
 
 // Admin-specific Configuration
@@ -38,9 +44,9 @@ define('MAIN_API_URL', 'http://localhost/qr_attendance/public/api');
 define('ADMIN_CSRF_TOKEN_NAME', 'admin_csrf_token');
 define('ADMIN_SESSION_NAME', 'admin_session');
 
-// Error Reporting
+// Error Reporting - SECURITY FIX: Use secure config
 if (!defined('DEBUG_MODE')) {
-    define('DEBUG_MODE', true);
+    define('DEBUG_MODE', $config['DEBUG_MODE']);
 }
 
 if (DEBUG_MODE) {

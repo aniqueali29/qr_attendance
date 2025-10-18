@@ -11,9 +11,11 @@ ini_set('log_errors', 1);
 
 // Set JSON header first - do this BEFORE any other output
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+// SECURITY FIX: Restrict CORS to specific domains
+header('Access-Control-Allow-Origin: http://localhost');
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+header('Access-Control-Allow-Credentials: true');
 
 // Handle preflight requests
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {

@@ -10,49 +10,15 @@ require_once 'config.php';
  * Validate profile picture file
  */
 function validateProfilePicture($file) {
-    $errors = [];
+    // SECURITY FIX: Use secure upload validation
+    require_once __DIR__ . '/../../includes/secure_upload.php';
+    $validation = SecureUpload::validateImage($file);
     
-    // Check if file was uploaded
-    if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) {
-        $errors[] = 'No file uploaded or upload error occurred.';
-        return $errors;
+    if (!$validation['valid']) {
+        return $validation['errors'];
     }
     
-    // Check file size
-    if ($file['size'] > MAX_PROFILE_PICTURE_SIZE) {
-        $errors[] = 'File size must be less than ' . (MAX_PROFILE_PICTURE_SIZE / 1024 / 1024) . 'MB.';
-    }
-    
-    // Check file type
-    $allowed_types = ALLOWED_IMAGE_TYPES;
-    $file_type = mime_content_type($file['tmp_name']);
-    
-    if (!in_array($file_type, $allowed_types)) {
-        $errors[] = 'Only JPG, PNG, and GIF images are allowed.';
-    }
-    
-    // Check file extension
-    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
-    
-    if (!in_array($extension, $allowed_extensions)) {
-        $errors[] = 'Invalid file extension. Only .jpg, .jpeg, .png, and .gif are allowed.';
-    }
-    
-    // Validate image dimensions
-    $image_info = getimagesize($file['tmp_name']);
-    if ($image_info === false) {
-        $errors[] = 'Invalid image file.';
-    } else {
-        $max_width = 2000;
-        $max_height = 2000;
-        
-        if ($image_info[0] > $max_width || $image_info[1] > $max_height) {
-            $errors[] = "Image dimensions must be less than {$max_width}x{$max_height} pixels.";
-        }
-    }
-    
-    return $errors;
+    return []; // No errors
 }
 
 /**
@@ -60,6 +26,9 @@ function validateProfilePicture($file) {
  */
 function uploadProfilePicture($student_id, $file) {
     global $pdo;
+    
+    // SECURITY FIX: Use secure upload system
+    require_once __DIR__ . '/../../includes/secure_upload.php';
     
     // Validate file
     $errors = validateProfilePicture($file);
@@ -74,32 +43,29 @@ function uploadProfilePicture($student_id, $file) {
             mkdir($upload_dir, 0755, true);
         }
         
-        // Generate unique filename
-        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $filename = $student_id . '_' . time() . '.' . $extension;
-        $file_path = $upload_dir . $filename;
+        // Use secure upload
+        $upload_result = SecureUpload::uploadFile($file, $upload_dir, $student_id . '_' . time());
         
-        // Move uploaded file
-        if (move_uploaded_file($file['tmp_name'], $file_path)) {
-            // Update database
-            $stmt = $pdo->prepare("
-                UPDATE students 
-                SET profile_picture = ?, updated_at = NOW() 
-                WHERE student_id = ?
-            ");
-            $stmt->execute([$filename, $student_id]);
-            
-            // Clean up old profile pictures (keep only the latest)
-            deleteOldProfilePicture($student_id, true);
-            
-            return [
-                'success' => true, 
-                'filename' => $filename,
-                'url' => getStudentProfilePicture($student_id, $filename)
-            ];
-        } else {
-            return ['success' => false, 'errors' => ['Failed to save profile picture.']];
+        if (!$upload_result['success']) {
+            return $upload_result;
         }
+        
+        // Update database
+        $stmt = $pdo->prepare("
+            UPDATE students 
+            SET profile_picture = ?, updated_at = NOW() 
+            WHERE student_id = ?
+        ");
+        $stmt->execute([$upload_result['filename'], $student_id]);
+        
+        // Clean up old profile pictures (keep only the latest)
+        deleteOldProfilePicture($student_id, true);
+        
+        return [
+            'success' => true, 
+            'filename' => $upload_result['filename'],
+            'url' => getStudentProfilePicture($student_id, $upload_result['filename'])
+        ];
         
     } catch (Exception $e) {
         error_log("Profile picture upload error: " . $e->getMessage());

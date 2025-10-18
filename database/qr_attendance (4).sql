@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 17, 2025 at 05:47 AM
+-- Generation Time: Oct 18, 2025 at 02:49 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -73,20 +73,7 @@ CREATE TABLE `attendance` (
 --
 
 INSERT INTO `attendance` (`id`, `student_id`, `student_name`, `timestamp`, `status`, `check_in_time`, `check_out_time`, `session_duration`, `created_at`, `updated_at`, `admission_year`, `current_year`, `shift`, `program`, `is_graduated`, `notes`) VALUES
-(19, '24-ESWT-01', 'Anique Ali', '2025-10-16 11:01:07', 'Present', '2025-10-16 11:01:07', '2025-10-16 11:01:51', 0, '2025-10-16 06:01:07', '2025-10-16 09:31:09', 2024, NULL, 'Evening', 'SWT', 0, ''),
-(20, '23-SWT-02', 'Naheed Akhter', '2024-01-15 09:00:00', 'Present', '2024-01-15 09:00:00', '2024-01-15 17:00:00', NULL, '2025-10-16 20:41:20', '2025-10-16 20:41:20', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(21, '23-SWT-02', 'Naheed Akhter', '2024-01-16 09:00:00', 'Present', '2024-01-16 09:00:00', '2024-01-16 17:00:00', NULL, '2025-10-16 20:41:20', '2025-10-16 20:41:20', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(22, '23-SWT-02', 'Naheed Akhter', '2024-01-17 09:00:00', 'Absent', NULL, NULL, NULL, '2025-10-16 20:41:20', '2025-10-16 20:41:20', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(23, '23-SWT-02', 'Naheed Akhter', '2024-01-18 09:00:00', 'Present', '2024-01-18 09:00:00', '2024-01-18 17:00:00', NULL, '2025-10-16 20:41:20', '2025-10-16 20:41:20', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(24, '23-SWT-02', 'Naheed Akhter', '2024-01-19 09:00:00', 'Present', '2024-01-19 09:00:00', '2024-01-19 17:00:00', NULL, '2025-10-16 20:41:20', '2025-10-16 20:41:20', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(25, '23-SWT-02', 'Naheed Akhter', '2024-12-01 09:00:00', 'Present', '2024-12-01 09:00:00', '2024-12-01 17:00:00', NULL, '2025-10-16 20:41:45', '2025-10-16 20:41:45', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(26, '23-SWT-02', 'Naheed Akhter', '2024-12-02 09:00:00', 'Present', '2024-12-02 09:00:00', '2024-12-02 17:00:00', NULL, '2025-10-16 20:41:45', '2025-10-16 20:41:45', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(27, '23-SWT-02', 'Naheed Akhter', '2024-12-03 09:00:00', 'Absent', NULL, NULL, NULL, '2025-10-16 20:41:45', '2025-10-16 20:41:45', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(28, '23-SWT-02', 'Naheed Akhter', '2024-12-04 09:00:00', 'Present', '2024-12-04 09:00:00', '2024-12-04 17:00:00', NULL, '2025-10-16 20:41:45', '2025-10-16 20:41:45', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(29, '23-SWT-02', 'Naheed Akhter', '2024-12-05 09:00:00', 'Present', '2024-12-05 09:00:00', '2024-12-05 17:00:00', NULL, '2025-10-16 20:41:45', '2025-10-16 20:41:45', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(30, '23-SWT-02', 'Naheed Akhter', '2024-12-06 09:00:00', 'Absent', NULL, NULL, NULL, '2025-10-16 20:41:45', '2025-10-16 20:41:45', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(31, '23-SWT-02', 'Naheed Akhter', '2024-12-09 09:00:00', 'Present', '2024-12-09 09:00:00', '2024-12-09 17:00:00', NULL, '2025-10-16 20:41:45', '2025-10-16 20:41:45', 2023, NULL, 'Evening', 'SWT', 0, NULL),
-(32, '23-SWT-02', 'Naheed Akhter', '2024-12-10 09:00:00', 'Present', '2024-12-10 09:00:00', '2024-12-10 17:00:00', NULL, '2025-10-16 20:41:45', '2025-10-16 20:41:45', 2023, NULL, 'Evening', 'SWT', 0, NULL);
+(19, '24-ESWT-01', 'Anique Ali', '2025-10-16 11:01:07', 'Present', '2025-10-16 11:01:07', '2025-10-16 11:01:51', 0, '2025-10-16 06:01:07', '2025-10-18 12:06:57', 2024, NULL, 'Evening', 'SWT', 0, '');
 
 -- --------------------------------------------------------
 
@@ -114,6 +101,33 @@ INSERT INTO `check_in_sessions` (`id`, `student_id`, `student_name`, `check_in_t
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `email_verifications`
+--
+
+CREATE TABLE `email_verifications` (
+  `id` int(11) NOT NULL,
+  `student_id` varchar(50) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `verification_code` varchar(6) NOT NULL,
+  `purpose` enum('password_reset','email_change') NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `is_used` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `email_verifications`
+--
+
+INSERT INTO `email_verifications` (`id`, `student_id`, `email`, `verification_code`, `purpose`, `expires_at`, `is_used`, `created_at`) VALUES
+(19, '24-ESWT-01', 'aniqueali000@gmail.com', '587253', 'password_reset', '2025-10-18 13:58:00', 1, '2025-10-18 08:43:00'),
+(20, '24-ESWT-01', 'aniqueali000@gmail.com', '589890', 'password_reset', '2025-10-18 13:59:44', 0, '2025-10-18 08:44:44'),
+(21, '24-ESWT-01', 'aniqueali000@gmail.com', '563468', 'password_reset', '2025-10-18 14:02:52', 1, '2025-10-18 08:47:52'),
+(22, '24-ESWT-01', 'aniqueali000@gmail.com', '664199', 'password_reset', '2025-10-18 16:55:53', 0, '2025-10-18 11:40:53');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `import_logs`
 --
 
@@ -126,6 +140,19 @@ CREATE TABLE `import_logs` (
   `error_details` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `import_logs`
+--
+
+INSERT INTO `import_logs` (`id`, `import_type`, `total_records`, `successful_records`, `failed_records`, `error_details`, `created_at`) VALUES
+(1, 'student_import', 4, 4, 0, '[]', '2025-10-13 06:09:17'),
+(2, 'student_import', 4, 4, 0, '[]', '2025-10-13 07:07:44'),
+(3, 'student_import', 4, 4, 0, '[]', '2025-10-13 07:08:19'),
+(4, 'student_import', 4, 4, 0, '[]', '2025-10-13 07:27:36'),
+(5, 'student_import', 4, 4, 0, '[]', '2025-10-15 20:53:30'),
+(6, 'student_import', 4, 4, 0, '[]', '2025-10-16 08:28:34'),
+(7, 'student_import', 4, 4, 0, '[]', '2025-10-16 08:43:15');
 
 -- --------------------------------------------------------
 
@@ -296,6 +323,7 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`, `created_at`) VALUES
+('06c342a76f4a19b65c3fcca3604de4f189cfdb35cf3a07219a37df7399a9ab56', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-18 12:48:51', '2025-10-18 11:48:56'),
 ('1009eaa0ba3f893abc280f5c2dfa6a95a216dcca221d579f4f500f48681dfd94', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 22:55:35', '2025-10-12 22:38:33'),
 ('20a4d33533a9db29f3087eb8da315e8d56f25e99ba49fdee4228dbbc679c6203', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 15:29:23', '2025-10-12 15:28:53'),
 ('2e26cd1f54a55dd4bad475cc751bb7fa10fd10191ba107a00f19515fcaec6971', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 22:11:03', '2025-10-12 22:11:03'),
@@ -307,7 +335,7 @@ INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, 
 ('677e95ccfcf14eef4c79921fa151f05eee95b7208e1c6173154cf77a73212256', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-13 19:25:27', '2025-10-13 19:25:22'),
 ('785e481c6f218a0f2f7f2aae4c7da9ae192e028fa9abf34d49516089384d374d', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-13 09:23:12', '2025-10-13 07:56:42'),
 ('7d496ba5331e080bb8a350c567398b747d88384635793edca9c9a0560d14648c', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-11 23:40:19', '2025-10-11 22:11:08'),
-('8738fc0a27babb8b534f0178e5dcb71648c93f60550c5a6492c8cc06b324fd0a', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-16 20:48:22', '2025-10-16 20:48:11'),
+('83f64654cb1671443ef02329392d1ac6926e5beeb8f0e6a9ee4f975684055919', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-18 11:48:42', '2025-10-18 11:37:20'),
 ('89b6a2dbf3afaf56b7047b19c6461dbe65767e492daefe00cc7a3727a73da3dc', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-13 21:56:04', '2025-10-13 19:59:02'),
 ('944ad316e85cd701a0b93a965c668c229a27dd8aea7751b4c94e4aaf455fc733', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-16 00:38:28', '2025-10-15 21:31:29'),
 ('99465cca2614829aedf0479097b73652ea741c8f8185c7290a30b2bdfcb7ae36', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 22:11:00', '2025-10-12 22:11:00'),
@@ -323,7 +351,8 @@ INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, 
 ('f2fda114688050d36908dc8e7a2a7ca6ae5bc83d357c43a0f409469abf4430dd', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 22:10:46', '2025-10-12 22:10:31'),
 ('f8dc1addbb044e8f2ccf59376ef84b237f9e8c6db7207766236e16d1f1325540', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-11 21:31:42', '2025-10-11 21:27:24'),
 ('f94a0a16f0b071c77edb77d08401c5373f61f46848a19676caedcf3a1134a146', 10, 'unknown', 'unknown', NULL, '2025-10-12 22:37:59', '2025-10-12 22:37:59'),
-('fb2db220e3a9cf7a6b04ae7bbc7358263e8364b904b489da7a9a96c365c71787', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 22:14:28', '2025-10-12 22:11:04');
+('fb2db220e3a9cf7a6b04ae7bbc7358263e8364b904b489da7a9a96c365c71787', 10, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36', NULL, '2025-10-12 22:14:28', '2025-10-12 22:11:04'),
+('test_admin_session_1760788045', 10, NULL, NULL, NULL, '2025-10-18 11:47:25', '2025-10-18 11:47:25');
 
 -- --------------------------------------------------------
 
@@ -377,6 +406,7 @@ CREATE TABLE `students` (
   `is_graduated` tinyint(1) DEFAULT 0,
   `year_level` enum('1st','2nd','3rd') DEFAULT NULL,
   `section` varchar(10) DEFAULT NULL,
+  `profile_picture` varchar(255) DEFAULT NULL,
   `roll_prefix` varchar(20) DEFAULT NULL,
   `section_id` int(11) DEFAULT NULL,
   `attendance_percentage` decimal(5,2) DEFAULT 0.00,
@@ -387,9 +417,16 @@ CREATE TABLE `students` (
 -- Dumping data for table `students`
 --
 
-INSERT INTO `students` (`id`, `student_id`, `roll_number`, `name`, `email`, `phone`, `password`, `user_id`, `is_active`, `created_at`, `updated_at`, `admission_year`, `current_year`, `shift`, `program`, `last_year_update`, `is_graduated`, `year_level`, `section`, `roll_prefix`, `section_id`, `attendance_percentage`, `username`) VALUES
-(141, '24-ESWT-01', '24-ESWT-01', 'Anique Ali', 'aniqueali000@gmail.com', '+923010020668', '24-ESWT-01', NULL, 1, '2025-10-16 05:57:41', '2025-10-16 05:57:41', 2024, 1, 'Evening', 'SWT', NULL, 0, '2nd', 'A', NULL, NULL, 0.00, '24-ESWT-01'),
-(150, '23-SWT-02', '23-SWT-02', 'Naheed Akhter', 'aniquecode@gmail.com', '+50703010020668', '23-SWT-02', NULL, 1, '2025-10-16 19:01:14', '2025-10-16 20:41:54', 2023, 1, 'Morning', 'SWT', NULL, 0, '3rd', 'A', NULL, NULL, 75.50, '23-SWT-02');
+INSERT INTO `students` (`id`, `student_id`, `roll_number`, `name`, `email`, `phone`, `password`, `user_id`, `is_active`, `created_at`, `updated_at`, `admission_year`, `current_year`, `shift`, `program`, `last_year_update`, `is_graduated`, `year_level`, `section`, `profile_picture`, `roll_prefix`, `section_id`, `attendance_percentage`, `username`) VALUES
+(141, '24-ESWT-01', '24-ESWT-01', 'Anique', 'aniqueali000@gmail.com', '+923010020668', '$argon2id$v=19$m=65536,t=4,p=3$b2FsYTNoWm9NaThMUldrOQ$fEFZUfQ5VTisl4qoZeGrYXIle091VyvvBxmHTiwgfdU', NULL, 1, '2025-10-16 05:57:41', '2025-10-18 11:41:09', 2024, 1, 'Evening', 'SWT', NULL, 0, '2nd', 'A', '24-ESWT-01_1760787661', NULL, NULL, 0.00, '24-ESWT-01'),
+(142, '25-SWT-595', '25-SWT-595', 'Sample Student 1', 'student1_1760603294595@college.edu', '923001234567', '$argon2id$v=19$m=65536,t=4,p=3$MmVCTFlKN2h4MWVpck44MQ$rv211UMMMHCmF7YAUFOI+zpTRTQKJACBGqkuA23Z/J8', NULL, 1, '2025-10-16 08:28:34', '2025-10-18 11:36:14', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', NULL, 'SWT', 1, 0.00, NULL),
+(143, '25-SWT-596', '25-SWT-596', 'Sample Student 2', 'student2_1760603294595@college.edu', '923007654321', NULL, NULL, 1, '2025-10-16 08:28:34', '2025-10-16 08:28:34', 2025, 1, 'Evening', 'SWT', NULL, 0, '1st', 'B', NULL, 'SWT', 4, 0.00, NULL),
+(144, '25-CIT-597', '25-CIT-597', 'Sample Student 3', 'student3_1760603294595@college.edu', '923009876543', NULL, NULL, 1, '2025-10-16 08:28:34', '2025-10-16 08:28:34', 2025, 1, 'Morning', 'CIT', NULL, 0, '1st', 'A', NULL, 'CIT', 13, 0.00, NULL),
+(145, '25-CIT-598', '25-CIT-598', 'Sample Student 4', 'student4_1760603294595@college.edu', '923001112233', NULL, NULL, 1, '2025-10-16 08:28:34', '2025-10-16 08:28:34', 2025, 1, 'Evening', 'CIT', NULL, 0, '1st', 'B', NULL, 'CIT', 16, 0.00, NULL),
+(146, '25-SWT-599', '25-SWT-599', 'Sample Student 1', 'student1_17606032945953@college.edu', '9.23003E+12', NULL, NULL, 1, '2025-10-16 08:43:15', '2025-10-16 08:43:15', 2025, 1, 'Morning', 'SWT', NULL, 0, '1st', 'A', NULL, 'SWT', 1, 0.00, NULL),
+(147, '25-SWT-600', '25-SWT-600', 'Sample Student 2', 'student2_17606032945952@college.edu', '9.23003E+12', NULL, NULL, 1, '2025-10-16 08:43:15', '2025-10-16 08:43:15', 2025, 1, 'Evening', 'SWT', NULL, 0, '1st', 'B', NULL, 'SWT', 4, 0.00, NULL),
+(148, '25-CIT-601', '25-CIT-601', 'Sample Student 3', 'student3_17606032945915@college.edu', '9.23005E+12', NULL, NULL, 1, '2025-10-16 08:43:15', '2025-10-16 08:43:15', 2025, 1, 'Morning', 'CIT', NULL, 0, '1st', 'A', NULL, 'CIT', 13, 0.00, NULL),
+(149, '25-CIT-602', '25-CIT-602', 'Sample Student 4', 'student4_176060329459345@college.edu', '9.2301E+12', NULL, NULL, 1, '2025-10-16 08:43:15', '2025-10-16 08:43:15', 2025, 1, 'Evening', 'CIT', NULL, 0, '1st', 'B', NULL, 'CIT', 16, 0.00, NULL);
 
 -- --------------------------------------------------------
 
@@ -502,7 +539,13 @@ INSERT INTO `system_settings` (`id`, `setting_key`, `setting_value`, `setting_ty
 (1726, 'searchAll', 'all', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01'),
 (1727, 'searchStudents', 'students', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01'),
 (1728, 'searchPrograms', 'programs', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01'),
-(1729, 'searchAttendance', 'attendance', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01');
+(1729, 'searchAttendance', 'attendance', 'string', 'general', 'System setting', '[]', '2025-10-16 09:31:42', 'admin', '2025-10-15 21:16:01'),
+(1730, 'api_endpoint_students', '/api/students_sync.php', 'string', 'integration', 'Students sync API endpoint', '[]', '2025-10-18 12:49:15', 'admin', '2025-10-18 12:49:15'),
+(1731, 'api_endpoint_settings', '/api/settings_sync.php', 'string', 'integration', 'Settings sync API endpoint', '[]', '2025-10-18 12:49:15', 'admin', '2025-10-18 12:49:15'),
+(1732, 'api_endpoint_settings_api', '/api/settings_api.php', 'string', 'integration', 'Settings API endpoint', '[]', '2025-10-18 12:49:15', 'admin', '2025-10-18 12:49:15'),
+(1733, 'api_endpoint_student_api', '/api/student_api_simple.php', 'string', 'integration', 'Student API endpoint', '[]', '2025-10-18 12:49:15', 'admin', '2025-10-18 12:49:15'),
+(1734, 'api_endpoint_admin_attendance', '/admin/api/attendance.php', 'string', 'integration', 'Admin attendance API endpoint', '[]', '2025-10-18 12:49:15', 'admin', '2025-10-18 12:49:15'),
+(1735, 'api_endpoint_sync', '/api/sync_api.php', 'string', 'integration', 'Sync API endpoint', '[]', '2025-10-18 12:49:15', 'admin', '2025-10-18 12:49:15');
 
 -- --------------------------------------------------------
 
@@ -528,7 +571,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `role`, `student_id`, `is_active`, `last_login`, `created_at`, `updated_at`) VALUES
-(10, 'admin', 'aniquecodes@gmail.com', '$2y$10$uzcDa0cHVM014FnZlgTIGeqg.LKPZHTWJolarBF.F8asMD0dRBHF2', 'admin', NULL, 1, '2025-10-16 20:48:11', '2025-10-11 12:02:11', '2025-10-16 20:48:11');
+(10, 'admin', 'aniquecodes@gmail.com', '$2y$10$uzcDa0cHVM014FnZlgTIGeqg.LKPZHTWJolarBF.F8asMD0dRBHF2', 'admin', NULL, 1, '2025-10-18 11:48:56', '2025-10-11 12:02:11', '2025-10-18 11:48:56');
 
 -- --------------------------------------------------------
 
@@ -615,6 +658,15 @@ ALTER TABLE `check_in_sessions`
   ADD KEY `idx_is_active` (`is_active`),
   ADD KEY `idx_checkin_active` (`is_active`,`student_id`,`check_in_time`),
   ADD KEY `idx_checkin_activity` (`last_activity`,`is_active`);
+
+--
+-- Indexes for table `email_verifications`
+--
+ALTER TABLE `email_verifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_student_id` (`student_id`),
+  ADD KEY `idx_code` (`verification_code`),
+  ADD KEY `idx_expires` (`expires_at`);
 
 --
 -- Indexes for table `import_logs`
@@ -759,13 +811,19 @@ ALTER TABLE `academic_years`
 -- AUTO_INCREMENT for table `attendance`
 --
 ALTER TABLE `attendance`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `check_in_sessions`
 --
 ALTER TABLE `check_in_sessions`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `email_verifications`
+--
+ALTER TABLE `email_verifications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT for table `import_logs`
@@ -801,7 +859,7 @@ ALTER TABLE `shift_timings`
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=151;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=150;
 
 --
 -- AUTO_INCREMENT for table `sync_logs`
@@ -813,7 +871,7 @@ ALTER TABLE `sync_logs`
 -- AUTO_INCREMENT for table `system_settings`
 --
 ALTER TABLE `system_settings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1730;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1736;
 
 --
 -- AUTO_INCREMENT for table `users`

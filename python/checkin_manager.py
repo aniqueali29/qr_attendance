@@ -22,7 +22,7 @@ class CheckInManager:
         
         # Load configuration from settings
         self.base_url = base_url or self.settings.get('website_url', 'http://localhost/qr_attendance/public')
-        self.checkin_api = f"{self.base_url}/api/checkin_api.php"
+        self.checkin_api = f"{self.base_url}{self.settings.get('api_endpoint_checkin', '/api/checkin_api.php')}"
         self.session = requests.Session()
         self.session.verify = False
         self.timezone = pytz.timezone(self.settings.get('timezone', 'Asia/Karachi'))

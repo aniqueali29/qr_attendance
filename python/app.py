@@ -17,8 +17,9 @@ from student_sync import student_sync
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Import settings manager
+# Import settings manager and secure configuration
 from settings import SettingsManager
+from secure_config import get_config, get_api_config
 
 # Initialize settings manager
 settings = SettingsManager()
@@ -32,13 +33,20 @@ HEADERS = ["ID", "Name", "Timestamp", "Status", "Shift", "Program", "Current_Yea
 # Timezone Configuration
 TIMEZONE = pytz.timezone(settings.get('timezone', 'Asia/Karachi'))
 
-# Website Configuration - Load from settings
-WEBSITE_URL = settings.get('website_url', 'http://localhost/qr_attendance/public')
+# Website Configuration - Load from secure configuration
+WEBSITE_URL = get_config('WEBSITE_URL', 'http://localhost/qr_attendance/public')
 API_ENDPOINT = settings.get('api_endpoint_attendance', '/api/api_attendance.php')
-API_KEY = settings.get('api_key', 'attendance_2025_xyz789_secure')
+
+# Load secure API configuration
+api_config = get_api_config()
+API_KEY = api_config['key']
+API_SECRET = api_config['secret']
+JWT_SECRET = api_config['jwt_secret']
+ENCRYPTION_KEY = api_config['encryption_key']
+
 SYNC_INTERVAL = settings.get('sync_interval_seconds', 30)  # Sync interval from settings
 ADMIN_ATTENDANCE_API_URL = settings.get('admin_attendance_api_url', f"{WEBSITE_URL}/api/api_attendance.php")
-ADMIN_API_KEY = settings.get('admin_api_key', '')
+ADMIN_API_KEY = API_KEY  # Use the same secure API key
 ATT_PULL_LOOKBACK_DAYS = settings.get('attendance_pull_lookback_days', 7)
 ATT_PULL_PAGE_SIZE = settings.get('attendance_pull_page_size', 1000)
 
@@ -196,7 +204,7 @@ def check_admin_panel_connection():
     """Check if admin panel APIs are accessible."""
     try:
         # Check settings API with authentication
-        settings_url = f"{WEBSITE_URL}/api/settings_api.php"
+        settings_url = f"{WEBSITE_URL}{settings.get('api_endpoint_settings_api', '/api/settings_api.php')}"
         headers = {
             'X-API-Key': API_KEY,
             'Content-Type': 'application/json'
@@ -317,8 +325,8 @@ def sync_students_from_website():
             return False
         
         # API configuration for student sync
-        students_api_url = settings.get('students_api_url', f"{WEBSITE_URL}/api/students_sync.php")
-        students_api_key = settings.get('students_api_key', settings.get('api_key', 'attendance_2025_xyz789_secure'))
+        students_api_url = f"{WEBSITE_URL}{settings.get('api_endpoint_students', '/api/students_sync.php')}"
+        students_api_key = settings.get('students_api_key', settings.get('api_key', API_KEY))
         
         print(f"🔄 Syncing students from website...")
         print(f"   API URL: {students_api_url}")
@@ -761,8 +769,8 @@ def sync_settings_from_website():
             return False
         
         # API configuration for settings sync
-        settings_api_url = settings.get('settings_api_url', f"{WEBSITE_URL}/api/settings_sync.php")
-        settings_api_key = settings.get('settings_api_key', settings.get('api_key', 'attendance_2025_xyz789_secure'))
+        settings_api_url = f"{WEBSITE_URL}{settings.get('api_endpoint_settings', '/api/settings_sync.php')}"
+        settings_api_key = settings.get('settings_api_key', settings.get('api_key', API_KEY))
         
         print(f"🔄 Syncing settings from website...")
         print(f"   API URL: {settings_api_url}")
@@ -836,11 +844,11 @@ def sync_settings_to_website():
         
         # Send to website API
         api_data = {
-            "api_key": settings.get('settings_api_key', settings.get('api_key', 'attendance_2025_xyz789_secure')),
+            "api_key": settings.get('settings_api_key', settings.get('api_key', API_KEY)),
             "settings": settings_dict
         }
         
-        settings_api_url = settings.get('settings_api_url', f"{WEBSITE_URL}/api/settings_sync.php")
+        settings_api_url = f"{WEBSITE_URL}{settings.get('api_endpoint_settings', '/api/settings_sync.php')}"
         url = f"{settings_api_url}?action=update_settings"
         response = requests.post(url, json=api_data, timeout=30, verify=False)
         

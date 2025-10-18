@@ -15,6 +15,9 @@ import urllib3
 from urllib.parse import urljoin
 import pymysql
 
+# Import secure configuration
+from secure_config import get_config, get_database_config, get_api_config, get_smtp_config
+
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -25,9 +28,12 @@ class SettingsManager:
     def __init__(self, config_file="config.json", local_db="attendance_local.db"):
         self.config_file = config_file
         self.local_db = local_db
-        self.website_url = "http://localhost/qr_attendance/public"
-        self.api_key = "attendance_2025_xyz789_secure"
-        self.timezone = pytz.timezone('Asia/Karachi')
+        
+        # Load secure configuration
+        self.website_url = get_config('WEBSITE_URL', "http://localhost/qr_attendance/public")
+        self.api_key = get_config('API_KEY', "attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78")
+        self.timezone = pytz.timezone(get_config('TIMEZONE', 'Asia/Karachi'))
+        
         self._settings_cache = {}
         self._cache_timestamp = None
         self._cache_duration = 60  # 1 minute for more frequent updates
@@ -57,23 +63,32 @@ class SettingsManager:
             'auto_absent_evening_hour': 17,
             
             # Integration Settings
-            'website_url': 'http://localhost/qr_attendance/public',
+            'website_url': get_config('WEBSITE_URL', 'http://localhost/qr_attendance/public'),
             'api_endpoint_attendance': '/api/api_attendance.php',
             'api_endpoint_checkin': '/api/checkin_api.php',
             'api_endpoint_dashboard': '/api/dashboard_api.php',
-            'api_key': 'attendance_2025_xyz789_secure',
+            'api_endpoint_students': '/api/students_sync.php',
+            'api_endpoint_settings': '/api/settings_sync.php',
+            'api_endpoint_settings_api': '/api/settings_api.php',
+            'api_endpoint_student_api': '/api/student_api_simple.php',
+            'api_endpoint_admin_attendance': '/admin/api/attendance.php',
+            'api_endpoint_sync': '/api/sync_api.php',
+            'api_key': get_config('API_KEY', 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78'),
+            'api_secret': get_config('API_SECRET', ''),
+            'jwt_secret': get_config('JWT_SECRET', ''),
+            'encryption_key': get_config('ENCRYPTION_KEY', ''),
             'api_timeout_seconds': 30,
             
             # Advanced Settings
-            'debug_mode': True,
-            'log_errors': True,
-            'show_errors': True,
-            'session_timeout_seconds': 3600,
-            'max_login_attempts': 5,
-            'login_lockout_minutes': 15,
-            'password_min_length': 8,
+            'debug_mode': get_config('DEBUG_MODE', True),
+            'log_errors': get_config('LOG_STUDENT_ACTIONS', True),
+            'show_errors': get_config('DEBUG_MODE', True),
+            'session_timeout_seconds': get_config('SESSION_TIMEOUT', 3600),
+            'max_login_attempts': get_config('MAX_LOGIN_ATTEMPTS', 5),
+            'login_lockout_minutes': get_config('LOGIN_LOCKOUT_TIME', 15),
+            'password_min_length': get_config('PASSWORD_MIN_LENGTH', 8),
             'max_sync_records': 1000,
-            'api_rate_limit': 100,
+            'api_rate_limit': get_config('RATE_LIMIT_REQUESTS', 100),
             
             # QR Code Settings
             'qr_code_size': 200,
@@ -85,11 +100,11 @@ class SettingsManager:
             'allowed_extensions': 'csv,json,xlsx',
             
             # Email Settings
-            'smtp_host': 'smtp.gmail.com',
-            'smtp_port': 587,
-            'smtp_username': '',
-            'smtp_password': '',
-            'smtp_from_email': 'noreply@example.com',
+            'smtp_host': get_config('SMTP_HOST', 'smtp.gmail.com'),
+            'smtp_port': get_config('SMTP_PORT', 587),
+            'smtp_username': get_config('SMTP_USERNAME', ''),
+            'smtp_password': get_config('SMTP_PASSWORD', ''),
+            'smtp_from_email': get_config('SMTP_USERNAME', 'noreply@example.com'),
             'smtp_from_name': 'QR Attendance System'
         }
     
@@ -253,18 +268,15 @@ class SettingsManager:
     
     def _load_from_mysql_database(self):
         """Load settings from MySQL admin panel database"""
-        # Load database config from config file
-        config = self._load_from_config_file()
-        if not config:
-            return {}
-        
+        # Load database config from secure configuration
         try:
+            db_config = get_database_config()
             conn = pymysql.connect(
-                host=config.get('db_host', 'localhost'),
-                user=config.get('db_username', 'root'),
-                password=config.get('db_password', ''),
-                database=config.get('db_name', 'qr_attendance'),
-                port=config.get('db_port', 3306),
+                host=db_config['host'],
+                user=db_config['user'],
+                password=db_config['password'],
+                database=db_config['database'],
+                port=db_config['port'],
                 charset='utf8mb4'
             )
             
@@ -474,7 +486,7 @@ class SettingsManager:
                 return False
             
             # Get settings from web API
-            url = f"{self.website_url}/api/settings_api.php"
+            url = f"{self.website_url}{self.get('api_endpoint_settings_api', '/api/settings_api.php')}"
             response = requests.get(
                 f"{url}?action=get_all",
                 timeout=10,
@@ -634,15 +646,10 @@ class SettingsManager:
     def sync_from_admin_panel(self):
         """Sync settings from admin panel API"""
         try:
-            # Load config to get API details
-            config = self._load_from_config_file()
-            if not config:
-                print("No config file found for API sync")
-                return False
-            
-            website_url = config.get('website_url', self.website_url)
-            api_key = config.get('api_key', self.api_key)
-            settings_endpoint = config.get('settings_endpoint', '/api/settings_api.php')
+            # Load config from secure configuration
+            website_url = get_config('WEBSITE_URL', self.website_url)
+            api_key = get_config('API_KEY', self.api_key)
+            settings_endpoint = self.get('api_endpoint_settings_api', '/api/settings_api.php')
             
             # Make API request to admin panel
             api_url = f"{website_url}{settings_endpoint}"

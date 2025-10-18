@@ -6,12 +6,7 @@
 
 session_start();
 
-// Simple hardcoded credentials (in production, use database)
-$ADMIN_CREDENTIALS = [
-    'admin' => 'admin123',
-    'administrator' => 'password123',
-    'superadmin' => 'superadmin456'
-];
+
 
 function authenticate($username, $password) {
     global $ADMIN_CREDENTIALS;

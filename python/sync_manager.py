@@ -34,10 +34,10 @@ class SyncManager:
         self.WEBSITE_URL = self.settings.get('website_url', 'http://localhost/qr_attendance/public')
         self.API_ENDPOINT = self.settings.get('api_endpoint_attendance', '/api/api_attendance.php')
         self.CHECKIN_ENDPOINT = self.settings.get('api_endpoint_checkin', '/api/checkin_api.php')
-        self.DASHBOARD_API = "/api/dashboard_api.php"
-        self.ADMIN_API = "/api/admin_api.php"
-        self.SETTINGS_API = "/api/settings_api.php"
-        self.API_KEY = self.settings.get('api_key', 'attendance_2025_xyz789_secure')
+        self.DASHBOARD_API = self.settings.get('api_endpoint_dashboard', '/api/dashboard_api.php')
+        self.ADMIN_API = self.settings.get('api_endpoint_admin_attendance', '/admin/api/attendance.php')
+        self.SETTINGS_API = self.settings.get('api_endpoint_settings_api', '/api/settings_api.php')
+        self.API_KEY = self.settings.get('api_key', 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78')
         self.SYNC_INTERVAL = self.settings.get('sync_interval_seconds', 30)
         self.is_syncing = False
         self.timezone = pytz.timezone(self.settings.get('timezone', 'Asia/Karachi'))
@@ -96,10 +96,11 @@ class SyncManager:
                 return True
             
             # Try alternative URLs if main URL fails
+            base_url = self.WEBSITE_URL.replace('http://localhost', 'http://127.0.0.1')
             alternative_urls = [
-                "http://127.0.0.1/qr_attendance/public",
-                "http://localhost:80/qr_attendance/public",
-                "http://127.0.0.1:80/qr_attendance/public"
+                base_url,
+                base_url.replace('127.0.0.1', 'localhost:80'),
+                base_url.replace('127.0.0.1', '127.0.0.1:80')
             ]
             
             for alt_url in alternative_urls:
@@ -390,7 +391,7 @@ class SyncManager:
                 })
             
             # Send to website API
-            api_url = f"{self.WEBSITE_URL}/admin/api/attendance.php?action=bulk_sync"
+            api_url = f"{self.WEBSITE_URL}{self.ADMIN_API}?action=bulk_sync"
             headers = {
                 'Content-Type': 'application/json'
             }
@@ -691,7 +692,7 @@ class SyncManager:
                 return False
             
             import requests
-            url = f"{self.WEBSITE_URL}/api/sync_api.php"
+            url = f"{self.WEBSITE_URL}{self.settings.get('api_endpoint_sync', '/api/sync_api.php')}"
             response = requests.post(url, json={
                 'api_key': self.API_KEY,
                 'action': 'log_sync',

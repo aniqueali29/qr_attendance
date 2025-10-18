@@ -220,9 +220,13 @@ if (isset($action)) {
                     break;
                 }
                 
-                // Update password in students table (plaintext for student login)
+                // SECURITY FIX: Use secure password hashing
+                require_once __DIR__ . '/../../../includes/password_manager.php';
+                $hashed_password = PasswordManager::hashPassword($new_password);
+                
+                // Update password in students table (hashed for security)
                 $stmt = $pdo->prepare("UPDATE students SET password = ? WHERE id = ?");
-                $stmt->execute([$new_password, $student_id]);
+                $stmt->execute([$hashed_password, $student_id]);
                 
                 // Also update students.json with the new password
                 saveToStudentsJson($student['student_id'], '', '', '', $new_password);
@@ -854,9 +858,12 @@ function createStudentFromImport($pdo, $student, $row_number) {
         $year_level = trim($student['year_level']);
         $section_name = trim($student['section']);
         
+        // SECURITY FIX: Use secure password hashing
+        require_once __DIR__ . '/../../../includes/password_manager.php';
+        
         // Use roll number as username and password
         $password = $student_id; // Use roll number as password (e.g., 25-CIT-597)
-        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        $password_hash = PasswordManager::hashPassword($password);
         $username = $student_id; // Use roll number as username (e.g., 25-CIT-597)
         
         // Get section ID - try different approaches
@@ -1295,8 +1302,9 @@ function bulkPasswordReset($input) {
                         continue 2;
                 }
                 
-                // Update password
-                $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+                // SECURITY FIX: Use secure password hashing
+                require_once __DIR__ . '/../../../includes/password_manager.php';
+                $hashedPassword = PasswordManager::hashPassword($newPassword);
                 $stmt = $pdo->prepare("UPDATE students SET password = ?, updated_at = NOW() WHERE id = ?");
                 $stmt->execute([$hashedPassword, $id]);
                 $updatedCount++;

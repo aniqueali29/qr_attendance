@@ -30,13 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         // Check rate limiting
         $client_ip = getClientIP();
-        if (!checkLoginRateLimit($client_ip)) {
-            $error_message = 'Too many login attempts. Please try again in 15 minutes.';
+        // SECURITY FIX: Use authentication middleware
+        require_once __DIR__ . '/../includes/auth_middleware.php';
+        
+        if (!AuthMiddleware::checkRateLimit($client_ip)) {
+            $lockout_time = AuthMiddleware::getLockoutTime($client_ip);
+            $error_message = "Too many login attempts. Please try again in {$lockout_time} seconds.";
+            AuthMiddleware::logSecurityEvent('LOGIN_RATE_LIMIT', "IP: {$client_ip}");
         } else {
             // Attempt authentication
             $result = authenticateStudent($username, $password);
             
             if ($result['success']) {
+                // Record successful login
+                AuthMiddleware::recordSuccessfulAttempt($client_ip);
+                AuthMiddleware::logSecurityEvent('LOGIN_SUCCESS', "User: {$username}, IP: {$client_ip}");
+                
                 // Redirect to intended page or dashboard
                 $redirect_url = $_SESSION['redirect_after_login'] ?? 'dashboard.php';
                 unset($_SESSION['redirect_after_login']);
@@ -44,6 +53,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ' . $redirect_url);
                 exit();
             } else {
+                // Record failed login attempt
+                AuthMiddleware::recordFailedAttempt($client_ip);
+                AuthMiddleware::logSecurityEvent('LOGIN_FAILED', "User: {$username}, IP: {$client_ip}, Reason: {$result['message']}");
+                
                 $error_message = $result['message'];
             }
         }

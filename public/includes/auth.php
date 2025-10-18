@@ -8,7 +8,8 @@ require_once 'config.php';
 
 // Authentication Functions
 function isStudentLoggedIn() {
-    return isset($_SESSION['student_id']) && isset($_SESSION['student_username']) && !empty($_SESSION['student_id']);
+    require_once __DIR__ . '/../../includes/secure_session.php';
+    return SecureSession::has('student_id') && SecureSession::has('student_username') && SecureSession::validate();
 }
 
 function requireStudentAuth() {
@@ -34,7 +35,8 @@ function getCurrentStudent() {
             LEFT JOIN users u ON s.user_id = u.id 
             WHERE s.student_id = ? AND s.is_active = 1
         ");
-        $stmt->execute([$_SESSION['student_id']]);
+        require_once __DIR__ . '/../../includes/secure_session.php';
+        $stmt->execute([SecureSession::get('student_id')]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log("Error fetching current student: " . $e->getMessage());
@@ -62,7 +64,9 @@ function authenticateStudent($username, $password) {
             return ['success' => false, 'message' => 'Student not found or inactive'];
         }
         
-        // Check password - handle both hashed and plain text passwords
+        // SECURITY FIX: Use secure password verification
+        require_once __DIR__ . '/../../includes/password_manager.php';
+        
         $password_hash = $student['password_hash'] ?? null;
         $student_password = $student['password'] ?? null;
         
@@ -70,7 +74,14 @@ function authenticateStudent($username, $password) {
         
         // First try hashed password from users table (newer records)
         if ($password_hash) {
-            $password_valid = password_verify($password, $password_hash);
+            $password_valid = PasswordManager::verifyPassword($password, $password_hash);
+            
+            // Check if rehashing is needed for security updates
+            if ($password_valid && PasswordManager::needsRehash($password_hash)) {
+                $new_hash = PasswordManager::hashPassword($password);
+                $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+                $stmt->execute([$new_hash, $student['user_id']]);
+            }
         }
         
         // If no user record or hashed password fails, try student password field
@@ -78,10 +89,23 @@ function authenticateStudent($username, $password) {
             // Check if student password is hashed (60+ characters) or plain text
             if (strlen($student_password) > 20) {
                 // It's a hash, verify it
-                $password_valid = password_verify($password, $student_password);
+                $password_valid = PasswordManager::verifyPassword($password, $student_password);
+                
+                // If valid but needs rehashing, update it
+                if ($password_valid && PasswordManager::needsRehash($student_password)) {
+                    $new_hash = PasswordManager::hashPassword($password);
+                    $stmt = $pdo->prepare("UPDATE students SET password = ? WHERE student_id = ?");
+                    $stmt->execute([$new_hash, $username]);
+                }
             } else {
-                // It's plain text, compare directly
-                $password_valid = ($password === $student_password);
+                // CRITICAL SECURITY FIX: Plain text passwords are not allowed
+                // Hash the plain text password and update the database
+                $new_hash = PasswordManager::hashPassword($password);
+                $stmt = $pdo->prepare("UPDATE students SET password = ? WHERE student_id = ?");
+                $stmt->execute([$new_hash, $username]);
+                
+                // Now verify the newly hashed password
+                $password_valid = PasswordManager::verifyPassword($password, $new_hash);
             }
         }
         
@@ -95,16 +119,22 @@ function authenticateStudent($username, $password) {
             $stmt->execute([$student['user_id']]);
         }
         
-        // Set session variables
-        $_SESSION['student_id'] = $student['student_id'];
-        $_SESSION['student_username'] = $student['username'] ?: $student['student_id']; // Use student_id if username is empty
-        $_SESSION['student_name'] = $student['name'];
-        $_SESSION['student_email'] = $student['email'];
-        $_SESSION['student_program'] = $student['program'];
-        $_SESSION['student_shift'] = $student['shift'];
-        $_SESSION['student_year_level'] = $student['year_level'];
-        $_SESSION['student_section'] = $student['section'];
-        $_SESSION['login_time'] = time();
+        // SECURITY FIX: Use secure session management
+        require_once __DIR__ . '/../../includes/secure_session.php';
+        
+        // Set session variables securely
+        SecureSession::set('student_id', $student['student_id']);
+        SecureSession::set('student_username', $student['username'] ?: $student['student_id']);
+        SecureSession::set('student_name', $student['name']);
+        SecureSession::set('student_email', $student['email']);
+        SecureSession::set('student_program', $student['program']);
+        SecureSession::set('student_shift', $student['shift']);
+        SecureSession::set('student_year_level', $student['year_level']);
+        SecureSession::set('student_section', $student['section']);
+        SecureSession::set('login_time', time());
+        
+        // Record successful login
+        SecureSession::recordLoginAttempt(true);
         
         // Log successful login
         logStudentAction('LOGIN_SUCCESS', "Student logged in: {$student['student_id']}");
@@ -118,24 +148,15 @@ function authenticateStudent($username, $password) {
 }
 
 function logoutStudent() {
+    require_once __DIR__ . '/../../includes/secure_session.php';
+    
     if (isStudentLoggedIn()) {
-        logStudentAction('LOGOUT', "Student logged out: {$_SESSION['student_id']}");
+        $student_id = SecureSession::get('student_id');
+        logStudentAction('LOGOUT', "Student logged out: {$student_id}");
     }
     
-    // Clear all session variables
-    $_SESSION = array();
-    
-    // Destroy the session cookie
-    if (ini_get("session.use_cookies")) {
-        $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000,
-            $params["path"], $params["domain"],
-            $params["secure"], $params["httponly"]
-        );
-    }
-    
-    // Destroy the session
-    session_destroy();
+    // Destroy secure session
+    SecureSession::destroy();
 }
 
 function checkSessionTimeout() {

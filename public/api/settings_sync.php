@@ -24,7 +24,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Simple API key authentication
-$api_key = 'attendance_2025_xyz789_secure'; // Match main API key
+$api_key = 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78'; // Match main API key
 
 function authenticateAPI() {
     global $api_key;

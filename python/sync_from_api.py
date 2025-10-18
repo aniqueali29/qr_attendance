@@ -8,10 +8,14 @@ import requests
 import json
 import os
 from datetime import datetime
+from settings import SettingsManager
 
-# Configuration
-API_BASE_URL = "http://your-domain.com/api/students_sync.php"  # Change this to your hosting URL
-API_KEY = "your-secret-api-key-123"  # Change this to match the API key in PHP
+# Initialize settings manager
+settings = SettingsManager()
+
+# Configuration from settings
+API_BASE_URL = f"{settings.get('website_url', 'http://localhost/qr_attendance/public')}{settings.get('api_endpoint_students', '/api/students_sync.php')}"
+API_KEY = settings.get('api_key', 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78')
 STUDENTS_JSON_PATH = "students.json"
 
 def fetch_students_from_api():

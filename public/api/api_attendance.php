@@ -22,7 +22,7 @@ $username = 'root';
 $password = '';
 
 // API Configuration
-$API_KEY = 'attendance_2025_xyz789_secure'; // Must match the key in Python app
+$API_KEY = 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78'; // Must match the key in Python app
 
 try {
     // Connect to database

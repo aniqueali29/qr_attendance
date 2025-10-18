@@ -12,7 +12,7 @@ require_once 'config.php';
 
 class SettingsAPI {
     private $pdo;
-    private $api_key = 'attendance_2025_xyz789_secure';
+    private $api_key = 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78';
     
     public function __construct() {
         global $pdo;
@@ -719,7 +719,7 @@ class SettingsAPI {
             'api_endpoint_attendance' => '/api/api_attendance.php',
             'api_endpoint_checkin' => '/api/checkin_api.php',
             'api_endpoint_dashboard' => '/api/dashboard_api.php',
-            'api_key' => 'attendance_2025_xyz789_secure',
+            'api_key' => 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78',
             'api_timeout_seconds' => 30,
             
             // Advanced Settings

@@ -9,11 +9,17 @@ if (!defined('STUDENT_ACCESS')) {
     define('STUDENT_ACCESS', true);
 }
 
+// Load secure configuration
+require_once __DIR__ . '/../../includes/secure_config.php';
+
+// Initialize secure configuration
+$config = SecureConfig::load();
+
 // Database Configuration (same as admin system)
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'qr_attendance');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_HOST', $config['DB_HOST']);
+define('DB_NAME', $config['DB_NAME']);
+define('DB_USER', $config['DB_USER']);
+define('DB_PASS', $config['DB_PASS']);
 define('DB_CHARSET', 'utf8');
 
 // Student Portal Configuration
@@ -38,9 +44,9 @@ define('ADMIN_API_URL', 'http://localhost/qr_attendance/public/admin/api');
 define('STUDENT_CSRF_TOKEN_NAME', 'student_csrf_token');
 define('STUDENT_SESSION_NAME', 'student_session');
 
-// Error Reporting
+// Error Reporting - SECURITY FIX: Use secure config
 if (!defined('DEBUG_MODE')) {
-    define('DEBUG_MODE', false);
+    define('DEBUG_MODE', $config['DEBUG_MODE']);
 }
 
 if (DEBUG_MODE) {
@@ -191,14 +197,13 @@ define('MAX_PROFILE_PICTURE_SIZE', 2 * 1024 * 1024); // 2MB
 define('ALLOWED_IMAGE_TYPES', ['image/jpeg', 'image/png', 'image/gif']);
 define('VERIFICATION_CODE_EXPIRY', 900); // 15 minutes in seconds
 
-// Email Configuration
-// Devistars hosting SMTP settings
-define('SMTP_HOST', 'smtp.devistars.com');
-define('SMTP_PORT', 465); // SSL port as shown in your config
-define('SMTP_USERNAME', 'jpi@devistars.com');
-define('SMTP_PASSWORD', 'Anique0ali@'); // ⚠️ REPLACE WITH YOUR ACTUAL EMAIL PASSWORD
-define('SMTP_FROM_EMAIL', 'jpi@devistars.com');
-define('SMTP_FROM_NAME', 'JPI');
+// Email Configuration - SECURITY FIX: Use secure config
+define('SMTP_HOST', $config['SMTP_HOST']);
+define('SMTP_PORT', $config['SMTP_PORT']);
+define('SMTP_USERNAME', $config['SMTP_USERNAME']);
+define('SMTP_PASSWORD', $config['SMTP_PASSWORD']);
+define('SMTP_FROM_EMAIL', $config['SMTP_USERNAME']);
+define('SMTP_FROM_NAME', 'QR Attendance System');
 define('EMAIL_DEBUG_MODE', false); // Set to false for production email sending
 
 // Set CSRF token

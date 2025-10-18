@@ -6,9 +6,11 @@
 
 // Set content type to JSON
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// SECURITY FIX: Restrict CORS to specific domains
+header('Access-Control-Allow-Origin: http://localhost');
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+header('Access-Control-Allow-Credentials: true');
 
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -271,6 +273,85 @@ class AuthSystem {
             return $stmt->rowCount();
         } catch (Exception $e) {
             return 0;
+        }
+    }
+    
+    /**
+     * Register a new student
+     */
+    public function registerStudent($username, $email, $password, $student_id, $name, $phone) {
+        try {
+            // SECURITY FIX: Use secure password hashing
+            require_once __DIR__ . '/../../includes/password_manager.php';
+            
+            // Validate input
+            if (empty($username) || empty($email) || empty($password) || empty($student_id) || empty($name)) {
+                return ['success' => false, 'message' => 'All required fields must be filled'];
+            }
+            
+            // Validate email format
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return ['success' => false, 'message' => 'Invalid email format'];
+            }
+            
+            // Validate password strength
+            $passwordValidation = PasswordManager::validatePassword($password);
+            if (!$passwordValidation['valid']) {
+                return ['success' => false, 'message' => 'Password does not meet requirements: ' . implode(', ', $passwordValidation['errors'])];
+            }
+            
+            // Check if username or email already exists
+            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+            $stmt->execute([$username, $email]);
+            if ($stmt->fetch()) {
+                return ['success' => false, 'message' => 'Username or email already exists'];
+            }
+            
+            // Check if student_id already exists
+            $stmt = $this->pdo->prepare("SELECT id FROM students WHERE student_id = ?");
+            $stmt->execute([$student_id]);
+            if ($stmt->fetch()) {
+                return ['success' => false, 'message' => 'Student ID already exists'];
+            }
+            
+            // Hash password
+            $hashed_password = PasswordManager::hashPassword($password);
+            
+            // Start transaction
+            $this->pdo->beginTransaction();
+            
+            try {
+                // Insert into users table
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO users (username, email, password_hash, role, is_active, created_at) 
+                    VALUES (?, ?, ?, 'student', 1, NOW())
+                ");
+                $stmt->execute([$username, $email, $hashed_password]);
+                $user_id = $this->pdo->lastInsertId();
+                
+                // Insert into students table
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO students (user_id, student_id, name, email, phone, password, is_active, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
+                ");
+                $stmt->execute([$user_id, $student_id, $name, $email, $phone, $hashed_password]);
+                
+                // Commit transaction
+                $this->pdo->commit();
+                
+                return [
+                    'success' => true, 
+                    'message' => 'Student registered successfully',
+                    'user_id' => $user_id
+                ];
+                
+            } catch (Exception $e) {
+                $this->pdo->rollBack();
+                throw $e;
+            }
+            
+        } catch (Exception $e) {
+            return ['success' => false, 'message' => 'Registration failed: ' . $e->getMessage()];
         }
     }
 }

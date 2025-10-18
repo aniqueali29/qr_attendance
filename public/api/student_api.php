@@ -8,9 +8,11 @@ require_once '../includes/config.php';
 require_once '../includes/auth.php';
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// SECURITY FIX: Restrict CORS to specific domains
+header('Access-Control-Allow-Origin: http://localhost');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-CSRF-Token');
+header('Access-Control-Allow-Credentials: true');
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -131,7 +133,9 @@ function getRecentAttendance() {
     }
     
     $student_id = $_SESSION['student_id'];
-    $limit = $_GET['limit'] ?? 10;
+    // SECURITY FIX: Validate limit parameter
+    require_once __DIR__ . '/../../includes/secure_database.php';
+    $limit = InputValidator::validateInt($_GET['limit'] ?? 10, 1, 100);
     $attendance = getStudentRecentAttendance($student_id, $limit);
     
     echo json_encode([

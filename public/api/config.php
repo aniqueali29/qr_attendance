@@ -46,7 +46,7 @@ define('SMTP_FROM_EMAIL', 'noreply@example.com');
 define('SMTP_FROM_NAME', 'QR Attendance System');
 
 // API Configuration
-define('API_KEY', 'attendance_2025_xyz789_secure');
+define('API_KEY', 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78');
 define('API_RATE_LIMIT', 100); // requests per hour
 define('API_TIMEOUT', 30); // seconds
 

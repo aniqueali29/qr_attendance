@@ -23,11 +23,11 @@ class StudentSync:
     def __init__(self, website_url=None, api_key=None):
         self.settings_manager = SettingsManager()
         self.website_url = website_url or self.settings_manager.get('website_url', 'http://localhost/qr_attendance/public')
-        self.api_key = api_key or self.settings_manager.get('api_key', 'attendance_2025_xyz789_secure')
+        self.api_key = api_key or self.settings_manager.get('api_key', 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78')
         self.students_file = "students.json"
         
         # Student API endpoint
-        self.student_api = f"{self.website_url}/api/student_api_simple.php"
+        self.student_api = f"{self.website_url}{self.settings_manager.get('api_endpoint_student_api', '/api/student_api_simple.php')}"
     
     def sync_from_web(self) -> bool:
         """Sync students from web to Python students.json"""
