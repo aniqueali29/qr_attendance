@@ -1,4 +1,5 @@
 {
+  "success": true,
   "settings": {
     "api_rate_limit": 100,
     "debug_mode": true,
@@ -37,16 +38,16 @@
     "qr_code_margin": 10,
     "qr_code_path": "assets/img/qr_codes/",
     "qr_code_size": 200,
-    "evening_checkin_end": "12:00 PM",
-    "evening_checkin_start": "09:00 AM",
-    "evening_checkout_end": "02:00 PM",
-    "evening_checkout_start": "09:00 AM",
-    "evening_class_end": "02:00 PM",
-    "morning_checkin_end": "12:00 PM",
-    "morning_checkin_start": "09:00 AM",
-    "morning_checkout_end": "01:40 PM",
-    "morning_checkout_start": "12:00 PM",
-    "morning_class_end": "01:40 PM",
+    "evening_checkin_end": "12:00",
+    "evening_checkin_start": "09:00",
+    "evening_checkout_end": "14:00",
+    "evening_checkout_start": "09:00",
+    "evening_class_end": "14:00",
+    "morning_checkin_end": "13:38",
+    "morning_checkin_start": "09:00",
+    "morning_checkout_end": "14:40",
+    "morning_checkout_start": "13:41",
+    "morning_class_end": "14:40",
     "academic_year_start_month": 9,
     "auto_absent_evening_hour": 17,
     "auto_absent_morning_hour": 11,
@@ -54,6 +55,7 @@
     "sync_interval_seconds": 30,
     "timezone": "Asia/Karachi"
   },
-  "last_updated": "2025-10-18 17:51:07",
-  "updated_by": "python_app"
+  "last_updated": "2025-10-20 13:36:19",
+  "updated_by": "api_sync",
+  "total_settings": 53
 }

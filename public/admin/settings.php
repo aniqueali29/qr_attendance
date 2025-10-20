@@ -321,36 +321,6 @@ include 'partials/navbar.php';
                                         <div class="form-text">API endpoint for dashboard data</div>
                                     </div>
                                     <div class="col-12">
-                                        <label for="api_endpoint_students" class="form-label">Students Sync API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_students" value="/api/students_sync.php">
-                                        <div class="form-text">API endpoint for student synchronization</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_endpoint_settings" class="form-label">Settings Sync API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_settings" value="/api/settings_sync.php">
-                                        <div class="form-text">API endpoint for settings synchronization</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_endpoint_settings_api" class="form-label">Settings API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_settings_api" value="/api/settings_api.php">
-                                        <div class="form-text">API endpoint for settings management</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_endpoint_student_api" class="form-label">Student API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_student_api" value="/api/student_api_simple.php">
-                                        <div class="form-text">API endpoint for student data operations</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_endpoint_admin_attendance" class="form-label">Admin Attendance API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_admin_attendance" value="/admin/api/attendance.php">
-                                        <div class="form-text">API endpoint for admin attendance operations</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_endpoint_sync" class="form-label">Sync API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_sync" value="/api/sync_api.php">
-                                        <div class="form-text">API endpoint for general synchronization</div>
-                                    </div>
-                                    <div class="col-12">
                                         <label for="api_timeout_seconds" class="form-label">API Timeout (seconds)</label>
                                         <input type="number" class="form-control" id="api_timeout_seconds" value="30" min="5" max="120">
                                         <div class="form-text">Timeout for API requests</div>
