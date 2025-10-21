@@ -13,7 +13,6 @@ requireAdminAuth();
 $pageTitle = 'Scan Attendance';
 // Load enhanced scanner module
 $pageJS = [];
-// Don't add CSS here - we'll link it manually below
 
 include 'partials/header.php';
 include 'partials/sidebar.php';
@@ -43,7 +42,7 @@ include 'partials/navbar.php';
                                 <span id="mode-label">Scanner</span> mode
                             </label>
                         </div>
-                        <span class="badge bg-label-info" id="scanner-status">Ready</span>
+                        <span class="badge bg-label-secondary" id="scanner-status">Ready</span>
                         <button type="button" class="btn btn-sm btn-outline-secondary settings-icon-btn" 
                                 data-bs-toggle="modal" data-bs-target="#scannerConfigModal" title="Scanner Settings">
                             <i class="bx bx-cog"></i>
@@ -51,20 +50,25 @@ include 'partials/navbar.php';
                     </div>
                 </div>
                 <div class="card-body">
-                    <p class="mb-3 text-muted">
-                        <i class="bx bx-info-circle"></i>
+                    <div class="alert alert-info" role="alert">
+                        <i class="bx bx-info-circle me-2"></i>
                         Scan student card or toggle to Manual mode for keyboard entry.
-                    </p>
+                    </div>
 
                     <!-- Scanner Section -->
                     <div id="scanner-section">
-                        <div class="mb-3">
+                        <div class="mb-4">
                             <label for="scan-input" class="form-label">Scan Input</label>
-                            <input type="text" id="scan-input" class="form-control form-control-lg" 
-                                   placeholder="Focus here and scan..." 
-                                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-                            <div class="form-text">
-                                <i class="bx bx-help-circle"></i>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text">
+                                    <i class="bx bx-qr-scan"></i>
+                                </span>
+                                <input type="text" id="scan-input" class="form-control form-control-lg" 
+                                       placeholder="Focus here and scan..." 
+                                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                            </div>
+                            <div class="form-text mt-2">
+                                <i class="bx bx-help-circle me-1"></i>
                                 Barcode/QR scanner input field. Auto-clears after each scan. Press <kbd>Alt+I</kbd> to refocus.
                             </div>
                         </div>
@@ -76,14 +80,24 @@ include 'partials/navbar.php';
                         <div class="row g-3">
                             <div class="col-md-12">
                                 <label for="manual-student-id" class="form-label">Student ID</label>
-                                <input type="text" id="manual-student-id" class="form-control" placeholder="e.g., 25-SWT-01">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bx bx-id-card"></i>
+                                    </span>
+                                    <input type="text" id="manual-student-id" class="form-control" placeholder="e.g., 25-SWT-01">
+                                </div>
                             </div>
                             <div class="col-md-12">
                                 <label for="manual-notes" class="form-label">Notes (optional)</label>
-                                <input type="text" id="manual-notes" class="form-control" placeholder="Optional notes...">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bx bx-notepad"></i>
+                                    </span>
+                                    <input type="text" id="manual-notes" class="form-control" placeholder="Optional notes...">
+                                </div>
                             </div>
                             <div class="col-12">
-                                <button type="button" id="manual-submit" class="btn btn-primary w-100">
+                                <button type="button" id="manual-submit" class="btn btn-primary w-100 btn-lg">
                                     <i class="bx bx-save me-1"></i>Save Attendance
                                 </button>
                             </div>
@@ -95,52 +109,59 @@ include 'partials/navbar.php';
                     <!-- Stats and Actions -->
                     <div class="d-flex align-items-center justify-content-between mt-4 pt-3 border-top">
                         <div>
-                            <div class="d-flex gap-3">
-                                <div>
-                                    <small class="text-muted d-block">Total Today</small>
-                                    <strong class="fs-5" id="scan-count">0</strong>
+                            <div class="d-flex gap-4">
+                                <div class="text-center">
+                                    <div class="text-muted small">Total Today</div>
+                                    <div class="fw-bold fs-4" id="scan-count">0</div>
                                 </div>
-                                <div>
-                                    <small class="text-muted d-block">Last Scan</small>
-                                    <strong class="fs-6" id="last-scan-time">-</strong>
+                                <div class="text-center">
+                                    <div class="text-muted small">Last Scan</div>
+                                    <div class="fw-bold" id="last-scan-time">-</div>
                                 </div>
                             </div>
                         </div>
-                        <div class="btn-group-vertical btn-group-sm">
-                            <button type="button" id="auto-absent-btn" class="btn btn-info">
-                                <i class="bx bx-time me-1"></i>Auto Check
-                            </button>
-                            <button type="button" id="mark-absent-btn" class="btn btn-warning">
-                                <i class="bx bx-user-x me-1"></i>Mark Absent
-                            </button>
+                        <div>
+                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                <button type="button" id="auto-absent-btn" class="btn btn-outline-primary mb-1">
+                                    <i class="bx bx-time me-1"></i>Auto Check
+                                </button>
+                                <button type="button" id="mark-absent-btn" class="btn btn-outline-warning">
+                                    <i class="bx bx-user-x me-1"></i>Mark Absent
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
             <!-- Tips Card -->
-            <div class="card">
+            <!-- <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0"><i class="bx bx-bulb me-1"></i>Scanner Tips</h6>
                 </div>
                 <div class="card-body">
-                    <ul class="mb-0 ps-3 small">
-                        <li>Keep scanner input focused - press <kbd>Alt+I</kbd> if needed</li>
-                        <li>Duplicate scans are ignored for 3 seconds</li>
-                        <li>Student preview shows before attendance is saved</li>
+                    <ul class="mb-0 ps-3">
+                        <li class="mb-2">Keep scanner input focused - press <kbd>Alt+I</kbd> if needed</li>
+                        <li class="mb-2">Duplicate scans are ignored for 3 seconds</li>
+                        <li class="mb-2">Student preview shows before attendance is saved</li>
                         <li>Use <i class="bx bx-cog"></i> settings to customize scanner behavior</li>
                     </ul>
                 </div>
-            </div>
+            </div> -->
         </div>
 
         <!-- Middle Column: Student Preview (25%) - Hidden until scan -->
-        <div class="col-12 col-lg-3">
+        <div class="col-12 col-lg-6">
             <div id="student-preview" class="card" style="display:none">
                 <div class="card-header">
                     <h6 class="mb-0"><i class="bx bx-user me-1"></i>Student Preview</h6>
                 </div>
                 <div class="card-body text-center">
+                    <div class="preview-loading d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
                     <img id="preview-photo" src="assets/img/default-avatar.svg" 
                          class="rounded-circle mb-3" width="120" height="120" alt="Student Photo">
                     <h5 id="preview-name" class="mb-1">-</h5>
@@ -151,35 +172,38 @@ include 'partials/navbar.php';
                     <div id="preview-status" class="mb-3">
                         <span class="badge bg-secondary">Not checked in today</span>
                     </div>
-                    <div class="btn-group w-100">
+                    <div class="btn-group w-100 mb-3" role="group">
                         <button class="btn btn-success" id="preview-confirm">
                             <i class="bx bx-check"></i> Confirm
                         </button>
-                        <button class="btn btn-secondary" id="preview-cancel">
+                        <button class="btn btn-outline-secondary" id="preview-cancel">
                             <i class="bx bx-x"></i> Cancel
                         </button>
                     </div>
-                    <p class="text-muted mt-2 mb-0 small">
-                        <i class="bx bx-time-five"></i> Auto-confirms in <span id="auto-confirm-timer">2</span> seconds
-                    </p>
+                    <div class="alert alert-light border p-2 small mb-0">
+                        <i class="bx bx-time-five me-1"></i> Auto-confirms in <span id="auto-confirm-timer">2</span> seconds
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Right Column: Recent Scans (25%) - Always visible -->
-        <div class="col-12 col-lg-3">
+        <div class="col-12 col-lg-6">
             <div class="card mb-4">
                 <div class="card-header">
                     <h6 class="mb-0"><i class="bx bx-history me-1"></i>Recent Scans</h6>
                 </div>
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush" id="recent-scans" style="max-height: 500px; overflow-y: auto;">
-                        <li class="list-group-item text-body-secondary">No scans yet</li>
+                        <li class="list-group-item text-muted text-center py-4">
+                            <i class="bx bx-history bx-lg"></i>
+                            <div class="mt-2">No scans yet</div>
+                        </li>
                     </ul>
                 </div>
             </div>
-                </div>
-            </div>
+        </div>
+    </div>
 
     <!-- Diagnostics Panel (Collapsible) -->
     <div class="row mt-4">
@@ -198,18 +222,24 @@ include 'partials/navbar.php';
                                 <div class="col-md-6">
                                     <h6 class="mb-3"><i class="bx bx-chip me-1"></i>System Status</h6>
                                     <div id="system-status">
-                                        <p class="text-muted">Loading system information...</p>
+                                        <div class="text-center py-3">
+                                            <div class="spinner-border text-primary" role="status"></div>
+                                            <div class="mt-2">Loading system information...</div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <h6 class="mb-3"><i class="bx bx-list-ul me-1"></i>Scanner Activity Log</h6>
-                                    <div id="diagnostic-logs" style="max-height:300px;overflow-y:auto" class="border rounded p-2">
-                                        <p class="text-muted small">Activity will appear here...</p>
+                                    <div id="diagnostic-logs" style="max-height:300px;overflow-y:auto" class="border rounded p-2 bg-light">
+                                        <div class="text-center py-3 text-muted">
+                                            <i class="bx bx-file bx-lg"></i>
+                                            <div class="mt-2">Activity will appear here...</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -229,17 +259,17 @@ include 'partials/navbar.php';
                 <div class="mb-3">
                     <label class="form-label">Scan Debounce (milliseconds)</label>
                     <input type="number" class="form-control" id="config-debounce" value="800" min="0" max="5000" step="100">
-                    <small class="form-text text-muted">Minimum time between scans to prevent double-scanning</small>
+                    <div class="form-text">Minimum time between scans to prevent double-scanning</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Duplicate Suppression (milliseconds)</label>
                     <input type="number" class="form-control" id="config-duplicate" value="3000" min="0" max="10000" step="500">
-                    <small class="form-text text-muted">Ignore same student ID within this time window</small>
+                    <div class="form-text">Ignore same student ID within this time window</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Auto-confirm Delay (milliseconds)</label>
                     <input type="number" class="form-control" id="config-autoconfirm" value="2000" min="0" max="10000" step="500">
-                    <small class="form-text text-muted">Time before auto-confirming student preview (0 = manual only)</small>
+                    <div class="form-text">Time before auto-confirming student preview (0 = manual only)</div>
                 </div>
                 <hr>
                 <div class="form-check mb-3">
@@ -289,7 +319,7 @@ function loadRecentScans() {
                     recentScansList.appendChild(li);
                 });
             } else {
-                recentScansList.innerHTML = '<li class="list-group-item text-body-secondary">No recent scans</li>';
+                recentScansList.innerHTML = '<li class="list-group-item text-muted text-center py-4"><i class="bx bx-history bx-lg"></i><div class="mt-2">No recent scans</div></li>';
             }
         })
         .catch(error => console.error('Error loading recent scans:', error));
