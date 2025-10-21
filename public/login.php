@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Check rate limiting
         $client_ip = getClientIP();
         // SECURITY FIX: Use authentication middleware
-        require_once __DIR__ . '/../includes/auth_middleware.php';
+        require_once __DIR__ . '/includes_ext/auth_middleware.php';
         
         if (!AuthMiddleware::checkRateLimit($client_ip)) {
             $lockout_time = AuthMiddleware::getLockoutTime($client_ip);

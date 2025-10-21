@@ -4,7 +4,7 @@
  * Automatically promotes students to the next year level at the end of September
  */
 
-require_once '../includes/config.php';
+require_once __DIR__ . '/../includes/config.php';
 
 header('Content-Type: application/json');
 

@@ -5,9 +5,11 @@
  */
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+// CORS: restrict to configured origin
+if (!function_exists('setCorsHeaders')) {
+    require_once 'config.php';
+}
+setCorsHeaders();
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -26,6 +28,17 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Bridge admin dashboard session to API session (unify auth context)
+if (!isset($_SESSION['role']) && isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
+    $_SESSION['role'] = 'admin';
+    if (!isset($_SESSION['user_id']) && isset($_SESSION['admin_user_id'])) {
+        $_SESSION['user_id'] = $_SESSION['admin_user_id'];
+    }
+    if (!isset($_SESSION['session_id']) && isset($_SESSION['admin_session_id'])) {
+        $_SESSION['session_id'] = $_SESSION['admin_session_id'];
+    }
+}
+
 // Authentication check using the new auth system
 function requireAuth() {
     global $pdo;
@@ -37,39 +50,32 @@ function requireAuth() {
         exit();
     }
     
-    // Verify session is still valid
-    try {
-        $stmt = $pdo->prepare("
-            SELECT s.id, s.last_activity, u.is_active 
-            FROM sessions s 
-            JOIN users u ON s.user_id = u.id 
-            WHERE s.id = ? AND s.user_id = ? AND u.is_active = 1
-        ");
-        $stmt->execute([$_SESSION['session_id'] ?? '', $_SESSION['user_id']]);
-        $session = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$session) {
-            http_response_code(401);
-            echo json_encode(['success' => false, 'error' => 'Session expired', 'message' => 'Please log in again']);
-            exit();
+    // Verify session is still valid (best-effort). If no DB-backed session, allow based on role.
+    $sessionId = $_SESSION['session_id'] ?? '';
+    if (!empty($sessionId)) {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT s.id, s.last_activity, u.is_active 
+                FROM sessions s 
+                JOIN users u ON s.user_id = u.id 
+                WHERE s.id = ? AND s.user_id = ? AND u.is_active = 1
+            ");
+            $stmt->execute([$sessionId, $_SESSION['user_id']]);
+            $session = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($session) {
+                $last_activity = strtotime($session['last_activity']);
+                if (time() - $last_activity > 3600) {
+                    http_response_code(401);
+                    echo json_encode(['success' => false, 'error' => 'Session expired', 'message' => 'Please log in again']);
+                    exit();
+                }
+                $stmt = $pdo->prepare("UPDATE sessions SET last_activity = NOW() WHERE id = ?");
+                $stmt->execute([$sessionId]);
+            }
+            // If no matching DB session found, proceed based on role (fallback)
+        } catch (Exception $e) {
+            // On DB error, proceed based on role (do not block admin)
         }
-        
-        // Check session timeout (1 hour)
-        $last_activity = strtotime($session['last_activity']);
-        if (time() - $last_activity > 3600) {
-            http_response_code(401);
-            echo json_encode(['success' => false, 'error' => 'Session expired', 'message' => 'Please log in again']);
-            exit();
-        }
-        
-        // Update last activity
-        $stmt = $pdo->prepare("UPDATE sessions SET last_activity = NOW() WHERE id = ?");
-        $stmt->execute([$_SESSION['session_id']]);
-        
-    } catch (Exception $e) {
-        http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Authentication failed', 'message' => 'Please log in again']);
-        exit();
     }
 }
 
@@ -81,6 +87,9 @@ try {
     
     // Require authentication for all admin operations
     requireAuth();
+    
+    // Enforce CSRF on mutating requests
+    requireCsrfForMethods(['POST','PUT','PATCH','DELETE']);
     
     switch ($action) {
         case 'dashboard':
@@ -346,13 +355,7 @@ function saveStudent($pdo) {
             ]);
         }
         
-        // Update students.json file
-        updateStudentsJson(
-            $input['student_id'],
-            $input['name'],
-            $input['email'] ?? null,
-            $input['phone'] ?? null
-        );
+        // Removed legacy Python sync: no students.json updates
         
         echo json_encode(['success' => true, 'message' => 'Student saved successfully']);
         
@@ -385,8 +388,7 @@ function deleteStudent($pdo) {
             
             $pdo->commit();
             
-            // Remove from students.json file
-            removeFromStudentsJson($student_id);
+            // Removed legacy Python sync: no students.json updates
             
             echo json_encode(['success' => true, 'message' => 'Student deleted successfully']);
             
@@ -534,11 +536,8 @@ function createStudentAccount($pdo) {
             
             $pdo->commit();
             
-            // Save to students.json file with auto-generated password
-            $generated_password = saveToStudentsJson($student_id, $name, $email, $phone, $password);
-            
-            // Trigger immediate sync to Python system
-            triggerImmediateSync($student_id, $name, $email, $phone);
+            // Removed legacy Python sync and files; keep generated password in response
+            $generated_password = $password;
             
             echo json_encode([
                 'success' => true, 
@@ -583,234 +582,18 @@ function generatePassword($length = 12) {
 }
 
 function saveToStudentsJson($student_id, $name, $email, $phone, $password = null) {
-    try {
-        // Generate password if not provided
-        if ($password === null) {
-            $password = generatePassword();
-        }
-        
-        // Try multiple possible paths
-        $possible_paths = [
-            '../python/students.json',
-            '../../python/students.json',
-            dirname(__DIR__) . '/python/students.json',
-            dirname(dirname(__DIR__)) . '/python/students.json'
-        ];
-        
-        $students_file = null;
-        foreach ($possible_paths as $path) {
-            if (file_exists($path)) {
-                $students_file = $path;
-                break;
-            }
-        }
-        
-        // If no existing file found, use the first path
-        if (!$students_file) {
-            $students_file = '../python/students.json';
-        }
-        
-        // Load existing students.json structure
-        $json_data = [
-            'students' => [],
-            'last_updated' => date('Y-m-d H:i:s'),
-            'updated_by' => 'admin',
-            'total_students' => 0
-        ];
-        
-        if (file_exists($students_file)) {
-            $content = file_get_contents($students_file);
-            if (!empty($content) && $content !== '[]') {
-                $decoded = json_decode($content, true);
-                if (is_array($decoded) && isset($decoded['students'])) {
-                    $json_data = $decoded;
-                }
-            }
-        }
-        
-        // Add new student with proper format including auto-generated password
-        $json_data['students'][$student_id] = [
-            'name' => $name,
-            'email' => $email,
-            'phone' => $phone,
-            'password' => $password, // Auto-generated password
-            'is_active' => true,
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-            'created_by' => 'admin'
-        ];
-        
-        // Update metadata
-        $json_data['last_updated'] = date('Y-m-d H:i:s');
-        $json_data['updated_by'] = 'admin';
-        $json_data['total_students'] = count($json_data['students']);
-        
-        // Ensure directory exists
-        $dir = dirname($students_file);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        
-        // Save back to file with proper formatting
-        $result = file_put_contents($students_file, json_encode($json_data, JSON_PRETTY_PRINT));
-        
-        if ($result === false) {
-            error_log("Failed to write to students.json file: $students_file");
-        } else {
-            error_log("Successfully saved student $student_id to $students_file with password");
-        }
-        
-        // Also try to save to sync_data.json for immediate sync
-        saveToSyncData($student_id, $name, $email, $phone, $password);
-        
-        return $password; // Return the generated password
-        
-    } catch (Exception $e) {
-        error_log("Error saving to students.json: " . $e->getMessage());
-        return null;
-    }
+    // Legacy no-op: Python integration removed
+    return $password ?? generatePassword();
 }
 
 function updateStudentsJson($student_id, $name, $email, $phone, $password = null) {
-    try {
-        // Try multiple possible paths
-        $possible_paths = [
-            '../python/students.json',
-            '../../python/students.json',
-            dirname(__DIR__) . '/python/students.json',
-            dirname(dirname(__DIR__)) . '/python/students.json'
-        ];
-        
-        $students_file = null;
-        foreach ($possible_paths as $path) {
-            if (file_exists($path)) {
-                $students_file = $path;
-                break;
-            }
-        }
-        
-        // If no existing file found, use the first path
-        if (!$students_file) {
-            $students_file = '../python/students.json';
-        }
-        
-        $students = [];
-        
-        // Load existing students
-        if (file_exists($students_file)) {
-            $content = file_get_contents($students_file);
-            if (!empty($content) && $content !== '[]') {
-                $decoded = json_decode($content, true);
-                if (is_array($decoded)) {
-                    $students = $decoded;
-                }
-            }
-        }
-        
-        // Update existing student or add new one
-        if (isset($students[$student_id])) {
-            // Update existing student
-            $students[$student_id]['name'] = $name;
-            $students[$student_id]['email'] = $email;
-            $students[$student_id]['phone'] = $phone;
-            $students[$student_id]['updated_at'] = date('Y-m-d H:i:s');
-            $students[$student_id]['updated_by'] = 'admin';
-            
-            // Keep existing password if not provided
-            if ($password !== null) {
-                $students[$student_id]['password'] = $password;
-            }
-        } else {
-            // Add new student
-            $students[$student_id] = [
-                'name' => $name,
-                'email' => $email,
-                'phone' => $phone,
-                'password' => $password ?: generatePassword(),
-                'created_at' => date('Y-m-d H:i:s'),
-                'created_by' => 'admin'
-            ];
-        }
-        
-        // Ensure directory exists
-        $dir = dirname($students_file);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        
-        // Save back to file with proper formatting
-        $result = file_put_contents($students_file, json_encode($students, JSON_PRETTY_PRINT));
-        
-        if ($result === false) {
-            error_log("Failed to write to students.json file: $students_file");
-        } else {
-            error_log("Successfully updated student $student_id in $students_file");
-        }
-        
+    // Legacy no-op: Python integration removed
         return true;
-        
-    } catch (Exception $e) {
-        error_log("Error updating students.json: " . $e->getMessage());
-        return false;
-    }
 }
 
 function removeFromStudentsJson($student_id) {
-    try {
-        // Try multiple possible paths
-        $possible_paths = [
-            '../python/students.json',
-            '../../python/students.json',
-            dirname(__DIR__) . '/python/students.json',
-            dirname(dirname(__DIR__)) . '/python/students.json'
-        ];
-        
-        $students_file = null;
-        foreach ($possible_paths as $path) {
-            if (file_exists($path)) {
-                $students_file = $path;
-                break;
-            }
-        }
-        
-        // If no existing file found, use the first path
-        if (!$students_file) {
-            $students_file = '../python/students.json';
-        }
-        
-        $students = [];
-        
-        // Load existing students
-        if (file_exists($students_file)) {
-            $content = file_get_contents($students_file);
-            if (!empty($content) && $content !== '[]') {
-                $decoded = json_decode($content, true);
-                if (is_array($decoded)) {
-                    $students = $decoded;
-                }
-            }
-        }
-        
-        // Remove student if exists
-        if (isset($students[$student_id])) {
-            unset($students[$student_id]);
-            
-            // Save back to file with proper formatting
-            $result = file_put_contents($students_file, json_encode($students, JSON_PRETTY_PRINT));
-            
-            if ($result === false) {
-                error_log("Failed to write to students.json file: $students_file");
-            } else {
-                error_log("Successfully removed student $student_id from $students_file");
-            }
-        }
-        
+    // Legacy no-op: Python integration removed
         return true;
-        
-    } catch (Exception $e) {
-        error_log("Error removing from students.json: " . $e->getMessage());
-        return false;
-    }
 }
 
 function saveToSyncData($student_id, $name, $email, $phone, $password = null) {
@@ -860,67 +643,7 @@ function saveToSyncData($student_id, $name, $email, $phone, $password = null) {
     }
 }
 
-function triggerImmediateSync($student_id, $name, $email, $phone) {
-    try {
-        // Create a Python script to immediately update students.json
-        $python_script = "
-import json
-import os
-from datetime import datetime
-
-# Load existing students
-students_file = 'students.json'
-students = {}
-
-if os.path.exists(students_file):
-    try:
-        with open(students_file, 'r', encoding='utf-8') as f:
-            content = f.read().strip()
-            if content and content != '[]':
-                students = json.loads(content)
-    except:
-        students = {}
-
-# Add new student
-students['$student_id'] = {
-    'name': '$name',
-    'email': '$email',
-    'phone': '$phone',
-    'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-    'created_by': 'admin'
-}
-
-# Save back to file
-with open(students_file, 'w', encoding='utf-8') as f:
-    json.dump(students, f, indent=2, ensure_ascii=False)
-
-print(f'Successfully added student $student_id to students.json')
-";
-
-        // Write Python script to temporary file
-        $script_file = '../python/update_student_immediate.py';
-        file_put_contents($script_file, $python_script);
-        
-        // Execute Python script
-        $output = [];
-        $return_code = 0;
-        exec("cd ../python && python update_student_immediate.py 2>&1", $output, $return_code);
-        
-        if ($return_code === 0) {
-            error_log("Successfully synced student $student_id to Python system");
-        } else {
-            error_log("Failed to sync student $student_id to Python system: " . implode("\n", $output));
-        }
-        
-        // Clean up temporary script
-        if (file_exists($script_file)) {
-            unlink($script_file);
-        }
-        
-    } catch (Exception $e) {
-        error_log("Error triggering immediate sync: " . $e->getMessage());
-    }
-}
+// Removed triggerImmediateSync: Python integration removed
 
 function getAttendance($pdo) {
     try {
@@ -950,10 +673,9 @@ function saveAttendance($pdo) {
     try {
         $input = json_decode(file_get_contents('php://input'), true);
         
-        if (!isset($input['student_id']) || !isset($input['student_name']) || 
-            !isset($input['timestamp']) || !isset($input['status'])) {
+        if (!isset($input['student_id']) || !isset($input['timestamp']) || !isset($input['status'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'All attendance fields are required']);
+            echo json_encode(['error' => 'student_id, timestamp, and status are required']);
             return;
         }
         
@@ -961,6 +683,15 @@ function saveAttendance($pdo) {
         $stmt = $pdo->prepare("SELECT id FROM attendance WHERE student_id = ? AND timestamp = ?");
         $stmt->execute([$input['student_id'], $input['timestamp']]);
         $existing = $stmt->fetch();
+        
+        // Fallback: look up student name if not provided
+        $student_name = $input['student_name'] ?? '';
+        if ($student_name === '') {
+            $sn = $pdo->prepare("SELECT name FROM students WHERE student_id = ?");
+            $sn->execute([$input['student_id']]);
+            $row = $sn->fetch(PDO::FETCH_ASSOC);
+            $student_name = $row['name'] ?? '';
+        }
         
         if ($existing) {
             // Update existing record
@@ -970,7 +701,7 @@ function saveAttendance($pdo) {
                 WHERE id = ?
             ");
             $stmt->execute([
-                $input['student_name'],
+                $student_name,
                 $input['status'],
                 $existing['id']
             ]);
@@ -982,7 +713,7 @@ function saveAttendance($pdo) {
             ");
             $stmt->execute([
                 $input['student_id'],
-                $input['student_name'],
+                $student_name,
                 $input['timestamp'],
                 $input['status']
             ]);

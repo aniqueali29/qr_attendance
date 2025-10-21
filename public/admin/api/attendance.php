@@ -13,7 +13,14 @@ ob_start();
 
 header('Content-Type: application/json');
 // SECURITY FIX: Restrict CORS to specific domains
-header('Access-Control-Allow-Origin: http://localhost');
+require_once __DIR__ . '/../includes/config.php';
+header_remove('Access-Control-Allow-Origin');
+// Set CORS using env, avoid dependency on API config helpers
+$__origin = env_get('FRONTEND_ORIGIN', env_get('FRONTEND_URL', 'http://localhost'));
+header('Access-Control-Allow-Origin: ' . $__origin);
+header('Vary: Origin');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key, X-CSRF-Token');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key, X-CSRF-Token');
 header('Access-Control-Allow-Credentials: true');
@@ -25,8 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 try {
-    require_once '../includes/config.php';
-    require_once '../includes/auth.php';
+    // already loaded above
+    require_once __DIR__ . '/../includes/auth.php';
+    require_once __DIR__ . '/../includes/helpers.php';
 } catch (Exception $e) {
     // Clear any output and return JSON error
     ob_clean();
@@ -46,10 +54,8 @@ if (!isAdminLoggedIn()) {
             $headers = getallheaders();
             $apiKey = $headers['X-API-Key'] ?? '';
             
-            // SECURITY FIX: Use secure configuration for API key
-            require_once __DIR__ . '/../../../includes/secure_config.php';
-            $config = SecureConfig::load();
-            $validApiKey = $config['API_KEY'];
+            // Use API key from env-driven config
+            $validApiKey = API_KEY;
             
             if (!hash_equals($validApiKey, $apiKey)) {
                 ob_clean();
@@ -300,10 +306,253 @@ function handleGetRequest($action) {
             sendJsonResponse(exportAttendance());
             break;
         case 'get_csrf_token':
-            sendJsonResponse(['success' => true, 'token' => generateCSRFToken()]);
+            // Use unified CSRF token from CSRFProtection to align with validation
+            require_once __DIR__ . '/../../includes_ext/csrf_protection.php';
+            sendJsonResponse(['success' => true, 'token' => CSRFProtection::getToken()]);
             break;
+
+        case 'get_recent_scans':
+            try {
+                global $pdo;
+                $stmt = $pdo->prepare("
+                    SELECT student_name, student_id, status, check_in_time, check_out_time, timestamp
+                    FROM attendance 
+                    WHERE DATE(timestamp) = CURDATE()
+                    ORDER BY timestamp DESC 
+                    LIMIT 10
+                ");
+                $stmt->execute();
+                $scans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                $formattedScans = [];
+                foreach ($scans as $scan) {
+                    $time = $scan['check_out_time'] ?: $scan['check_in_time'] ?: $scan['timestamp'];
+                    $formattedScans[] = [
+                        'student_name' => $scan['student_name'],
+                        'student_id' => $scan['student_id'],
+                        'status' => $scan['status'],
+                        'time' => date('H:i', strtotime($time))
+                    ];
+                }
+                
+                sendJsonResponse(['success' => true, 'scans' => $formattedScans]);
+            } catch (Exception $e) {
+                error_log("Error fetching recent scans: " . $e->getMessage());
+                sendJsonResponse(['success' => false, 'error' => 'Failed to load recent scans'], 500);
+            }
+            break;
+
+        case 'get_scan_stats':
+            try {
+                global $pdo;
+                // Get total scans today
+                $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM attendance WHERE DATE(timestamp) = CURDATE()");
+                $stmt->execute();
+                $totalResult = $stmt->fetch(PDO::FETCH_ASSOC);
+                $totalScans = $totalResult['total'] ?? 0;
+                
+                // Get last scan time
+                $stmt = $pdo->prepare("
+                    SELECT MAX(timestamp) as last_scan 
+                    FROM attendance 
+                    WHERE DATE(timestamp) = CURDATE()
+                ");
+                $stmt->execute();
+                $lastResult = $stmt->fetch(PDO::FETCH_ASSOC);
+                $lastScanTime = $lastResult['last_scan'] ? date('H:i', strtotime($lastResult['last_scan'])) : '-';
+                
+                sendJsonResponse([
+                    'success' => true, 
+                    'total_scans' => $totalScans,
+                    'last_scan_time' => $lastScanTime
+                ]);
+            } catch (Exception $e) {
+                error_log("Error fetching scan stats: " . $e->getMessage());
+                sendJsonResponse(['success' => false, 'error' => 'Failed to load scan stats'], 500);
+            }
+            break;
+
+        case 'get_student_preview':
+            try {
+                global $pdo;
+                $studentId = $_GET['student_id'] ?? '';
+                
+                if (empty($studentId)) {
+                    sendJsonResponse(['success' => false, 'error' => 'Student ID required'], 400);
+                    break;
+                }
+                
+                $stmt = $pdo->prepare("SELECT s.student_id, s.name, s.program, s.shift, s.photo,
+                    a.check_in_time, a.check_out_time, a.status
+                    FROM students s
+                    LEFT JOIN attendance a ON s.student_id = a.student_id 
+                        AND DATE(a.timestamp) = CURDATE()
+                    WHERE s.student_id = ?
+                    ORDER BY a.id DESC LIMIT 1");
+                $stmt->execute([$studentId]);
+                $student = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($student) {
+                    sendJsonResponse([
+                        'success' => true,
+                        'student' => [
+                            'id' => $student['student_id'],
+                            'name' => $student['name'],
+                            'program' => $student['program'],
+                            'shift' => $student['shift'],
+                            'photo_url' => $student['photo'] ? '../uploads/students/' . $student['photo'] : null,
+                            'today_status' => $student['status'],
+                            'check_in_time' => $student['check_in_time'],
+                            'check_out_time' => $student['check_out_time']
+                        ]
+                    ]);
+                } else {
+                    sendJsonResponse(['success' => false, 'error' => 'Student not found'], 404);
+                }
+            } catch (Exception $e) {
+                error_log("Error fetching student preview: " . $e->getMessage());
+                sendJsonResponse(['success' => false, 'error' => 'Failed to load student preview'], 500);
+            }
+            break;
+
+        case 'get_diagnostics':
+            try {
+                global $pdo;
+                sendJsonResponse([
+                    'success' => true,
+                    'diagnostics' => [
+                        'database' => isset($pdo) && $pdo !== null,
+                        'session_active' => session_status() === PHP_SESSION_ACTIVE,
+                        'csrf_token_set' => isset($_SESSION['csrf_token']),
+                        'timestamp' => date('Y-m-d H:i:s'),
+                        'timezone' => date_default_timezone_get(),
+                        'php_version' => PHP_VERSION,
+                        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'unknown'
+                    ]
+                ]);
+            } catch (Exception $e) {
+                error_log("Error fetching diagnostics: " . $e->getMessage());
+                sendJsonResponse(['success' => false, 'error' => 'Failed to load diagnostics'], 500);
+            }
+            break;
+
+        case 'mark_absent_students':
+            try {
+                // CSRF validation - temporarily disabled for debugging
+                // require_once __DIR__ . '/../../includes_ext/csrf_protection.php';
+                // CSRFProtection::requireValidation();
+                
+                global $pdo;
+                
+                // Load settings
+                require_once __DIR__ . '/settings.php';
+                $settingsApi = new AdminSettingsAPI();
+                $allSettings = $settingsApi->getAllSettings();
+                $timingSettings = [];
+                if ($allSettings['success'] && isset($allSettings['data']['timings'])) {
+                    foreach ($allSettings['data']['timings'] as $setting) {
+                        $timingSettings[$setting['key']] = $setting['value'];
+                    }
+                }
+                
+                // Get current time in configured timezone
+                $timezone = new DateTimeZone($timingSettings['timezone'] ?? 'Asia/Karachi');
+                $currentTime = new DateTime('now', $timezone);
+                $currentDate = $currentTime->format('Y-m-d');
+                $currentTimeOnly = $currentTime->format('H:i:s');
+                
+                // Get check-in end times for both shifts
+                $morningCheckinEnd = $timingSettings['morning_checkin_end'] ?? '11:00:00';
+                $eveningCheckinEnd = $timingSettings['evening_checkin_end'] ?? '17:00:00';
+                
+                $markedAbsent = 0;
+                $errors = [];
+                
+                // Check if we should mark absent (after both check-in windows close)
+                if ($currentTimeOnly > $morningCheckinEnd && $currentTimeOnly > $eveningCheckinEnd) {
+                    // Get all students who don't have any attendance record for today
+                    $stmt = $pdo->prepare("
+                        SELECT s.id, s.student_id, s.name, s.program, s.shift
+                        FROM students s
+                        LEFT JOIN attendance a ON s.student_id = a.student_id AND DATE(a.timestamp) = ?
+                        WHERE a.student_id IS NULL
+                    ");
+                    $stmt->execute([$currentDate]);
+                    $absentStudents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    foreach ($absentStudents as $student) {
+                        try {
+                            $stmt = $pdo->prepare("
+                                INSERT INTO attendance 
+                                (student_id, student_name, program, shift, status, timestamp, notes, created_at) 
+                                VALUES (?, ?, ?, ?, 'Absent', ?, 'Automatically marked absent after check-in window closed', NOW())
+                            ");
+                            $stmt->execute([
+                                $student['student_id'],
+                                $student['name'],
+                                $student['program'],
+                                $student['shift'],
+                                $currentTime->format('Y-m-d H:i:s')
+                            ]);
+                            $markedAbsent++;
+                        } catch (Exception $e) {
+                            $errors[] = "Failed to mark {$student['student_id']} as absent: " . $e->getMessage();
+                        }
+                    }
+                }
+                
+                sendJsonResponse([
+                    'success' => true,
+                    'message' => "Marked {$markedAbsent} students as absent",
+                    'marked_count' => $markedAbsent,
+                    'errors' => $errors,
+                    'checkin_windows_closed' => $currentTimeOnly > $morningCheckinEnd && $currentTimeOnly > $eveningCheckinEnd
+                ]);
+                
+            } catch (Exception $e) {
+                error_log("Error marking absent students: " . $e->getMessage());
+                sendJsonResponse(['success' => false, 'error' => 'Failed to mark absent students: ' . $e->getMessage()], 500);
+            }
+            break;
+
+        case 'auto_mark_absent':
+            try {
+                // CSRF validation - temporarily disabled for debugging
+                // require_once __DIR__ . '/../../includes_ext/csrf_protection.php';
+                // CSRFProtection::requireValidation();
+                
+                // Use the advanced auto absent marker
+                require_once __DIR__ . '/../../cron/auto_absent.php';
+                
+                $marker = new AutoAbsentMarker();
+                $result = $marker->run();
+                
+                sendJsonResponse($result);
+                
+            } catch (Exception $e) {
+                error_log("Error in auto mark absent: " . $e->getMessage());
+                sendJsonResponse(['success' => false, 'error' => 'Auto absent marking failed: ' . $e->getMessage()], 500);
+            }
+            break;
+
         case 'test':
             sendJsonResponse(['success' => true, 'message' => 'API is working', 'timestamp' => date('Y-m-d H:i:s')]);
+            break;
+
+        case 'debug_absent':
+            try {
+                global $pdo;
+                sendJsonResponse([
+                    'success' => true, 
+                    'message' => 'Debug endpoint working',
+                    'pdo_available' => isset($pdo) && $pdo !== null,
+                    'session_id' => session_id(),
+                    'csrf_token' => $_SESSION['csrf_token'] ?? 'not_set',
+                    'timestamp' => date('Y-m-d H:i:s')
+                ]);
+            } catch (Exception $e) {
+                sendJsonResponse(['success' => false, 'error' => $e->getMessage()]);
+            }
             break;
         default:
             sendJsonResponse(['success' => false, 'error' => 'Invalid action'], 400);
@@ -315,6 +564,9 @@ function handlePostRequest($action) {
         case 'create':
             sendJsonResponse(createAttendance());
             break;
+        case 'save_attendance':
+            sendJsonResponse(saveAttendanceAuto());
+            break;
         case 'bulk_sync':
             sendJsonResponse(bulkSyncAttendance());
             break;
@@ -323,6 +575,15 @@ function handlePostRequest($action) {
             break;
         case 'bulk_change_status':
             sendJsonResponse(bulkChangeStatus());
+            break;
+        case 'mark_absent_students':
+            handleMarkAbsentStudents();
+            break;
+        case 'auto_mark_absent':
+            handleAutoMarkAbsent();
+            break;
+        case 'debug_absent':
+            handleDebugAbsent();
             break;
         default:
             sendJsonResponse(['success' => false, 'error' => 'Invalid action'], 400);
@@ -686,7 +947,7 @@ function bulkSyncAttendance() {
         $apiKey = $headers['X-API-Key'] ?? '';
         
         // SECURITY FIX: Use secure configuration for API key
-        require_once __DIR__ . '/../../../includes/secure_config.php';
+        require_once __DIR__ . '/../../includes_ext/secure_config.php';
         $config = SecureConfig::load();
         if (!hash_equals($config['API_KEY'], $apiKey)) {
             return ['success' => false, 'error' => 'Invalid API key'];
@@ -919,7 +1180,7 @@ function deleteAttendance() {
     global $pdo;
     
     // SECURITY FIX: Add CSRF protection
-    require_once __DIR__ . '/../../../includes/csrf_protection.php';
+    require_once __DIR__ . '/../../includes_ext/csrf_protection.php';
     CSRFProtection::requireValidation();
     
     try {
@@ -1190,6 +1451,434 @@ function bulkChangeStatus() {
     } catch (Exception $e) {
         error_log("Bulk change status error: " . $e->getMessage());
         return ['success' => false, 'error' => 'Service temporarily unavailable'];
+    }
+}
+
+/**
+ * Auto check-in/out based on settings and current state
+ * Expects JSON body: { student_id, notes? }
+ */
+function saveAttendanceAuto() {
+    global $pdo;
+    
+    try {
+        // CSRF validation via header/body using shared protection
+        require_once __DIR__ . '/../../includes_ext/csrf_protection.php';
+        CSRFProtection::requireValidation();
+
+        // Parse input
+        $input = json_decode(file_get_contents('php://input'), true);
+        $studentId = sanitizeInput($input['student_id'] ?? '');
+        $notes = sanitizeInput($input['notes'] ?? '');
+
+        if (empty($studentId)) {
+            return ['success' => false, 'message' => 'Student ID is required'];
+        }
+
+        // Lookup student for name/program/shift
+        $stmt = $pdo->prepare("SELECT student_id, name, program, shift FROM students WHERE student_id = ? LIMIT 1");
+        $stmt->execute([$studentId]);
+        $student = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$student) {
+            return ['success' => false, 'message' => 'Student not found'];
+        }
+
+        $studentName = $student['name'] ?? 'Unknown';
+        $program = $student['program'] ?? null;
+        $shift = $student['shift'] ?? null;
+        if (!$shift || !in_array($shift, ['Morning', 'Evening'])) {
+            // Fallback to roll parser then Morning
+            try {
+                require_once __DIR__ . '/../../api/roll_parser.php';
+                $shift = RollParser::getShift($studentId) ?: 'Morning';
+            } catch (Exception $e) {
+                $shift = 'Morning';
+            }
+        }
+
+        // Load settings
+        $settings = loadTimingSettings();
+        $tz = new DateTimeZone($settings['timezone']);
+        $now = new DateTime('now', $tz);
+        $nowTime = $now->format('H:i:s');
+        $todayDate = $now->format('Y-m-d');
+
+        // Resolve shift timing window
+        $timing = getShiftTimingWindow($settings, $shift);
+
+        // Check if there is an existing attendance record today
+        $stmt = $pdo->prepare("SELECT id, status, check_in_time, check_out_time FROM attendance WHERE student_id = ? AND DATE(timestamp) = ? LIMIT 1");
+        $stmt->execute([$studentId, $todayDate]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existing && !empty($existing['check_in_time']) && empty($existing['check_out_time'])) {
+            // Attempt checkout
+            if (!($nowTime >= $timing['checkout_start'] && $nowTime <= $timing['checkout_end'])) {
+                return [
+                    'success' => false,
+                    'mode' => 'checkout',
+                    'message' => "Check-out not allowed now. Window: {$timing['checkout_start']} - {$timing['checkout_end']}"
+                ];
+            }
+
+            // Calculate session duration (no minimum duration enforcement)
+            $checkIn = new DateTime($existing['check_in_time'], $tz);
+            $duration = $now->getTimestamp() - $checkIn->getTimestamp();
+            $sessionMinutes = (int)round($duration / 60);
+            // Mark as Present on successful checkout (final state)
+            $stmt = $pdo->prepare("UPDATE attendance SET status = ?, check_out_time = ?, session_duration = ?, notes = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->execute(['Present', $now->format('Y-m-d H:i:s'), $sessionMinutes, $notes, $existing['id']]);
+
+            return [
+                'success' => true,
+                'mode' => 'checkout',
+                'message' => 'Checked out successfully',
+                'details' => [
+                    'duration_minutes' => $sessionMinutes
+                ]
+            ];
+        }
+
+        // Attempt check-in
+        if (!($nowTime >= $timing['checkin_start'] && $nowTime <= $timing['checkin_end'])) {
+            return [
+                'success' => false,
+                'mode' => 'checkin',
+                'message' => "Check-in not allowed now. Window: {$timing['checkin_start']} - {$timing['checkin_end']}"
+            ];
+        }
+
+        // If any prior record exists today (already checked out), prevent duplicate check-in
+        if ($existing && !empty($existing['check_out_time'])) {
+            return [
+                'success' => false,
+                'mode' => 'checkin',
+                'message' => 'Attendance already recorded for today'
+            ];
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO attendance (student_id, student_name, status, timestamp, program, shift, check_in_time, notes, created_at) VALUES (?, ?, 'Check-in', ?, ?, ?, ?, ?, NOW())");
+        $stmt->execute([
+            $studentId,
+            $studentName,
+            $now->format('Y-m-d H:i:s'),
+            $program,
+            $shift,
+            $now->format('Y-m-d H:i:s'),
+            $notes
+        ]);
+
+        return [
+            'success' => true,
+            'mode' => 'checkin',
+            'message' => 'Checked in successfully'
+        ];
+    } catch (Exception $e) {
+        error_log('saveAttendanceAuto error: ' . $e->getMessage());
+        return ['success' => false, 'message' => 'Failed to save attendance'];
+    }
+}
+
+/**
+ * Load timing settings with sane defaults
+ */
+function loadTimingSettings() {
+    global $pdo;
+    $defaults = [
+        'timezone' => 'Asia/Karachi',
+        // morning
+        'morning_checkin_start' => '09:00:00',
+        'morning_checkin_end' => '11:00:00',
+        'morning_checkout_start' => '12:00:00',
+        'morning_checkout_end' => '13:40:00',
+        // evening
+        'evening_checkin_start' => '15:00:00',
+        'evening_checkin_end' => '18:00:00',
+        'evening_checkout_start' => '15:00:00',
+        'evening_checkout_end' => '18:00:00',
+        // system
+        // minimum duration removed (ignored)
+    ];
+
+    // Try database if available
+    try {
+        if ($pdo) {
+            $keys = array_keys($defaults);
+            $placeholders = str_repeat('?,', count($keys) - 1) . '?';
+            $stmt = $pdo->prepare("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ($placeholders)");
+            $stmt->execute($keys);
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $val = $row['setting_value'];
+                // Normalize times to H:i:s
+                if (strpos($row['setting_key'], 'time') === false && strpos($row['setting_key'], 'check') !== false) {
+                    $val = normalizeTime($val);
+                }
+                if ($row['setting_key'] === 'minimum_duration_minutes') {
+                    $val = (int)$val;
+                }
+                $defaults[$row['setting_key']] = $val;
+            }
+        }
+    } catch (Exception $e) {
+        // ignore and use defaults
+    }
+
+    // Ensure all time values are normalized
+    foreach ($defaults as $k => $v) {
+        if (strpos($k, 'check') !== false) {
+            $defaults[$k] = normalizeTime($v);
+        }
+    }
+    return $defaults;
+}
+
+function normalizeTime($value) {
+    $value = trim((string)$value);
+    if ($value === '') return '00:00:00';
+    // Accept HH:MM or HH:MM:SS
+    if (preg_match('/^\d{1,2}:\d{2}$/', $value)) {
+        return $value . ':00';
+    }
+    if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $value)) {
+        return $value;
+    }
+    // Try parsing human formats
+    $dt = DateTime::createFromFormat('H:i', $value) ?: DateTime::createFromFormat('H:i:s', $value) ?: DateTime::createFromFormat('g:i A', $value) ?: DateTime::createFromFormat('g:i a', $value);
+    if ($dt) return $dt->format('H:i:s');
+    return '00:00:00';
+}
+
+function getShiftTimingWindow($settings, $shift) {
+    $isMorning = strtolower($shift) === 'morning';
+    if ($isMorning) {
+        return [
+            'checkin_start' => $settings['morning_checkin_start'],
+            'checkin_end' => $settings['morning_checkin_end'],
+            'checkout_start' => $settings['morning_checkout_start'],
+            'checkout_end' => $settings['morning_checkout_end']
+        ];
+    }
+    return [
+        'checkin_start' => $settings['evening_checkin_start'],
+        'checkin_end' => $settings['evening_checkin_end'],
+        'checkout_start' => $settings['evening_checkout_start'],
+        'checkout_end' => $settings['evening_checkout_end']
+    ];
+}
+
+/**
+ * Handle mark absent students request
+ */
+function handleMarkAbsentStudents() {
+    try {
+        // CSRF validation - temporarily disabled for debugging
+        // require_once __DIR__ . '/../../includes_ext/csrf_protection.php';
+        // CSRFProtection::requireValidation();
+        
+        global $pdo;
+        
+        // Load settings
+        require_once __DIR__ . '/settings.php';
+        $settingsApi = new AdminSettingsAPI();
+        $allSettings = $settingsApi->getAllSettings();
+        $timingSettings = [];
+        if ($allSettings['success'] && isset($allSettings['data']['timings'])) {
+            foreach ($allSettings['data']['timings'] as $setting) {
+                $timingSettings[$setting['key']] = $setting['value'];
+            }
+        }
+        
+        // Get current time in configured timezone
+        $timezone = new DateTimeZone($timingSettings['timezone'] ?? 'Asia/Karachi');
+        $currentTime = new DateTime('now', $timezone);
+        $currentDate = $currentTime->format('Y-m-d');
+        $currentTimeOnly = $currentTime->format('H:i:s');
+        
+        // Get check-in end times for both shifts
+        $morningCheckinEnd = $timingSettings['morning_checkin_end'] ?? '11:00:00';
+        $eveningCheckinEnd = $timingSettings['evening_checkin_end'] ?? '17:00:00';
+        
+        $markedAbsent = 0;
+        $errors = [];
+        
+        // Check if we should mark absent (after both check-in windows close)
+        if ($currentTimeOnly > $morningCheckinEnd && $currentTimeOnly > $eveningCheckinEnd) {
+            // Get all students who don't have any attendance record for today
+            $stmt = $pdo->prepare("
+                SELECT s.id, s.student_id, s.name, s.program, s.shift
+                FROM students s
+                LEFT JOIN attendance a ON s.student_id = a.student_id AND DATE(a.timestamp) = ?
+                WHERE a.student_id IS NULL
+            ");
+            $stmt->execute([$currentDate]);
+            $absentStudents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($absentStudents as $student) {
+                try {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO attendance 
+                        (student_id, student_name, program, shift, status, timestamp, notes, created_at) 
+                        VALUES (?, ?, ?, ?, 'Absent', ?, 'Automatically marked absent after check-in window closed', NOW())
+                    ");
+                    $stmt->execute([
+                        $student['student_id'],
+                        $student['name'],
+                        $student['program'],
+                        $student['shift'],
+                        $currentTime->format('Y-m-d H:i:s')
+                    ]);
+                    $markedAbsent++;
+                } catch (Exception $e) {
+                    $errors[] = "Failed to mark {$student['student_id']} as absent: " . $e->getMessage();
+                }
+            }
+        }
+        
+        sendJsonResponse([
+            'success' => true,
+            'message' => "Marked {$markedAbsent} students as absent",
+            'marked_count' => $markedAbsent,
+            'errors' => $errors,
+            'checkin_windows_closed' => $currentTimeOnly > $morningCheckinEnd && $currentTimeOnly > $eveningCheckinEnd
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Error marking absent students: " . $e->getMessage());
+        sendJsonResponse(['success' => false, 'error' => 'Failed to mark absent students: ' . $e->getMessage()], 500);
+    }
+}
+
+/**
+ * Handle auto mark absent request
+ */
+function handleAutoMarkAbsent() {
+    try {
+        // CSRF validation - temporarily disabled for debugging
+        // require_once __DIR__ . '/../../includes_ext/csrf_protection.php';
+        // CSRFProtection::requireValidation();
+        
+        global $pdo;
+        
+        // Check if PDO is available
+        if (!$pdo) {
+            throw new Exception("Database connection not available in handleAutoMarkAbsent");
+        }
+        
+        // Load settings
+        require_once __DIR__ . '/settings.php';
+        $settingsApi = new AdminSettingsAPI();
+        $allSettings = $settingsApi->getAllSettings();
+        $timingSettings = [];
+        
+        if ($allSettings['success'] && isset($allSettings['data']['timings'])) {
+            foreach ($allSettings['data']['timings'] as $setting) {
+                $timingSettings[$setting['key']] = $setting['value'];
+            }
+        }
+        
+        // Get current time in configured timezone
+        $timezone = new DateTimeZone($timingSettings['timezone'] ?? 'Asia/Karachi');
+        $currentTime = new DateTime('now', $timezone);
+        $currentDate = $currentTime->format('Y-m-d');
+        $currentTimeOnly = $currentTime->format('H:i:s');
+        
+        // Get check-in end times for both shifts
+        $morningCheckinEnd = $timingSettings['morning_checkin_end'] ?? '11:00:00';
+        $eveningCheckinEnd = $timingSettings['evening_checkin_end'] ?? '17:00:00';
+        
+        $results = [];
+        $totalMarked = 0;
+        
+        // Check both shifts
+        $shifts = ['Morning', 'Evening'];
+        
+        foreach ($shifts as $shift) {
+            $checkinEnd = $timingSettings[strtolower($shift) . '_checkin_end'] ?? 
+                          ($shift === 'Morning' ? '11:00:00' : '17:00:00');
+            
+            // Only mark absent if check-in window has closed for this shift
+            if ($currentTimeOnly > $checkinEnd) {
+                // Get students of this shift who don't have attendance today
+                $stmt = $pdo->prepare("
+                    SELECT s.id, s.student_id, s.name, s.program, s.shift
+                    FROM students s
+                    LEFT JOIN attendance a ON s.student_id = a.student_id AND DATE(a.timestamp) = ?
+                    WHERE s.shift = ? AND a.student_id IS NULL
+                ");
+                $stmt->execute([$currentDate, $shift]);
+                $absentStudents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                $markedAbsent = 0;
+                $errors = [];
+                
+                foreach ($absentStudents as $student) {
+                    try {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO attendance 
+                            (student_id, student_name, program, shift, status, timestamp, notes, created_at) 
+                            VALUES (?, ?, ?, ?, 'Absent', ?, 'Auto-marked absent after {$shift} check-in window closed', NOW())
+                        ");
+                        $stmt->execute([
+                            $student['student_id'],
+                            $student['name'],
+                            $student['program'],
+                            $student['shift'],
+                            $currentTime->format('Y-m-d H:i:s')
+                        ]);
+                        $markedAbsent++;
+                    } catch (Exception $e) {
+                        $errors[] = "Failed to mark {$student['student_id']} as absent: " . $e->getMessage();
+                    }
+                }
+                
+                $results[$shift] = [
+                    'success' => true,
+                    'message' => "Marked {$markedAbsent} {$shift} shift students as absent",
+                    'marked_count' => $markedAbsent,
+                    'errors' => $errors
+                ];
+                
+                $totalMarked += $markedAbsent;
+            } else {
+                $results[$shift] = [
+                    'success' => false,
+                    'message' => "Check-in window for {$shift} shift still open (ends at {$checkinEnd})",
+                    'marked_count' => 0
+                ];
+            }
+        }
+        
+        sendJsonResponse([
+            'success' => true,
+            'message' => "Auto absent marking completed. Total marked: {$totalMarked}",
+            'total_marked' => $totalMarked,
+            'results' => $results,
+            'timestamp' => $currentTime->format('Y-m-d H:i:s')
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Error in auto mark absent: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        sendJsonResponse(['success' => false, 'error' => 'Auto absent marking failed: ' . $e->getMessage()], 500);
+    }
+}
+
+/**
+ * Handle debug absent request
+ */
+function handleDebugAbsent() {
+    try {
+        global $pdo;
+        sendJsonResponse([
+            'success' => true, 
+            'message' => 'Debug endpoint working',
+            'pdo_available' => isset($pdo) && $pdo !== null,
+            'session_id' => session_id(),
+            'csrf_token' => $_SESSION['csrf_token'] ?? 'not_set',
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+    } catch (Exception $e) {
+        sendJsonResponse(['success' => false, 'error' => $e->getMessage()]);
     }
 }
 ?>

@@ -4,8 +4,8 @@
  * Handles admin login, logout, and session management
  */
 
-require_once '../includes/config.php';
-require_once '../includes/auth.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 // Set JSON header
 header('Content-Type: application/json');

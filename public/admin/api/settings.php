@@ -13,7 +13,7 @@ ini_set('log_errors', 1);     // Enable error logging
 // Set JSON content type early
 header('Content-Type: application/json');
 
-require_once '../includes/config.php';
+require_once __DIR__ . '/../includes/config.php';
 
 class AdminSettingsAPI {
     private $pdo;
@@ -329,7 +329,7 @@ class AdminSettingsAPI {
             'evening_checkout_start' => ['required' => true, 'type' => 'time'],
             'evening_checkout_end' => ['required' => true, 'type' => 'time'],
             'evening_class_end' => ['required' => true, 'type' => 'time'],
-            'minimum_duration_minutes' => ['required' => true, 'min' => 30, 'max' => 480],
+            // minimum_duration_minutes removed: no validation/enforcement
             'sync_interval_seconds' => ['required' => true, 'min' => 10, 'max' => 300],
             'timezone' => ['required' => true, 'options' => ['Asia/Karachi', 'UTC', 'America/New_York', 'Europe/London']],
             'academic_year_start_month' => ['required' => true, 'min' => 1, 'max' => 12],

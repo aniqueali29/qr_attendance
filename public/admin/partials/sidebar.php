@@ -82,6 +82,14 @@ $currentPage = $currentPage ?? getCurrentPage();
                 <div class="text-truncate">Attendance</div>
             </a>
         </li>
+
+        <!-- Scan -->
+        <li class="menu-item <?php echo isPageActive('scan') ? 'active' : ''; ?>">
+            <a href="scan.php" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-qr-scan"></i>
+                <div class="text-truncate">Scan</div>
+            </a>
+        </li>
         
         <!-- Programs & Sections -->
         <li class="menu-item <?php echo isPageActive('program_sections') ? 'active' : ''; ?>">

@@ -8,7 +8,7 @@ require_once 'config.php';
 
 // Authentication Functions
 function isStudentLoggedIn() {
-    require_once __DIR__ . '/../../includes/secure_session.php';
+    require_once __DIR__ . '/../includes_ext/secure_session.php';
     return SecureSession::has('student_id') && SecureSession::has('student_username') && SecureSession::validate();
 }
 
@@ -35,7 +35,7 @@ function getCurrentStudent() {
             LEFT JOIN users u ON s.user_id = u.id 
             WHERE s.student_id = ? AND s.is_active = 1
         ");
-        require_once __DIR__ . '/../../includes/secure_session.php';
+        require_once __DIR__ . '/../includes_ext/secure_session.php';
         $stmt->execute([SecureSession::get('student_id')]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
@@ -65,7 +65,7 @@ function authenticateStudent($username, $password) {
         }
         
         // SECURITY FIX: Use secure password verification
-        require_once __DIR__ . '/../../includes/password_manager.php';
+        require_once __DIR__ . '/../includes_ext/password_manager.php';
         
         $password_hash = $student['password_hash'] ?? null;
         $student_password = $student['password'] ?? null;
@@ -120,7 +120,7 @@ function authenticateStudent($username, $password) {
         }
         
         // SECURITY FIX: Use secure session management
-        require_once __DIR__ . '/../../includes/secure_session.php';
+        require_once __DIR__ . '/../includes_ext/secure_session.php';
         
         // Set session variables securely
         SecureSession::set('student_id', $student['student_id']);
@@ -148,7 +148,7 @@ function authenticateStudent($username, $password) {
 }
 
 function logoutStudent() {
-    require_once __DIR__ . '/../../includes/secure_session.php';
+    require_once __DIR__ . '/../includes_ext/secure_session.php';
     
     if (isStudentLoggedIn()) {
         $student_id = SecureSession::get('student_id');

@@ -11,7 +11,7 @@ require_once 'config.php';
  */
 function validateProfilePicture($file) {
     // SECURITY FIX: Use secure upload validation
-    require_once __DIR__ . '/../../includes/secure_upload.php';
+    require_once __DIR__ . '/../includes_ext/secure_upload.php';
     $validation = SecureUpload::validateImage($file);
     
     if (!$validation['valid']) {
@@ -28,7 +28,7 @@ function uploadProfilePicture($student_id, $file) {
     global $pdo;
     
     // SECURITY FIX: Use secure upload system
-    require_once __DIR__ . '/../../includes/secure_upload.php';
+    require_once __DIR__ . '/../includes_ext/secure_upload.php';
     
     // Validate file
     $errors = validateProfilePicture($file);

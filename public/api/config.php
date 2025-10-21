@@ -4,23 +4,25 @@
  * Contains all system settings and database configuration
  */
 
-// Database Configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'qr_attendance');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_CHARSET', 'utf8');
+require_once __DIR__ . '/../includes/env.php';
+
+// Database Configuration (env-driven)
+define('DB_HOST', env_get('DB_HOST', 'localhost'));
+define('DB_NAME', env_get('DB_NAME', 'qr_attendance'));
+define('DB_USER', env_get('DB_USER', 'root'));
+define('DB_PASS', env_get('DB_PASS', ''));
+define('DB_CHARSET', env_get('DB_CHARSET', 'utf8'));
 
 // System Configuration
 define('SITE_NAME', 'QR Code Attendance System');
-define('SITE_URL', 'http://localhost/qr_attendance');
-define('ADMIN_EMAIL', 'admin@example.com');
+define('SITE_URL', env_get('APP_URL', 'http://localhost/qr_attendance'));
+define('ADMIN_EMAIL', env_get('ADMIN_EMAIL', 'admin@example.com'));
 
 // Security Configuration
-define('SESSION_TIMEOUT', 3600); // 1 hour in seconds
-define('MAX_LOGIN_ATTEMPTS', 5);
-define('LOGIN_LOCKOUT_TIME', 900); // 15 minutes
-define('PASSWORD_MIN_LENGTH', 8);
+define('SESSION_TIMEOUT', env_int('SESSION_TIMEOUT', 3600)); // 1 hour in seconds
+define('MAX_LOGIN_ATTEMPTS', env_int('MAX_LOGIN_ATTEMPTS', 5));
+define('LOGIN_LOCKOUT_TIME', env_int('LOGIN_LOCKOUT_TIME', 900)); // 15 minutes
+define('PASSWORD_MIN_LENGTH', env_int('PASSWORD_MIN_LENGTH', 8));
 
 // QR Code Configuration
 define('QR_CODE_SIZE', 200);
@@ -34,19 +36,19 @@ define('SYNC_TIMEOUT', 30); // seconds
 define('MAX_SYNC_RECORDS', 1000);
 
 // File Upload Configuration
-define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5MB
+define('MAX_FILE_SIZE', env_int('MAX_FILE_SIZE', 5 * 1024 * 1024)); // 5MB
 define('ALLOWED_EXTENSIONS', ['csv', 'json', 'xlsx']);
 
 // Email Configuration (for notifications)
-define('SMTP_HOST', 'smtp.gmail.com');
-define('SMTP_PORT', 587);
-define('SMTP_USERNAME', '');
-define('SMTP_PASSWORD', '');
-define('SMTP_FROM_EMAIL', 'noreply@example.com');
-define('SMTP_FROM_NAME', 'QR Attendance System');
+define('SMTP_HOST', env_get('SMTP_HOST', 'smtp.gmail.com'));
+define('SMTP_PORT', env_int('SMTP_PORT', 587));
+define('SMTP_USERNAME', env_get('SMTP_USERNAME', ''));
+define('SMTP_PASSWORD', env_get('SMTP_PASSWORD', ''));
+define('SMTP_FROM_EMAIL', env_get('SMTP_FROM_EMAIL', 'noreply@example.com'));
+define('SMTP_FROM_NAME', env_get('SMTP_FROM_NAME', 'QR Attendance System'));
 
 // API Configuration
-define('API_KEY', 'attendance_2025_secure_key_3e13bd5acfdf332ecece2d60aa29db78');
+define('API_KEY', env_get('API_KEY', 'changeme_api_key'));
 define('API_RATE_LIMIT', 100); // requests per hour
 define('API_TIMEOUT', 30); // seconds
 
@@ -61,21 +63,17 @@ define('ACADEMIC_YEAR_START_MONTH', 9);
 define('MINIMUM_DURATION_MINUTES', 120);
 
 // Development/Production Settings
-define('DEBUG_MODE', true); // Set to false in production
+define('DEBUG_MODE', env_bool('DEBUG_MODE', false)); // Set via env
 define('LOG_ERRORS', true);
 define('SHOW_ERRORS', DEBUG_MODE);
 
 // Error Reporting
-if (DEBUG_MODE) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-} else {
-    error_reporting(0);
-    ini_set('display_errors', 0);
-}
+error_reporting(DEBUG_MODE ? E_ALL : 0);
+ini_set('display_errors', DEBUG_MODE ? '1' : '0');
 
 // Timezone
-date_default_timezone_set('Asia/Karachi');
+$__tz = env_get('TIMEZONE', 'Asia/Karachi');
+date_default_timezone_set($__tz);
 
 // Session Configuration (only if session not yet started)
 if (session_status() === PHP_SESSION_NONE) {
@@ -83,6 +81,8 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
     ini_set('session.use_strict_mode', 1);
     ini_set('session.gc_maxlifetime', SESSION_TIMEOUT);
+    // Align session name with admin to share login
+    ini_set('session.name', env_get('SESSION_NAME', 'QR_ATTENDANCE_SESSION'));
 }
 
 // Database Connection
@@ -147,11 +147,13 @@ foreach ($directories as $dir) {
 // Logging function
 function logMessage($message, $level = 'INFO') {
     if (!LOG_ERRORS) return;
-    
-    $logFile = 'logs/system_' . date('Y-m-d') . '.log';
+    $logDir = storage_path('logs');
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+    $logFile = $logDir . DIRECTORY_SEPARATOR . 'system_' . date('Y-m-d') . '.log';
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] [$level] $message" . PHP_EOL;
-    
     file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
 }
 
@@ -176,6 +178,35 @@ function generateCSRFToken() {
 
 function validateCSRFToken($token) {
     return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+function getRequestCsrfToken() {
+    $headers = function_exists('getallheaders') ? getallheaders() : [];
+    if (!empty($headers['X-CSRF-Token'])) return $headers['X-CSRF-Token'];
+    if (!empty($headers['x-csrf-token'])) return $headers['x-csrf-token'];
+    return $_POST['csrf_token'] ?? null;
+}
+
+function requireCsrfForMethods($methods = ['POST','PUT','PATCH','DELETE']) {
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    if (in_array($method, $methods, true)) {
+        $token = getRequestCsrfToken();
+        if (!$token || !validateCSRFToken($token)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'CSRF validation failed']);
+            exit();
+        }
+    }
+}
+
+// CORS helper
+function setCorsHeaders() {
+    $origin = env_get('FRONTEND_ORIGIN', env_get('FRONTEND_URL', 'http://localhost'));
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-CSRF-Token');
+    header('Access-Control-Allow-Credentials: true');
 }
 
 // Rate Limiting

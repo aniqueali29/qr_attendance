@@ -9,11 +9,20 @@ if (!defined('STUDENT_ACCESS')) {
     define('STUDENT_ACCESS', true);
 }
 
-// Load secure configuration
-require_once __DIR__ . '/../../includes/secure_config.php';
-
-// Initialize secure configuration
-$config = SecureConfig::load();
+// Load env from public/config.env
+require_once __DIR__ . '/../includes/env.php';
+// Shim array to replace prior $config usage
+$config = [
+    'DB_HOST' => env_get('DB_HOST', 'localhost'),
+    'DB_NAME' => env_get('DB_NAME', 'qr_attendance'),
+    'DB_USER' => env_get('DB_USER', 'root'),
+    'DB_PASS' => env_get('DB_PASS', ''),
+    'DEBUG_MODE' => env_bool('DEBUG_MODE', false),
+    'SMTP_HOST' => env_get('SMTP_HOST', ''),
+    'SMTP_PORT' => (int)env_get('SMTP_PORT', 587),
+    'SMTP_USERNAME' => env_get('SMTP_USERNAME', ''),
+    'SMTP_PASSWORD' => env_get('SMTP_PASSWORD', ''),
+];
 
 // Database Configuration (same as admin system)
 define('DB_HOST', $config['DB_HOST']);
@@ -24,7 +33,7 @@ define('DB_CHARSET', 'utf8');
 
 // Student Portal Configuration
 define('STUDENT_SITE_NAME', 'QR Attendance Student Portal');
-define('STUDENT_SITE_URL', 'http://localhost/qr_attendance/public');
+define('STUDENT_SITE_URL', env_get('APP_URL', 'http://localhost/qr_attendance') . '/public');
 define('STUDENT_SESSION_TIMEOUT', 7200); // 2 hours
 define('STUDENT_MAX_LOGIN_ATTEMPTS', 5);
 define('STUDENT_LOGIN_LOCKOUT_TIME', 900); // 15 minutes

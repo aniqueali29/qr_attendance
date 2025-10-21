@@ -4,8 +4,8 @@
  * Handles student-specific API requests
  */
 
-require_once '../includes/config.php';
-require_once '../includes/auth.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 header('Content-Type: application/json');
 // SECURITY FIX: Restrict CORS to specific domains
@@ -134,7 +134,7 @@ function getRecentAttendance() {
     
     $student_id = $_SESSION['student_id'];
     // SECURITY FIX: Validate limit parameter
-    require_once __DIR__ . '/../../includes/secure_database.php';
+    require_once __DIR__ . '/../includes_ext/secure_database.php';
     $limit = InputValidator::validateInt($_GET['limit'] ?? 10, 1, 100);
     $attendance = getStudentRecentAttendance($student_id, $limit);
     

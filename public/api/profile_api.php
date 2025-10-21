@@ -42,9 +42,9 @@ if (isset($_SERVER['CONTENT_TYPE'])) {
 }
 
 try {
-    require_once '../includes/config.php';
-    require_once '../includes/auth.php';
-    require_once '../includes/profile_helpers.php';
+    require_once __DIR__ . '/../includes/config.php';
+    require_once __DIR__ . '/../includes/auth.php';
+    require_once __DIR__ . '/../includes/profile_helpers.php';
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'message' => 'Server configuration error']);
     exit();

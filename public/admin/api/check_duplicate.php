@@ -4,8 +4,8 @@
  * Checks if a roll number already exists in the database
  */
 
-require_once '../includes/config.php';
-require_once '../includes/auth.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');

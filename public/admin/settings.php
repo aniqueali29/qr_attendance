@@ -217,11 +217,7 @@ include 'partials/navbar.php';
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
-                                    <div class="col-12">
-                                        <label for="minimum_duration_minutes" class="form-label">Minimum Duration (minutes)</label>
-                                        <input type="number" class="form-control" id="minimum_duration_minutes" value="120" min="30" max="480">
-                                        <div class="form-text">Minimum time required for attendance</div>
-                                    </div>
+                                    
                                     <div class="col-12">
                                         <label for="sync_interval_seconds" class="form-label">Sync Interval (seconds)</label>
                                         <input type="number" class="form-control" id="sync_interval_seconds" value="60" min="10" max="300">

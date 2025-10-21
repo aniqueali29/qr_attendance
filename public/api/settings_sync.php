@@ -154,86 +154,13 @@ try {
                 'errors' => $errors
             ]);
             break;
-            
-        case 'sync_to_python':
-            // Sync settings to Python settings.json file
-            $settings_file = '../../../python/settings.json';
-            
-            if (!file_exists($settings_file)) {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Python settings.json file not found'
-                ]);
-                break;
-            }
-            
-            // Get current settings from database
-            $stmt = $pdo->query("
-                SELECT setting_key, setting_value, setting_type
-                FROM system_settings 
-                ORDER BY setting_key
-            ");
-            $settings = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Load existing Python settings
-            $python_settings = json_decode(file_get_contents($settings_file), true);
-            if (!$python_settings) {
-                $python_settings = ['settings' => []];
-            }
-            
-            // Update Python settings
-            foreach ($settings as $setting) {
-                $key = $setting['setting_key'];
-                $value = $setting['setting_value'];
-                
-                // Convert value based on type
-                switch ($setting['setting_type']) {
-                    case 'boolean':
-                        $value = filter_var($value, FILTER_VALIDATE_BOOLEAN);
-                        break;
-                    case 'integer':
-                        $value = (int)$value;
-                        break;
-                    case 'float':
-                        $value = (float)$value;
-                        break;
-                    case 'json':
-                        $value = json_decode($value, true);
-                        break;
-                    default:
-                        // Keep as string
-                        break;
-                }
-                
-                $python_settings['settings'][$key] = $value;
-            }
-            
-            // Update metadata
-            $python_settings['last_updated'] = date('Y-m-d H:i:s');
-            $python_settings['updated_by'] = 'website_sync';
-            
-            // Write back to file
-            $result = file_put_contents($settings_file, json_encode($python_settings, JSON_PRETTY_PRINT));
-            
-            if ($result !== false) {
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Settings synced to Python successfully',
-                    'bytes_written' => $result,
-                    'settings_updated' => count($settings)
-                ]);
-            } else {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Failed to write to Python settings.json'
-                ]);
-            }
-            break;
-            
+        
+        // Removed 'sync_to_python' action and Python file syncing
+        
         default:
             echo json_encode([
                 'success' => false,
-                'message' => 'Invalid action. Available actions: get_settings, update_settings, sync_to_python'
+                'message' => 'Invalid action. Available actions: get_settings, update_settings'
             ]);
     }
     

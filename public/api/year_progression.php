@@ -148,8 +148,7 @@ try {
     }
     file_put_contents($log_file, json_encode($log_data, JSON_PRETTY_PRINT));
     
-    // Sync with Python offline system
-    syncToOfflineSystem($updated_students);
+    // Removed legacy offline sync (Python-based)
     
     echo json_encode([
         'success' => true,
@@ -213,39 +212,5 @@ function updateSectionStudentCounts($pdo) {
     }
 }
 
-/**
- * Sync updated students to Python offline system
- */
-function syncToOfflineSystem($updated_students) {
-    try {
-        $sync_data = [
-            'timestamp' => date('Y-m-d H:i:s'),
-            'action' => 'year_progression',
-            'students' => $updated_students
-        ];
-        
-        // Save to sync_data.json for Python system
-        file_put_contents('sync_data.json', json_encode($sync_data, JSON_PRETTY_PRINT));
-        
-        // Also update students.json if it exists
-        $students_file = '../python/students.json';
-        if (file_exists($students_file)) {
-            $students_data = json_decode(file_get_contents($students_file), true);
-            if ($students_data) {
-                foreach ($updated_students as $student) {
-                    $student_id = $student['student_id'];
-                    if (isset($students_data[$student_id])) {
-                        $students_data[$student_id]['current_year'] = $student['years_in_program'];
-                        $students_data[$student_id]['is_graduated'] = $student['is_graduated'];
-                        $students_data[$student_id]['last_year_update'] = date('Y-m-d');
-                    }
-                }
-                file_put_contents($students_file, json_encode($students_data, JSON_PRETTY_PRINT));
-            }
-        }
-        
-    } catch (Exception $e) {
-        error_log("Error syncing to offline system: " . $e->getMessage());
-    }
-}
+// Removed legacy syncToOfflineSystem: Python integration removed
 ?>

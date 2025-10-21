@@ -15,8 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-require_once '../includes/config.php';
-require_once '../includes/helpers.php';
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 try {
     $action = $_GET['action'] ?? 'default';

@@ -282,7 +282,7 @@ class AuthSystem {
     public function registerStudent($username, $email, $password, $student_id, $name, $phone) {
         try {
             // SECURITY FIX: Use secure password hashing
-            require_once __DIR__ . '/../../includes/password_manager.php';
+            require_once __DIR__ . '/../includes_ext/password_manager.php';
             
             // Validate input
             if (empty($username) || empty($email) || empty($password) || empty($student_id) || empty($name)) {

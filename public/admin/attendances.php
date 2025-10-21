@@ -205,8 +205,9 @@ include 'partials/navbar.php';
                         <select id="status-filter" class="form-select">
                             <option value="">All Status</option>
                             <option value="Check-in">Check-in</option>
-                            <option value="Absent">Absent</option>
+                            <option value="Checked-out">Checked-out</option>
                             <option value="Present">Present</option>
+                            <option value="Absent">Absent</option>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -530,7 +531,7 @@ function setupFilterHandlers() {
         currentFilters = {
             date_from: todayString,
             date_to: todayString,
-            status: 'Check-in,Present'
+            status: 'Check-in,Checked-out,Present'
         };
     }, 100);
 }
@@ -545,7 +546,7 @@ function loadAttendance(page = 1) {
         currentFilters = {
             date_from: todayString,
             date_to: todayString,
-            status: 'Check-in,Present'  // Multiple statuses separated by comma
+            status: 'Check-in,Checked-out,Present'  // Multiple statuses separated by comma
         };
     }
     
@@ -887,25 +888,38 @@ function confirmDelete(attendanceId) {
 function deleteAttendance(attendanceId) {
     UIHelpers.showLoadingOverlay('.card-body', 'Deleting attendance record...');
     
-    fetch(`api/attendance.php?action=delete&id=${attendanceId}`, {
-        method: 'DELETE'
-    })
-    .then(response => response.json())
-    .then(data => {
-        UIHelpers.hideLoadingOverlay('.card-body');
-        
-        if (data.success) {
-            UIHelpers.showSuccess(data.message || 'Attendance deleted successfully!');
-            loadAttendance(attendanceCurrentPage);
-        } else {
-            UIHelpers.showError(data.error || 'Error deleting attendance');
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting attendance:', error);
-        UIHelpers.hideLoadingOverlay('.card-body');
-        UIHelpers.showError('Error deleting attendance');
-    });
+    // Fetch CSRF token first
+    fetch('api/attendance.php?action=get_csrf_token')
+        .then(r => r.json())
+        .then(tok => {
+            const token = (tok && tok.token) ? tok.token : '';
+            return fetch(`api/attendance.php?action=delete&id=${attendanceId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': token
+                }
+            });
+        })
+        .then(response => {
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('application/json')) return response.json();
+            return response.text().then(text => ({ success: false, error: text.substring(0, 200) }));
+        })
+        .then(data => {
+            UIHelpers.hideLoadingOverlay('.card-body');
+            
+            if (data && data.success) {
+                UIHelpers.showSuccess((data.message) || 'Attendance deleted successfully!');
+                loadAttendance(attendanceCurrentPage);
+            } else {
+                UIHelpers.showError((data && data.error) || 'Error deleting attendance');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting attendance:', error);
+            UIHelpers.hideLoadingOverlay('.card-body');
+            UIHelpers.showError('Error deleting attendance');
+        });
 }
 
 function toggleFilterPanel() {
@@ -949,7 +963,7 @@ function clearFilters() {
     currentFilters = {
         date_from: todayString,
         date_to: todayString,
-        status: 'Check-in,Present'
+        status: 'Check-in,Checked-out,Present'
     };
     loadAttendance(1);
 }

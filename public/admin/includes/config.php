@@ -9,11 +9,15 @@ if (!defined('ADMIN_ACCESS')) {
     define('ADMIN_ACCESS', true);
 }
 
-// Load secure configuration
-require_once __DIR__ . '/../../../includes/secure_config.php';
-
-// Initialize secure configuration
-$config = SecureConfig::load();
+// Load env configuration (public/config.env)
+require_once __DIR__ . '/../../includes/env.php';
+$config = [
+    'DB_HOST' => env_get('DB_HOST', 'localhost'),
+    'DB_NAME' => env_get('DB_NAME', 'qr_attendance'),
+    'DB_USER' => env_get('DB_USER', 'root'),
+    'DB_PASS' => env_get('DB_PASS', ''),
+    'DEBUG_MODE' => env_bool('DEBUG_MODE', false),
+];
 
 // Database Configuration (same as main system)
 define('DB_HOST', $config['DB_HOST']);
@@ -24,7 +28,7 @@ define('DB_CHARSET', 'utf8');
 
 // Admin-specific Configuration
 define('ADMIN_SITE_NAME', 'QR Attendance Admin');
-define('ADMIN_SITE_URL', 'http://localhost/qr_attendance/public/admin');
+define('ADMIN_SITE_URL', env_get('APP_URL', 'http://localhost/qr_attendance') . '/public/admin');
 define('ADMIN_SESSION_TIMEOUT', 3600); // 1 hour
 define('ADMIN_MAX_LOGIN_ATTEMPTS', 5);
 define('ADMIN_LOGIN_LOCKOUT_TIME', 900); // 15 minutes
@@ -38,11 +42,11 @@ define('ADMIN_VENDOR_URL', ADMIN_ASSETS_URL . '/vendor');
 
 // API Paths
 define('ADMIN_API_URL', ADMIN_SITE_URL . '/api');
-define('MAIN_API_URL', 'http://localhost/qr_attendance/public/api');
+define('MAIN_API_URL', env_get('APP_URL', 'http://localhost/qr_attendance') . '/public/api');
 
 // Security Configuration
 define('ADMIN_CSRF_TOKEN_NAME', 'admin_csrf_token');
-define('ADMIN_SESSION_NAME', 'admin_session');
+define('ADMIN_SESSION_NAME', env_get('SESSION_NAME', 'QR_ATTENDANCE_SESSION'));
 
 // Error Reporting - SECURITY FIX: Use secure config
 if (!defined('DEBUG_MODE')) {

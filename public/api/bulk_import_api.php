@@ -5,9 +5,8 @@
  */
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+require_once 'config.php';
+setCorsHeaders();
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -15,7 +14,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
-require_once 'config.php';
 require_once 'auth_system.php';
 
 // Authentication check
@@ -29,6 +27,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
 try {
+    // Enforce CSRF on mutating routes
+    requireCsrfForMethods(['POST']);
+
     switch ($action) {
         case 'download_template':
             downloadTemplate();
@@ -466,8 +467,7 @@ function createStudentFromImport($pdo, $student, $row_number) {
             $section_id, $admission_year, $roll_prefix, $username, $password
         ]);
         
-        // Save to students.json
-        saveToStudentsJson($student_id, $name, $email, $phone, $password);
+        // Removed legacy Python students.json sync
         
         return [
             'success' => true,
@@ -512,59 +512,7 @@ function generatePassword($length = 12) {
 /**
  * Save to students.json file
  */
-function saveToStudentsJson($student_id, $name, $email, $phone, $password) {
-    try {
-        $possible_paths = [
-            '../python/students.json',
-            '../../python/students.json',
-            dirname(__DIR__) . '/python/students.json',
-            dirname(dirname(__DIR__)) . '/python/students.json'
-        ];
-        
-        $students_file = null;
-        foreach ($possible_paths as $path) {
-            if (file_exists($path)) {
-                $students_file = $path;
-                break;
-            }
-        }
-        
-        if (!$students_file) {
-            $students_file = '../python/students.json';
-        }
-        
-        $students = [];
-        
-        if (file_exists($students_file)) {
-            $content = file_get_contents($students_file);
-            if (!empty($content) && $content !== '[]') {
-                $decoded = json_decode($content, true);
-                if (is_array($decoded)) {
-                    $students = $decoded;
-                }
-            }
-        }
-        
-        $students[$student_id] = [
-            'name' => $name,
-            'email' => $email,
-            'phone' => $phone,
-            'password' => $password,
-            'created_at' => date('Y-m-d H:i:s'),
-            'created_by' => 'bulk_import'
-        ];
-        
-        $dir = dirname($students_file);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        
-        file_put_contents($students_file, json_encode($students, JSON_PRETTY_PRINT));
-        
-    } catch (Exception $e) {
-        error_log("Error saving to students.json: " . $e->getMessage());
-    }
-}
+// Removed legacy saveToStudentsJson: Python integration removed
 
 /**
  * Log import results
