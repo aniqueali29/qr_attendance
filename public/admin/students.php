@@ -1072,23 +1072,11 @@ include 'partials/navbar.php';
                 
                 <!-- Export Format Selection -->
                 <div class="mb-4">
-                    <label class="form-label fw-semibold mb-3">Select Export Format</label>
-                    <div class="row g-3">
-                        <!-- PNG Option -->
+                    <label class="form-label fw-semibold mb-3">Export Format</label>
+                    <div class="row justify-content-center">
+                        <!-- PDF Option (Only Option) -->
                         <div class="col-md-6">
-                            <input class="btn-check" type="radio" name="exportFormat" id="exportFormatPNG" value="png" checked>
-                            <label class="btn btn-outline-primary w-100 p-3 text-start" for="exportFormatPNG" style="height: 100%; border: 2px solid;">
-                                <div class="d-flex flex-column align-items-center text-center">
-                                    <i class="bx bx-image" style="font-size: 48px; margin-bottom: 12px;"></i>
-                                    <strong class="fs-6 mb-1">PNG Images</strong>
-                                    <small class="text-muted">Individual card images in ZIP</small>
-                                </div>
-                            </label>
-                        </div>
-                        
-                        <!-- PDF Option -->
-                        <div class="col-md-6">
-                            <input class="btn-check" type="radio" name="exportFormat" id="exportFormatPDF" value="pdf">
+                            <input class="btn-check" type="radio" name="exportFormat" id="exportFormatPDF" value="pdf" checked>
                             <label class="btn btn-outline-danger w-100 p-3 text-start" for="exportFormatPDF" style="height: 100%; border: 2px solid;">
                                 <div class="d-flex flex-column align-items-center text-center">
                                     <i class="bx bx-file-blank" style="font-size: 48px; margin-bottom: 12px;"></i>
@@ -1935,7 +1923,9 @@ function loadStudents(page = 1) {
     console.log('Loading students with params:', params.toString());
     
     try {
-        fetch(`api/admin_api.php?action=get_filtered_students&${params}`)
+        fetch(`api/admin_api.php?action=get_filtered_students&${params}`, {
+            credentials: 'same-origin'
+        })
             .then(response => {
                 console.log('API response status:', response.status);
                 if (!response.ok) {
@@ -2030,9 +2020,6 @@ function updateStudentsTable(students) {
                             <i class="bx bx-clipboard me-2"></i>Attendance
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" onclick="exportStudentCard('${student.roll_number}', 'png')">
-                            <i class="bx bx-download me-2"></i>Export Card (PNG)
-                        </a></li>
                         <li><a class="dropdown-item" href="#" onclick="exportStudentCard('${student.roll_number}', 'pdf')">
                             <i class="bx bx-file me-2"></i>Export Card (PDF)
                         </a></li>
@@ -2104,7 +2091,9 @@ function openStudentModal(studentId = null) {
 }
 
 function loadStudentData(studentId) {
-    fetch(`api/admin_api.php?action=view_student&id=${studentId}`)
+    fetch(`api/admin_api.php?action=view_student&id=${studentId}`, {
+        credentials: 'same-origin'
+    })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -2198,7 +2187,9 @@ function editStudent(studentId) {
 }
 
 function viewStudent(studentId) {
-    fetch(`api/admin_api.php?action=view_student&id=${studentId}`)
+    fetch(`api/admin_api.php?action=view_student&id=${studentId}`, {
+        credentials: 'same-origin'
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -2317,7 +2308,8 @@ function deleteStudent(studentId) {
     UIHelpers.showLoadingOverlay('.card-body', 'Deleting student...');
     
     fetch(`api/admin_api.php?action=delete_student&id=${studentId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'same-origin'
     })
     .then(response => {
         if (!response.ok) {
@@ -3087,6 +3079,7 @@ async function startImport() {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'same-origin',
             body: JSON.stringify({
                 data: validationResults.valid_data
             }),
@@ -3422,6 +3415,7 @@ function confirmPasswordReset() {
         headers: {
             'Content-Type': 'application/json'
         },
+        credentials: 'same-origin',
         body: JSON.stringify({
             student_id: currentViewStudentId,
             new_password: newPassword,
@@ -4367,11 +4361,11 @@ function exportStudentCard(studentId, format) {
     // Show loading indicator
     showAlert('Generating student card...', 'info');
     
-    // Prepare data as URL-encoded
+    // Prepare data as URL-encoded (only PDF format supported)
     const params = new URLSearchParams({
         action: 'export_card',
         student_ids: JSON.stringify([studentId]),
-        format: format,
+        format: 'pdf', // Only PDF format is supported
         type: 'individual'
     });
 
@@ -4381,6 +4375,7 @@ function exportStudentCard(studentId, format) {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
+        credentials: 'same-origin',
         body: params
     })
     .then(response => {
@@ -4435,7 +4430,7 @@ function bulkExportCards() {
  */
 function processBulkCardExport() {
     const selectedStudents = getSelectedStudents();
-    const format = document.querySelector('input[name="exportFormat"]:checked').value;
+    const format = 'pdf'; // Only PDF format is supported
     
     if (selectedStudents.length === 0) {
         showAlert('No students selected', 'warning');
@@ -4489,6 +4484,7 @@ function processBulkCardExport() {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
+        credentials: 'same-origin',
         body: params
     })
     .then(response => response.json())

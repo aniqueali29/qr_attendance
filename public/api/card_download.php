@@ -4,12 +4,14 @@
  * Handles secure download of generated student cards
  */
 
-// Configure session to match admin panel settings
+// Configure session to match admin panel settings BEFORE any other operations
 ini_set('session.cookie_httponly', 1);
 ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
 ini_set('session.use_strict_mode', 1);
 ini_set('session.gc_maxlifetime', 3600); // 1 hour
-ini_set('session.name', 'admin_session'); // Match admin panel session name
+ini_set('session.name', 'QR_ATTENDANCE_SESSION'); // Match admin panel session name
+ini_set('session.cookie_path', '/qr_attendance/'); // Match admin panel session path
+ini_set('session.cookie_domain', '');
 
 // Start session to access admin session data
 if (session_status() === PHP_SESSION_NONE) {
@@ -18,6 +20,49 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Load config
 require_once 'config.php';
+
+/**
+ * Check admin session in database as fallback authentication
+ */
+function checkAdminSessionInDatabase() {
+    global $pdo;
+    
+    try {
+        // Check if we have any session cookies
+        $session_id = null;
+        $possible_session_names = ['QR_ATTENDANCE_SESSION', 'PHPSESSID', 'admin_session'];
+        
+        foreach ($possible_session_names as $session_name) {
+            if (isset($_COOKIE[$session_name])) {
+                $session_id = $_COOKIE[$session_name];
+                break;
+            }
+        }
+        
+        if (!$session_id) {
+            return null;
+        }
+        
+        // Check if session exists in database and is valid
+        $stmt = $pdo->prepare("
+            SELECT s.user_id, u.role 
+            FROM sessions s 
+            JOIN users u ON s.user_id = u.id 
+            WHERE s.id = ? AND u.role = 'admin' AND u.is_active = 1 
+            AND s.last_activity > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+        ");
+        $stmt->execute([$session_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result) {
+            return $result['user_id'];
+        }
+        
+        return null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
 
 // Check authentication - support both admin and regular session formats
 $user_id = null;
@@ -33,8 +78,13 @@ elseif (isset($_SESSION['user_id'])) {
 
 // Require authentication
 if (!$user_id) {
-    http_response_code(401);
-    die('Authentication required');
+    // Try alternative authentication method - check admin session in database
+    $user_id = checkAdminSessionInDatabase();
+    
+    if (!$user_id) {
+        http_response_code(401);
+        die('Authentication required');
+    }
 }
 
 // Get file parameters

@@ -17,7 +17,8 @@
             validPattern: /^[A-Za-z0-9-_]{4,32}$/,
             soundEnabled: true,
             visualFlashEnabled: true,
-            previewEnabled: true
+            previewEnabled: true,
+            useSweetAlertPreview: false
         },
         
         load() {
@@ -45,6 +46,7 @@
             this.settings.autoConfirmDelayMs = parseInt(document.getElementById('config-autoconfirm')?.value || 2000);
             this.settings.soundEnabled = document.getElementById('config-sound')?.checked ?? true;
             this.settings.visualFlashEnabled = document.getElementById('config-flash')?.checked ?? true;
+            this.settings.useSweetAlertPreview = document.getElementById('config-use-sweetalert-preview')?.checked ?? false;
             this.save();
         },
         
@@ -54,6 +56,7 @@
             if (document.getElementById('config-autoconfirm')) document.getElementById('config-autoconfirm').value = this.settings.autoConfirmDelayMs;
             if (document.getElementById('config-sound')) document.getElementById('config-sound').checked = this.settings.soundEnabled;
             if (document.getElementById('config-flash')) document.getElementById('config-flash').checked = this.settings.visualFlashEnabled;
+            if (document.getElementById('config-use-sweetalert-preview')) document.getElementById('config-use-sweetalert-preview').checked = this.settings.useSweetAlertPreview;
         }
     };
 
@@ -159,20 +162,23 @@
         },
         
         showFeedback(message, type) {
-            const feedback = document.getElementById('scan-feedback');
-            if (!feedback) return;
+            // Use SweetAlert2 for notifications
+            const iconMap = {
+                'success': 'success',
+                'error': 'error',
+                'warning': 'warning',
+                'info': 'info'
+            };
             
-            feedback.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-warning', 'alert-info');
-            
-            const cssClass = {
-                'success': 'alert-success',
-                'error': 'alert-danger',
-                'warning': 'alert-warning',
-                'info': 'alert-info'
-            }[type] || 'alert-info';
-            
-            feedback.classList.add(cssClass);
-            feedback.textContent = message;
+            Swal.fire({
+                icon: iconMap[type] || 'info',
+                title: message,
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                toast: true,
+                position: 'top-end'
+            });
         }
     };
 
@@ -194,34 +200,108 @@
             this.confirmCallback = onConfirm;
             DiagnosticMonitor.log('Loading student preview: ' + studentId, 'info');
             
+            // Check configuration to determine which modal to use
+            if (ScannerConfig.settings.useSweetAlertPreview) {
+                await this.showSweetAlertPreview(studentId);
+            } else {
+                await this.showBootstrapModal(studentId);
+            }
+        },
+
+        async showBootstrapModal(studentId) {
             try {
-                const response = await fetch(`api/attendance.php?action=get_student_preview&student_id=${encodeURIComponent(studentId)}`);
+                const response = await fetch(`api/attendance.php?action=get_student_preview&student_id=${encodeURIComponent(studentId)}`, {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
+                
+                console.log('API Response:', data);
+                console.log('Response Status:', response.status);
                 
                 if (data.success && data.student) {
                     this.currentStudent = data.student;
                     this.renderPreview(data.student);
                     DiagnosticMonitor.log('Student preview loaded: ' + data.student.name, 'success');
                     
-                    // Auto-confirm timer
+                    // Show Bootstrap modal
+                    const modal = new bootstrap.Modal(document.getElementById('studentPreviewModal'));
+                    modal.show();
+                    
+                    // Auto-confirm timer (only if auto-confirm is enabled)
                     if (ScannerConfig.settings.autoConfirmDelayMs > 0) {
-                        this.autoConfirmTimer = setTimeout(() => {
-                            this.confirm();
-                        }, ScannerConfig.settings.autoConfirmDelayMs);
+                        this.startAutoConfirmTimer();
                     }
                 } else {
                     throw new Error(data.error || 'Student not found');
                 }
             } catch (error) {
                 DiagnosticMonitor.log('Preview load failed: ' + error.message, 'error');
-                VisualFeedback.showFeedback('Student not found: ' + studentId, 'error');
+                
+                // Show SweetAlert2 error popup
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Student Not Found',
+                    text: `Student ID: ${studentId}`,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545'
+                });
+                
+                VisualFeedback.showFlash('error');
+                AudioManager.play('error');
+            }
+        },
+
+        async showSweetAlertPreview(studentId) {
+            try {
+                // Show loading state
+                Swal.fire({
+                    title: 'Loading...',
+                    text: 'Fetching student information',
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                const response = await fetch(`api/attendance.php?action=get_student_preview&student_id=${encodeURIComponent(studentId)}`, {
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                
+                console.log('SweetAlert2 API Response:', data);
+                
+                if (data.success && data.student) {
+                    this.currentStudent = data.student;
+                    this.renderSweetAlertPreview(data.student);
+                    DiagnosticMonitor.log('SweetAlert2 student preview loaded: ' + data.student.name, 'success');
+                    
+                    // Auto-confirm timer (only if auto-confirm is enabled)
+                    if (ScannerConfig.settings.autoConfirmDelayMs > 0) {
+                        this.startSweetAlertAutoConfirmTimer(data.student);
+                    }
+                } else {
+                    throw new Error(data.error || 'Student not found');
+                }
+            } catch (error) {
+                DiagnosticMonitor.log('SweetAlert2 preview load failed: ' + error.message, 'error');
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Student Not Found',
+                    text: `Student ID: ${studentId}`,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545'
+                });
+                
                 VisualFeedback.showFlash('error');
                 AudioManager.play('error');
             }
         },
         
         renderPreview(student) {
-            const preview = document.getElementById('student-preview');
+            // Update modal content instead of inline card
+            const preview = document.getElementById('studentPreviewModal');
             if (!preview) return;
             
             // Set photo
@@ -254,9 +334,113 @@
             const statusEl = document.getElementById('preview-status');
             if (statusEl) statusEl.innerHTML = statusHtml;
             
+            // Reset button visibility for new scan
+            const confirmBtn = document.getElementById('preview-confirm');
+            const cancelBtn = document.getElementById('preview-cancel');
+            const btnGroup = document.querySelector('.btn-group.w-100.mb-3');
+            const recordedMsg = preview.querySelector('.attendance-recorded-msg');
+            
+            // Show buttons and button group
+            if (confirmBtn) {
+                confirmBtn.style.display = 'block';
+                confirmBtn.classList.remove('d-none');
+            }
+            if (cancelBtn) {
+                cancelBtn.style.display = 'block';
+                cancelBtn.classList.remove('d-none');
+            }
+            if (btnGroup) {
+                btnGroup.style.display = 'block';
+                btnGroup.classList.remove('d-none');
+            }
+            if (recordedMsg) recordedMsg.style.display = 'none';
+            
             // Show preview with animation
             preview.style.display = 'block';
             preview.classList.add('slide-in');
+        },
+
+        renderSweetAlertPreview(student) {
+            // Create HTML content for SweetAlert2 modal
+            const statusHtml = student.check_out_time ? 
+                `<span class="badge bg-success">Checked out at ${new Date(student.check_out_time).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</span>` :
+                student.check_in_time ? 
+                `<span class="badge bg-info">Checked in at ${new Date(student.check_in_time).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'})}</span>` :
+                `<span class="badge bg-secondary">Not checked in today</span>`;
+
+            const htmlContent = `
+                <div class="text-center">
+                    <img src="${student.photo_url || 'assets/img/default-avatar.svg'}" 
+                         class="rounded-circle mb-3" width="120" height="120" alt="Student Photo"
+                         onerror="this.src='assets/img/default-avatar.svg'">
+                    <h5 class="mb-1">${student.name}</h5>
+                    <p class="text-muted mb-1"><strong>${student.id}</strong></p>
+                    <p class="text-muted mb-2">${student.program || '-'} • ${student.shift || '-'}</p>
+                    <div class="mb-3">${statusHtml}</div>
+                    <div class="alert alert-light border p-2 small mb-0">
+                        <i class="bx bx-time-five me-1"></i> Auto-confirms in <span id="sweetalert-timer">2</span> seconds
+                    </div>
+                </div>
+            `;
+
+            Swal.fire({
+                title: 'Student Preview',
+                html: htmlContent,
+                showConfirmButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Confirm',
+                denyButtonText: 'Cancel',
+                confirmButtonColor: '#28a745',
+                denyButtonColor: '#6c757d',
+                allowOutsideClick: false,
+                timer: ScannerConfig.settings.autoConfirmDelayMs,
+                timerProgressBar: true,
+                didOpen: () => {
+                    // Start timer countdown
+                    this.startSweetAlertTimer();
+                },
+                didClose: () => {
+                    // Clear timer when modal closes
+                    this.clearAutoConfirm();
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    this.confirm();
+                } else if (result.isDenied) {
+                    this.cancel();
+                } else if (result.dismiss === Swal.DismissReason.timer) {
+                    // Auto-confirm when timer expires
+                    this.confirm();
+                }
+            });
+        },
+
+        startSweetAlertTimer() {
+            const timerElement = document.getElementById('sweetalert-timer');
+            if (!timerElement) return;
+
+            let timeLeft = Math.ceil(ScannerConfig.settings.autoConfirmDelayMs / 1000);
+            timerElement.textContent = timeLeft;
+
+            this.timerInterval = setInterval(() => {
+                timeLeft--;
+                if (timerElement) {
+                    timerElement.textContent = timeLeft;
+                }
+                if (timeLeft <= 0) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+            }, 1000);
+        },
+
+        startSweetAlertAutoConfirmTimer(student) {
+            if (ScannerConfig.settings.autoConfirmDelayMs <= 0) return;
+
+            this.autoConfirmTimer = setTimeout(() => {
+                console.log('SweetAlert2 auto-confirm timer expired');
+                this.confirm();
+            }, ScannerConfig.settings.autoConfirmDelayMs);
         },
         
         confirm() {
@@ -266,7 +450,11 @@
                 this.confirmCallback(this.currentStudent.id);
             }
             
-            this.hide();
+            // Hide buttons immediately after confirmation
+            this.hideButtonsAfterConfirm();
+            
+            // Don't hide the preview - keep it visible until new scan
+            // this.hide();
         },
         
         cancel() {
@@ -276,10 +464,10 @@
         },
         
         hide() {
-            const preview = document.getElementById('student-preview');
-            if (preview) {
-                preview.style.display = 'none';
-                preview.classList.remove('slide-in');
+            // Hide Bootstrap modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('studentPreviewModal'));
+            if (modal) {
+                modal.hide();
             }
             
             this.currentStudent = null;
@@ -290,6 +478,149 @@
             if (this.autoConfirmTimer) {
                 clearTimeout(this.autoConfirmTimer);
                 this.autoConfirmTimer = null;
+            }
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            }
+        },
+        
+        startAutoConfirmTimer() {
+            this.clearAutoConfirm();
+            
+            let timeLeft = Math.ceil(ScannerConfig.settings.autoConfirmDelayMs / 1000);
+            const timerElement = document.getElementById('auto-confirm-timer');
+            
+            // Update timer display immediately
+            if (timerElement) {
+                timerElement.textContent = timeLeft;
+            }
+            
+            // Update timer every second
+            this.timerInterval = setInterval(() => {
+                timeLeft--;
+                if (timerElement) {
+                    timerElement.textContent = timeLeft;
+                }
+                
+                if (timeLeft <= 0) {
+                    this.clearAutoConfirm();
+                    this.confirm();
+                }
+            }, 1000);
+            
+            // Set the main timeout
+            this.autoConfirmTimer = setTimeout(() => {
+                this.confirm();
+            }, ScannerConfig.settings.autoConfirmDelayMs);
+        },
+        
+        updateStudentPreviewStatus(attendanceData) {
+            if (!this.currentStudent) return;
+            
+            console.log('Updating student preview status:', attendanceData);
+            
+            // Update the student's status based on the attendance data
+            const statusEl = document.getElementById('preview-status');
+            if (statusEl) {
+                let statusHtml = '';
+                if (attendanceData.mode === 'checkout') {
+                    const time = new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'});
+                    statusHtml = `<span class="badge bg-success">Checked out at ${time}</span>`;
+                } else if (attendanceData.mode === 'checkin') {
+                    const time = new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit'});
+                    statusHtml = `<span class="badge bg-info">Checked in at ${time}</span>`;
+                }
+                
+                if (statusHtml) {
+                    statusEl.innerHTML = statusHtml;
+                }
+            }
+            
+            // Auto-close modal after 2 seconds
+            setTimeout(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('studentPreviewModal'));
+                if (modal) {
+                    modal.hide();
+                }
+            }, 2000);
+            
+            // Hide the confirm/cancel buttons since attendance is recorded
+            const confirmBtn = document.getElementById('preview-confirm');
+            const cancelBtn = document.getElementById('preview-cancel');
+            const btnGroup = document.querySelector('.btn-group.w-100.mb-3');
+            
+            console.log('Hiding buttons - confirmBtn:', confirmBtn, 'cancelBtn:', cancelBtn, 'btnGroup:', btnGroup);
+            
+            // Hide buttons and button group
+            if (confirmBtn) {
+                confirmBtn.style.display = 'none';
+                confirmBtn.classList.add('d-none');
+                console.log('Hidden confirm button');
+            }
+            if (cancelBtn) {
+                cancelBtn.style.display = 'none';
+                cancelBtn.classList.add('d-none');
+                console.log('Hidden cancel button');
+            }
+            if (btnGroup) {
+                btnGroup.style.display = 'none';
+                btnGroup.classList.add('d-none');
+                console.log('Hidden button group');
+            }
+            
+            // Hide the auto-confirm timer since attendance is recorded
+            const timerAlert = document.querySelector('.alert-light.border');
+            if (timerAlert) {
+                timerAlert.style.display = 'none';
+            }
+            
+            // Show a "Attendance Recorded" message instead
+            const preview = document.getElementById('student-preview');
+            if (preview) {
+                // Create or update the recorded message
+                let recordedMsg = preview.querySelector('.attendance-recorded-msg');
+                if (!recordedMsg) {
+                    recordedMsg = document.createElement('div');
+                    recordedMsg.className = 'attendance-recorded-msg alert alert-success mt-3';
+                    recordedMsg.innerHTML = '<i class="bx bx-check-circle me-2"></i>Attendance recorded successfully!';
+                    preview.querySelector('.card-body').appendChild(recordedMsg);
+                }
+                recordedMsg.style.display = 'block';
+            }
+        },
+        
+        hideButtonsAfterConfirm() {
+            console.log('Hiding buttons after confirm...');
+            
+            // Directly target the buttons by ID
+            const confirmBtn = document.getElementById('preview-confirm');
+            const cancelBtn = document.getElementById('preview-cancel');
+            const btnGroup = document.querySelector('.btn-group.w-100.mb-3');
+            
+            if (confirmBtn) {
+                confirmBtn.style.display = 'none';
+                confirmBtn.classList.add('d-none');
+                console.log('Hidden confirm button after confirm');
+            }
+            
+            if (cancelBtn) {
+                cancelBtn.style.display = 'none';
+                cancelBtn.classList.add('d-none');
+                console.log('Hidden cancel button after confirm');
+            }
+            
+            if (btnGroup) {
+                btnGroup.style.display = 'none';
+                btnGroup.classList.add('d-none');
+                console.log('Hidden button group after confirm');
+            }
+            
+            // Hide timer
+            const timerAlert = document.querySelector('.alert-light.border');
+            if (timerAlert) {
+                timerAlert.style.display = 'none';
+                console.log('Hidden timer after confirm');
             }
         }
     };
@@ -335,7 +666,9 @@
         
         async loadSystemStatus() {
             try {
-                const response = await fetch('api/attendance.php?action=get_diagnostics');
+                const response = await fetch('api/attendance.php?action=get_diagnostics', {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
                 
                 if (data.success && data.diagnostics) {
@@ -385,6 +718,15 @@
         init() {
             DiagnosticMonitor.log('Initializing scanner controller', 'info');
             
+            // Check if SweetAlert2 is loaded
+            if (typeof Swal === 'undefined') {
+                console.error('SweetAlert2 is not loaded!');
+                DiagnosticMonitor.log('SweetAlert2 not available', 'error');
+            } else {
+                console.log('SweetAlert2 is loaded and ready');
+                DiagnosticMonitor.log('SweetAlert2 loaded successfully', 'success');
+            }
+            
             // Load configuration
             ScannerConfig.load();
             
@@ -396,6 +738,9 @@
             
             // Set up event listeners
             this.setupEventListeners();
+            
+            // Set up modal event listeners
+            this.setupModalEventListeners();
             
             // Focus input
             if (this.input) this.input.focus();
@@ -477,6 +822,41 @@
                 });
             }
         },
+
+        setupModalEventListeners() {
+            // Student Preview Modal event listeners
+            const studentPreviewModal = document.getElementById('studentPreviewModal');
+            if (studentPreviewModal) {
+                // Reset modal content when it closes
+                studentPreviewModal.addEventListener('hidden.bs.modal', () => {
+                    console.log('Student preview modal closed, resetting content');
+                    
+                    // Reset all form elements to default state
+                    const photo = document.getElementById('preview-photo');
+                    const name = document.getElementById('preview-name');
+                    const id = document.getElementById('preview-id');
+                    const program = document.getElementById('preview-program');
+                    const shift = document.getElementById('preview-shift');
+                    const status = document.getElementById('preview-status');
+                    const timer = document.getElementById('auto-confirm-timer');
+                    
+                    if (photo) photo.src = 'assets/img/default-avatar.svg';
+                    if (name) name.textContent = '-';
+                    if (id) id.textContent = '-';
+                    if (program) program.textContent = '-';
+                    if (shift) shift.textContent = '-';
+                    if (status) status.innerHTML = '<span class="badge bg-secondary">Not checked in today</span>';
+                    if (timer) timer.textContent = '2';
+                    
+                    // Clear any timers
+                    StudentPreview.clearAutoConfirm();
+                    
+                    // Reset student data
+                    StudentPreview.currentStudent = null;
+                    StudentPreview.confirmCallback = null;
+                });
+            }
+        },
         
         handleScan(studentId) {
             const now = Date.now();
@@ -491,7 +871,18 @@
             if (studentId === this.lastScanValue && 
                 (now - this.lastScanAt) < ScannerConfig.settings.duplicateSuppressionMs) {
                 DiagnosticMonitor.log('Duplicate scan ignored: ' + studentId, 'warning');
-                VisualFeedback.showFeedback('Duplicate scan ignored: ' + studentId, 'warning');
+                
+                // Show SweetAlert2 warning popup
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Duplicate Scan',
+                    text: `Student ${studentId} was already scanned recently`,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#ffc107',
+                    timer: 3000,
+                    timerProgressBar: true
+                });
+                
                 VisualFeedback.setStatus('Duplicate', 'warning');
                 VisualFeedback.showFlash('warning');
                 AudioManager.play('warning');
@@ -501,7 +892,18 @@
             // Validation check
             if (!ScannerConfig.settings.validPattern.test(studentId)) {
                 DiagnosticMonitor.log('Invalid format: ' + studentId, 'error');
-                VisualFeedback.showFeedback('Invalid student ID format', 'error');
+                
+                // Show SweetAlert2 error popup
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Student ID',
+                    text: `Format not recognized: ${studentId}`,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545',
+                    timer: 4000,
+                    timerProgressBar: true
+                });
+                
                 VisualFeedback.setStatus('Invalid', 'error');
                 VisualFeedback.showFlash('error');
                 AudioManager.play('error');
@@ -513,6 +915,9 @@
             
             DiagnosticMonitor.log('Processing scan: ' + studentId, 'info');
             VisualFeedback.setStatus('Processing', 'info');
+            
+            // Clear any existing preview first
+            StudentPreview.hide();
             
             // Show student preview
             StudentPreview.show(studentId, (confirmedId) => {
@@ -529,6 +934,7 @@
                 
                 const response = await fetch('api/attendance.php?action=save_attendance', {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': csrfToken
@@ -546,19 +952,55 @@
                     const message = isCheckout ? 'Check-out successful' : 'Check-in successful';
                     
                     DiagnosticMonitor.log(message + ': ' + studentId, 'success');
-                    VisualFeedback.showFeedback(message, 'success');
+                    
+                    // Show SweetAlert2 success popup
+                    console.log('Showing SweetAlert2 popup for:', message);
+                    try {
+                        Swal.fire({
+                            icon: 'success',
+                            title: message,
+                            text: `Student: ${studentId}`,
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#28a745',
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+                        console.log('SweetAlert2 popup triggered successfully');
+                    } catch (error) {
+                        console.error('SweetAlert2 error:', error);
+                        // Fallback to alert if SweetAlert2 fails
+                        alert(message + ': ' + studentId);
+                    }
+                    
                     VisualFeedback.setStatus('Success', 'success');
                     VisualFeedback.showFlash('success');
                     AudioManager.play(isCheckout ? 'checkout' : 'success');
                     
                     // Update UI counters
                     this.updateCounters();
+                    
+                    // Update the student preview to show new status
+                    this.updateStudentPreviewStatus(data);
+                    
+                    // Also hide buttons immediately after successful attendance
+                    setTimeout(() => {
+                        this.hidePreviewButtons();
+                    }, 100);
                 } else {
                     throw new Error(data.error || data.message || 'Attendance submission failed');
                 }
             } catch (error) {
                 DiagnosticMonitor.log('Submission error: ' + error.message, 'error');
-                VisualFeedback.showFeedback('Error: ' + error.message, 'error');
+                
+                // Show SweetAlert2 error popup
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Attendance Error',
+                    text: error.message,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545'
+                });
+                
                 VisualFeedback.setStatus('Error', 'error');
                 VisualFeedback.showFlash('error');
                 AudioManager.play('error');
@@ -577,6 +1019,43 @@
             // Reload scan stats
             if (typeof updateScanCount === 'function') {
                 updateScanCount();
+            }
+        },
+        
+        updateStudentPreviewStatus(attendanceData) {
+            StudentPreview.updateStudentPreviewStatus(attendanceData);
+        },
+        
+        hidePreviewButtons() {
+            console.log('Hiding preview buttons...');
+            
+            // Try multiple selectors to find the buttons
+            const selectors = [
+                '#preview-confirm',
+                '#preview-cancel',
+                '.btn-group.w-100.mb-3',
+                '.btn-group',
+                'button[class*="btn-success"]',
+                'button[class*="btn-outline-secondary"]'
+            ];
+            
+            selectors.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(element => {
+                    if (element) {
+                        element.style.display = 'none';
+                        element.classList.add('d-none');
+                        console.log('Hidden element:', selector, element);
+                    }
+                });
+            });
+            
+            // Also try to hide the entire button group container
+            const buttonContainer = document.querySelector('.btn-group.w-100.mb-3');
+            if (buttonContainer) {
+                buttonContainer.style.display = 'none';
+                buttonContainer.classList.add('d-none');
+                console.log('Hidden button container');
             }
         }
     };

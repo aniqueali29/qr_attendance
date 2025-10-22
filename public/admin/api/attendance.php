@@ -382,7 +382,7 @@ function handleGetRequest($action) {
                     break;
                 }
                 
-                $stmt = $pdo->prepare("SELECT s.student_id, s.name, s.program, s.shift, s.photo,
+                $stmt = $pdo->prepare("SELECT s.student_id, s.name, s.program, s.shift, s.profile_picture,
                     a.check_in_time, a.check_out_time, a.status
                     FROM students s
                     LEFT JOIN attendance a ON s.student_id = a.student_id 
@@ -400,7 +400,7 @@ function handleGetRequest($action) {
                             'name' => $student['name'],
                             'program' => $student['program'],
                             'shift' => $student['shift'],
-                            'photo_url' => $student['photo'] ? '../uploads/students/' . $student['photo'] : null,
+                            'photo_url' => $student['profile_picture'] ? '../uploads/students/' . $student['profile_picture'] : null,
                             'today_status' => $student['status'],
                             'check_in_time' => $student['check_in_time'],
                             'check_out_time' => $student['check_out_time']

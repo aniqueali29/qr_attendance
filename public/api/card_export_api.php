@@ -4,6 +4,15 @@
  * Handles individual and bulk student card exports in PNG and PDF formats
  */
 
+// Configure session to match admin panel settings BEFORE any other operations
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
+ini_set('session.use_strict_mode', 1);
+ini_set('session.gc_maxlifetime', 3600); // 1 hour
+ini_set('session.name', 'QR_ATTENDANCE_SESSION'); // Match admin panel session name
+ini_set('session.cookie_path', '/qr_attendance/'); // Match admin panel session path
+ini_set('session.cookie_domain', '');
+
 // Start output buffering to catch any stray output
 ob_start();
 
@@ -11,13 +20,6 @@ ob_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Don't display errors to browser
 ini_set('log_errors', 1); // Log errors instead
-
-// Configure session to match admin panel settings
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
-ini_set('session.use_strict_mode', 1);
-ini_set('session.gc_maxlifetime', 3600); // 1 hour
-ini_set('session.name', 'admin_session'); // Match admin panel session name
 
 // Start session to access admin session data
 if (session_status() === PHP_SESSION_NONE) {
@@ -44,6 +46,7 @@ if (!isset($pdo) || !$pdo) {
 $user_id = null;
 $user_role = null;
 
+
 // Check for admin session first (admin panel uses admin_user_id)
 if (isset($_SESSION['admin_user_id']) && isset($_SESSION['admin_logged_in'])) {
     $user_id = $_SESSION['admin_user_id'];
@@ -57,10 +60,15 @@ elseif (isset($_SESSION['user_id'])) {
 
 // Require authentication
 if (!$user_id) {
-    ob_clean();
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Authentication required. Please login.']);
-    exit;
+    // Try alternative authentication method - check admin session in database
+    $user_id = checkAdminSessionInDatabase();
+    
+    if (!$user_id) {
+        ob_clean();
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Authentication required. Please login.']);
+        exit;
+    }
 }
 
 // Store normalized user_id for use in the API
@@ -102,6 +110,49 @@ ob_clean();
 echo json_encode(['success' => false, 'message' => 'Invalid request method']);
 
 /**
+ * Check admin session in database as fallback authentication
+ */
+function checkAdminSessionInDatabase() {
+    global $pdo;
+    
+    try {
+        // Check if we have any session cookies
+        $session_id = null;
+        $possible_session_names = ['QR_ATTENDANCE_SESSION', 'PHPSESSID', 'admin_session'];
+        
+        foreach ($possible_session_names as $session_name) {
+            if (isset($_COOKIE[$session_name])) {
+                $session_id = $_COOKIE[$session_name];
+                break;
+            }
+        }
+        
+        if (!$session_id) {
+            return null;
+        }
+        
+        // Check if session exists in database and is valid
+        $stmt = $pdo->prepare("
+            SELECT s.user_id, u.role 
+            FROM sessions s 
+            JOIN users u ON s.user_id = u.id 
+            WHERE s.id = ? AND u.role = 'admin' AND u.is_active = 1 
+            AND s.last_activity > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+        ");
+        $stmt->execute([$session_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result) {
+            return $result['user_id'];
+        }
+        
+        return null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+/**
  * Handle card export requests
  */
 function handleCardExport() {
@@ -126,8 +177,8 @@ function handleCardExport() {
             return ['success' => false, 'message' => 'Student IDs required'];
         }
         
-        if (!in_array($format, ['png', 'pdf'])) {
-            return ['success' => false, 'message' => 'Invalid format. Use png or pdf'];
+        if ($format !== 'pdf') {
+            return ['success' => false, 'message' => 'Only PDF format is supported'];
         }
         
         if (!in_array($type, ['individual', 'bulk'])) {
@@ -170,11 +221,11 @@ function handleCardExport() {
             ];
         }
         
-        // Generate export files
+        // Generate export files (PDF only)
         if ($type === 'individual' && count($student_ids) === 1) {
-            return generateIndividualCard($students[0], $format);
+            return generateIndividualCard($students[0], 'pdf');
         } else {
-            return generateBulkCards($students, $format);
+            return generateBulkCards($students, 'pdf');
         }
         
     } catch (Exception $e) {
@@ -183,121 +234,54 @@ function handleCardExport() {
 }
 
 /**
- * Generate individual card
+ * Generate individual card (PDF only)
  */
 function generateIndividualCard($student, $format) {
     $student_id = $student['student_id'];
     
-    if ($format === 'png') {
-        // Generate PNG card
-        $filename = "card_{$student_id}_" . date('Y-m-d_H-i-s') . '.png';
-        $filepath = generateCardImage($student);
-        
-        if ($filepath) {
-            return [
-                'success' => true,
-                'message' => 'Card generated successfully',
-                'data' => [
-                    'download_url' => 'api/card_download.php?file=' . urlencode($filepath) . '&filename=' . urlencode($filename),
-                    'filename' => $filename,
-                    'file_type' => 'html' // HTML file that can be printed to PNG
-                ]
-            ];
-        } else {
-            return ['success' => false, 'message' => 'Failed to generate card image'];
-        }
+    // Generate PDF card
+    $filename = "card_{$student_id}_" . date('Y-m-d_H-i-s') . '.pdf';
+    $filepath = generateCardPDF($student);
+    
+    if ($filepath) {
+        return [
+            'success' => true,
+            'message' => 'Card generated successfully',
+            'data' => [
+                'download_url' => 'api/card_download.php?file=' . urlencode($filepath) . '&filename=' . urlencode($filename),
+                'filename' => $filename
+            ]
+        ];
     } else {
-        // Generate PDF card
-        $filename = "card_{$student_id}_" . date('Y-m-d_H-i-s') . '.pdf';
-        $filepath = generateCardPDF($student);
-        
-        if ($filepath) {
-            return [
-                'success' => true,
-                'message' => 'Card generated successfully',
-                'data' => [
-                    'download_url' => 'api/card_download.php?file=' . urlencode($filepath) . '&filename=' . urlencode($filename),
-                    'filename' => $filename
-                ]
-            ];
-        } else {
-            return ['success' => false, 'message' => 'Failed to generate card PDF'];
-        }
+        return ['success' => false, 'message' => 'Failed to generate card PDF'];
     }
 }
 
 /**
- * Generate bulk cards
+ * Generate bulk cards (PDF only)
  */
 function generateBulkCards($students, $format) {
     $timestamp = date('Y-m-d_H-i-s');
     
-    if ($format === 'png') {
-        // Generate ZIP with individual PNG files
-        $zip_filename = "student_cards_bulk_{$timestamp}.zip";
-        $zip_filepath = generateBulkPNGZip($students, $zip_filename);
-        
-        if ($zip_filepath) {
-            // Check if we're using fallback (HTML instead of ZIP)
-            $is_fallback = !class_exists('ZipArchive') || strpos($zip_filepath, '.html') !== false;
-            $actual_filename = $is_fallback ? "student_cards_bulk_{$timestamp}.html" : $zip_filename;
-            
-            return [
-                'success' => true,
-                'message' => $is_fallback ? 'Bulk cards generated as HTML (ZIP not available)' : 'Bulk cards generated successfully',
-                'data' => [
-                    'download_url' => 'api/card_download.php?file=' . urlencode($zip_filepath) . '&filename=' . urlencode($actual_filename),
-                    'filename' => $actual_filename,
-                    'count' => count($students),
-                    'fallback' => $is_fallback
-                ]
-            ];
-        } else {
-            return ['success' => false, 'message' => 'Failed to generate bulk cards'];
-        }
+    // Generate single PDF with all cards
+    $pdf_filename = "student_cards_bulk_{$timestamp}.pdf";
+    $pdf_filepath = generateBulkPDF($students, $pdf_filename);
+    
+    if ($pdf_filepath) {
+        return [
+            'success' => true,
+            'message' => 'Bulk cards generated successfully',
+            'data' => [
+                'download_url' => 'api/card_download.php?file=' . urlencode($pdf_filepath) . '&filename=' . urlencode($pdf_filename),
+                'filename' => $pdf_filename,
+                'count' => count($students)
+            ]
+        ];
     } else {
-        // Generate single PDF with all cards
-        $pdf_filename = "student_cards_bulk_{$timestamp}.pdf";
-        $pdf_filepath = generateBulkPDF($students, $pdf_filename);
-        
-        if ($pdf_filepath) {
-            return [
-                'success' => true,
-                'message' => 'Bulk cards generated successfully',
-                'data' => [
-                    'download_url' => 'api/card_download.php?file=' . urlencode($pdf_filepath) . '&filename=' . urlencode($pdf_filename),
-                    'filename' => $pdf_filename,
-                    'count' => count($students)
-                ]
-            ];
-        } else {
-            return ['success' => false, 'message' => 'Failed to generate bulk PDF'];
-        }
+        return ['success' => false, 'message' => 'Failed to generate bulk PDF'];
     }
 }
 
-/**
- * Generate card image (PNG) - HTML-based approach since GD may not be available
- */
-function generateCardImage($student) {
-    $student_id = $student['student_id'];
-    
-    // Create temporary directory for cards
-    $temp_dir = sys_get_temp_dir() . '/qr_cards/';
-    if (!is_dir($temp_dir)) {
-        mkdir($temp_dir, 0755, true);
-    }
-    
-    $temp_html = $temp_dir . "card_{$student_id}_" . time() . '.html';
-    
-    // Generate card HTML with print styles for PNG conversion
-    $card_html = generateCardHTML($student, false, true); // true for PNG mode
-    file_put_contents($temp_html, $card_html);
-    
-    // For now, return the HTML file - the frontend can handle PNG conversion
-    // or we can use a headless browser service later
-    return $temp_html;
-}
 
 /**
  * Generate card PDF
@@ -322,63 +306,6 @@ function generateCardPDF($student) {
     return $temp_html;
 }
 
-/**
- * Generate bulk PNG ZIP (HTML files for now)
- */
-function generateBulkPNGZip($students, $zip_filename) {
-    // Check if ZipArchive is available
-    if (!class_exists('ZipArchive')) {
-        // Fallback: save HTML file and return path
-        $temp_dir = sys_get_temp_dir() . '/qr_cards/';
-        if (!is_dir($temp_dir)) {
-            mkdir($temp_dir, 0755, true);
-        }
-        
-        $html_filename = str_replace('.zip', '.html', $zip_filename);
-        $html_path = $temp_dir . $html_filename;
-        
-        $html_content = generateBulkCardHTML($students);
-        file_put_contents($html_path, $html_content);
-        
-        return $html_path;
-    }
-    
-    $temp_dir = sys_get_temp_dir() . '/qr_cards/';
-    if (!is_dir($temp_dir)) {
-        mkdir($temp_dir, 0755, true);
-    }
-    
-    $zip_path = $temp_dir . $zip_filename;
-    $zip = new ZipArchive();
-    
-    if ($zip->open($zip_path, ZipArchive::CREATE) !== TRUE) {
-        // Fallback: save HTML file and return path
-        $html_filename = str_replace('.zip', '.html', $zip_filename);
-        $html_path = $temp_dir . $html_filename;
-        
-        $html_content = generateBulkCardHTML($students);
-        file_put_contents($html_path, $html_content);
-        
-        return $html_path;
-    }
-    
-    foreach ($students as $student) {
-        $html_path = generateCardImage($student); // This now returns HTML file
-        if ($html_path) {
-            $zip->addFile($html_path, basename($html_path));
-        }
-    }
-    
-    $zip->close();
-    
-    // Clean up individual HTML files
-    foreach ($students as $student) {
-        $html_path = $temp_dir . "card_{$student['student_id']}_*.html";
-        array_map('unlink', glob($html_path));
-    }
-    
-    return $zip_path;
-}
 
 /**
  * Generate bulk PDF
@@ -399,9 +326,9 @@ function generateBulkPDF($students, $pdf_filename) {
 }
 
 /**
- * Generate card HTML
+ * Generate card HTML (PDF only)
  */
-function generateCardHTML($student, $for_pdf = false, $for_png = false) {
+function generateCardHTML($student, $for_pdf = false) {
     $student_id = $student['student_id'];
     $qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($student_id) . "&margin=10";
     $current_year = date('Y');
@@ -426,29 +353,6 @@ function generateCardHTML($student, $for_pdf = false, $for_png = false) {
             @page { 
                 size: A4; 
                 margin: 15mm; 
-            }
-        ';
-    } elseif ($for_png) {
-        $print_styles = '
-            @media print {
-                body { 
-                    background: white; 
-                    padding: 0; 
-                    margin: 0; 
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    min-height: 100vh;
-                }
-                .print-controls { display: none !important; }
-                .attendance-card { 
-                    box-shadow: none; 
-                    border: 1px solid #ddd; 
-                }
-            }
-            @page { 
-                size: 85.6mm 55mm; 
-                margin: 0; 
             }
         ';
     }

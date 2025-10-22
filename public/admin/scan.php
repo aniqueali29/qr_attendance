@@ -22,6 +22,34 @@ include 'partials/navbar.php';
 <!-- Custom Scanner Styles -->
 <link rel="stylesheet" href="assets/css/scanner.css">
 
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// Test SweetAlert2 loading
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, testing SweetAlert2...');
+    if (typeof Swal !== 'undefined') {
+        console.log('SweetAlert2 is available');
+    } else {
+        console.error('SweetAlert2 is not available');
+    }
+});
+
+// Test function for SweetAlert2
+function testSweetAlert() {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'success',
+            title: 'SweetAlert2 Test',
+            text: 'SweetAlert2 is working correctly!',
+            confirmButtonText: 'OK'
+        });
+    } else {
+        alert('SweetAlert2 is not loaded!');
+    }
+}
+</script>
+
 <!-- Flash Overlay for Visual Feedback -->
 <div id="flash-overlay" style="display:none"></div>
 
@@ -47,16 +75,21 @@ include 'partials/navbar.php';
                                 data-bs-toggle="modal" data-bs-target="#scannerConfigModal" title="Scanner Settings">
                             <i class="bx bx-cog"></i>
                         </button>
+                        <button type="button" class="btn btn-sm btn-outline-info test-popup-btn" 
+                                onclick="testSweetAlert()" title="Test SweetAlert2">
+                            <i class="bx bx-test-tube"></i>
+                        </button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info" role="alert">
+                    <div class="alert alert-info mt-3" role="alert">
                         <i class="bx bx-info-circle me-2"></i>
                         Scan student card or toggle to Manual mode for keyboard entry.
                     </div>
 
                     <!-- Scanner Section -->
                     <div id="scanner-section">
+                        <input type="hidden" id="csrf-token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                         <div class="mb-4">
                             <label for="scan-input" class="form-label">Scan Input</label>
                             <div class="input-group input-group-lg">
@@ -76,7 +109,6 @@ include 'partials/navbar.php';
 
                     <!-- Manual Section -->
                     <div id="manual-section" class="d-none">
-                        <input type="hidden" id="csrf-token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                         <div class="row g-3">
                             <div class="col-md-12">
                                 <label for="manual-student-id" class="form-label">Student ID</label>
@@ -104,7 +136,6 @@ include 'partials/navbar.php';
                         </div>
                     </div>
 
-                    <div id="scan-feedback" class="alert d-none mt-3" role="alert"></div>
 
                     <!-- Stats and Actions -->
                     <div class="d-flex align-items-center justify-content-between mt-4 pt-3 border-top">
@@ -150,13 +181,33 @@ include 'partials/navbar.php';
             </div> -->
         </div>
 
-        <!-- Middle Column: Student Preview (25%) - Hidden until scan -->
+        <!-- Right Column: Recent Scans (25%) - Always visible -->
         <div class="col-12 col-lg-6">
-            <div id="student-preview" class="card" style="display:none">
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bx bx-user me-1"></i>Student Preview</h6>
+                    <h6 class="mb-0"><i class="bx bx-history me-1"></i>Recent Scans</h6>
                 </div>
-                <div class="card-body text-center">
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush" id="recent-scans" style="max-height: 500px; overflow-y: auto;">
+                        <li class="list-group-item text-muted text-center py-4">
+                            <i class="bx bx-history bx-lg"></i>
+                            <div class="mt-2">No scans yet</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Preview Modal -->
+    <div class="modal fade" id="studentPreviewModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bx bx-user me-1"></i>Student Preview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
                     <div class="preview-loading d-none">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
@@ -183,23 +234,6 @@ include 'partials/navbar.php';
                     <div class="alert alert-light border p-2 small mb-0">
                         <i class="bx bx-time-five me-1"></i> Auto-confirms in <span id="auto-confirm-timer">2</span> seconds
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Column: Recent Scans (25%) - Always visible -->
-        <div class="col-12 col-lg-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bx bx-history me-1"></i>Recent Scans</h6>
-                </div>
-                <div class="card-body p-0">
-                    <ul class="list-group list-group-flush" id="recent-scans" style="max-height: 500px; overflow-y: auto;">
-                        <li class="list-group-item text-muted text-center py-4">
-                            <i class="bx bx-history bx-lg"></i>
-                            <div class="mt-2">No scans yet</div>
-                        </li>
-                    </ul>
                 </div>
             </div>
         </div>
@@ -278,10 +312,16 @@ include 'partials/navbar.php';
                         <i class="bx bx-volume-full me-1"></i>Enable Sound Effects
                     </label>
                 </div>
-                <div class="form-check">
+                <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="config-flash" checked>
                     <label class="form-check-label" for="config-flash">
                         <i class="bx bx-brightness me-1"></i>Enable Visual Flash Feedback
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="config-use-sweetalert-preview">
+                    <label class="form-check-label" for="config-use-sweetalert-preview">
+                        <i class="bx bx-window me-1"></i>Use SweetAlert2 for Student Preview
                     </label>
                 </div>
             </div>
@@ -366,7 +406,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const csrf = document.getElementById('csrf-token').value;
 
             if (!studentId) {
-                alert('Please enter Student ID');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Student ID Required',
+                    text: 'Please enter Student ID',
+                    confirmButtonText: 'OK'
+                });
                 return;
             }
 
@@ -384,16 +429,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 const data = await resp.json();
                 if (resp.ok && data && data.success) {
-                    alert('Attendance saved successfully!');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: 'Attendance saved successfully!',
+                        confirmButtonText: 'OK'
+                    });
                     document.getElementById('manual-student-id').value = '';
                     document.getElementById('manual-notes').value = '';
                     updateScanCount();
                     loadRecentScans();
                 } else {
-                    alert(data.error || 'Failed to save attendance');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.error || 'Failed to save attendance',
+                        confirmButtonText: 'OK'
+                    });
                 }
             } catch (e) {
-                alert('Network error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Network Error',
+                    text: 'Please check your internet connection and try again',
+                    confirmButtonText: 'OK'
+                });
             }
         });
     }
@@ -402,7 +462,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const markAbsentBtn = document.getElementById('mark-absent-btn');
     if (markAbsentBtn) {
         markAbsentBtn.addEventListener('click', async function() {
-            if (!confirm('Mark all students who haven\'t checked in as absent?')) return;
+            const result = await Swal.fire({
+                title: 'Mark Students Absent',
+                text: 'Mark all students who haven\'t checked in as absent?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Mark Absent',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d'
+            });
+            
+            if (!result.isConfirmed) return;
 
             markAbsentBtn.disabled = true;
             markAbsentBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin me-1"></i>Processing...';
@@ -419,14 +490,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(data.message);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Students Marked Absent',
+                        text: data.message,
+                        confirmButtonText: 'OK'
+                    });
                     loadRecentScans();
                     updateScanCount();
                 } else {
-                    alert(data.error || 'Failed to mark absent students');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.error || 'Failed to mark absent students',
+                        confirmButtonText: 'OK'
+                    });
                 }
             } catch (error) {
-                alert('Network error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Network Error',
+                    text: 'Please check your internet connection and try again',
+                    confirmButtonText: 'OK'
+                });
             } finally {
                 markAbsentBtn.disabled = false;
                 markAbsentBtn.innerHTML = '<i class="bx bx-user-x me-1"></i>Mark Absent';
@@ -457,14 +543,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.total_marked > 0) {
                         message += ` (${data.total_marked} students marked absent)`;
                     }
-                    alert(message);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Auto Absent Check Complete',
+                        text: message,
+                        confirmButtonText: 'OK'
+                    });
                     loadRecentScans();
                     updateScanCount();
                 } else {
-                    alert(data.error || 'Auto absent check failed');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Auto Absent Check Failed',
+                        text: data.error || 'Auto absent check failed',
+                        confirmButtonText: 'OK'
+                    });
                 }
             } catch (error) {
-                alert('Network error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Network Error',
+                    text: 'Please check your internet connection and try again',
+                    confirmButtonText: 'OK'
+                });
             } finally {
                 autoAbsentBtn.disabled = false;
                 autoAbsentBtn.innerHTML = '<i class="bx bx-time me-1"></i>Auto Check';
@@ -475,4 +576,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- Load Enhanced Scanner Module -->
-<script src="js/scanner-enhanced.js"></script>
+<script src="js/scanner-enhanced.js?v=<?php echo time(); ?>"></script>
