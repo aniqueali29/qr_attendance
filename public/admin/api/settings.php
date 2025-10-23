@@ -120,39 +120,15 @@ class AdminSettingsAPI {
     private function getDefaultSettings() {
         return [
             'timings' => [
-                ['key' => 'morning_checkin_start', 'value' => '09:00', 'type' => 'string'],
-                ['key' => 'morning_checkin_end', 'value' => '11:00', 'type' => 'string'],
-                ['key' => 'morning_checkout_start', 'value' => '12:00', 'type' => 'string'],
-                ['key' => 'morning_checkout_end', 'value' => '13:40', 'type' => 'string'],
-                ['key' => 'morning_class_end', 'value' => '13:40', 'type' => 'string'],
-                ['key' => 'evening_checkin_start', 'value' => '15:00', 'type' => 'string'],
-                ['key' => 'evening_checkin_end', 'value' => '18:00', 'type' => 'string'],
-                ['key' => 'evening_checkout_start', 'value' => '15:00', 'type' => 'string'],
-                ['key' => 'evening_checkout_end', 'value' => '18:00', 'type' => 'string'],
-                ['key' => 'evening_class_end', 'value' => '18:00', 'type' => 'string']
+                // No default timing values - all must be configured by admin
+                // Timing settings are required and must be set in admin panel
             ],
             'system' => [
-                ['key' => 'minimum_duration_minutes', 'value' => '120', 'type' => 'integer'],
                 ['key' => 'sync_interval_seconds', 'value' => '30', 'type' => 'integer'],
                 ['key' => 'timezone', 'value' => 'Asia/Karachi', 'type' => 'string'],
                 ['key' => 'academic_year_start_month', 'value' => '9', 'type' => 'integer'],
                 ['key' => 'auto_absent_morning_hour', 'value' => '11', 'type' => 'integer'],
                 ['key' => 'auto_absent_evening_hour', 'value' => '17', 'type' => 'integer']
-            ],
-            'integration' => [
-                ['key' => 'website_url', 'value' => 'http://localhost/qr_attendance/public', 'type' => 'string'],
-                ['key' => 'api_endpoint_attendance', 'value' => '/api/api_attendance.php', 'type' => 'string'],
-                ['key' => 'api_endpoint_checkin', 'value' => '/api/checkin_api.php', 'type' => 'string'],
-                ['key' => 'api_endpoint_dashboard', 'value' => '/api/dashboard_api.php', 'type' => 'string'],
-                ['key' => 'api_timeout_seconds', 'value' => '30', 'type' => 'integer'],
-                ['key' => 'api_key', 'value' => 'attendance_2025_xyz789_secure', 'type' => 'string'],
-                ['key' => 'max_sync_records', 'value' => '1000', 'type' => 'integer'],
-                ['key' => 'api_rate_limit', 'value' => '100', 'type' => 'integer'],
-                ['key' => 'qr_code_size', 'value' => '200', 'type' => 'integer'],
-                ['key' => 'qr_code_margin', 'value' => '10', 'type' => 'integer'],
-                ['key' => 'qr_code_path', 'value' => 'assets/img/qr_codes/', 'type' => 'string'],
-                ['key' => 'max_file_size_mb', 'value' => '5', 'type' => 'integer'],
-                ['key' => 'allowed_extensions', 'value' => 'csv,json,xlsx', 'type' => 'string']
             ],
             'advanced' => [
                 ['key' => 'debug_mode', 'value' => true, 'type' => 'boolean'],
@@ -226,7 +202,7 @@ class AdminSettingsAPI {
     private function getCategoryForKey($key) {
         $categories = [
             'shift_timings' => ['morning_', 'evening_'],
-            'system_config' => ['minimum_duration', 'sync_interval', 'timezone', 'academic_year', 'auto_absent'],
+            'system_config' => ['sync_interval', 'timezone', 'academic_year', 'auto_absent'],
             'integration' => ['website_url', 'api_endpoint', 'api_key', 'api_timeout'],
             'advanced' => ['debug_mode', 'log_errors', 'show_errors', 'session_timeout', 'max_login', 'login_lockout', 'password_min', 'max_sync', 'api_rate'],
             'qr_code' => ['qr_code_'],
@@ -281,7 +257,6 @@ class AdminSettingsAPI {
             'evening_checkout_start' => 'When evening shift students can start checking out',
             'evening_checkout_end' => 'Last time evening shift students can check out',
             'evening_class_end' => 'When evening shift class ends',
-            'minimum_duration_minutes' => 'Minimum time required for attendance',
             'sync_interval_seconds' => 'How often to sync with web server',
             'timezone' => 'System timezone',
             'academic_year_start_month' => 'When the academic year starts',
@@ -606,8 +581,7 @@ class AdminSettingsAPI {
             $result = $stmt->execute([$string_value, $updated_by, $key]);
             
             if ($result) {
-                // Write to settings.json file for Python app
-                $this->writeSettingsToJson();
+                // Settings updated in database
                 
                 return [
                     'success' => true,
@@ -717,8 +691,7 @@ class AdminSettingsAPI {
             if (empty($errors)) {
                 $this->pdo->commit();
                 
-                // Write to settings.json file for Python app
-                $this->writeSettingsToJson();
+                // Settings updated in database
                 
                 return [
                     'success' => true,
@@ -758,13 +731,9 @@ class AdminSettingsAPI {
         
         try {
             // Helper function to parse time with flexible format and proper validation
-            $parseTime = function($time, $fieldName, $default = '09:00:00') {
+            $parseTime = function($time, $fieldName) {
                 if (empty($time)) {
-                    $dt = DateTime::createFromFormat('H:i:s', $default);
-                    if ($dt === false) {
-                        throw new Exception("Invalid default time for {$fieldName}: {$default}");
-                    }
-                    return $dt;
+                    throw new Exception("Time value is required for {$fieldName}");
                 }
                 
                 // Try different time formats
@@ -786,18 +755,26 @@ class AdminSettingsAPI {
             };
             
             // Parse morning timings with validation
-            $morning_start = $parseTime($timings['morning_checkin_start'] ?? '', 'morning_checkin_start', '09:00:00');
-            $morning_end = $parseTime($timings['morning_checkin_end'] ?? '', 'morning_checkin_end', '11:00:00');
-            $morning_checkout_start = $parseTime($timings['morning_checkout_start'] ?? '', 'morning_checkout_start', '12:00:00');
-            $morning_checkout_end = $parseTime($timings['morning_checkout_end'] ?? '', 'morning_checkout_end', '13:40:00');
-            $morning_class_end = $parseTime($timings['morning_class_end'] ?? '', 'morning_class_end', '13:40:00');
+            // All timing values are required - no defaults
+            if (empty($timings['morning_checkin_start']) || empty($timings['morning_checkin_end']) || 
+                empty($timings['morning_class_end']) || empty($timings['evening_checkin_start']) || 
+                empty($timings['evening_checkin_end']) || empty($timings['evening_class_end'])) {
+                $errors[] = "All timing settings are required. Please configure all check-in, check-out, and class end times.";
+                return ['valid' => false, 'errors' => $errors, 'warnings' => $warnings];
+            }
+            
+            $morning_start = $parseTime($timings['morning_checkin_start'], 'morning_checkin_start');
+            $morning_end = $parseTime($timings['morning_checkin_end'], 'morning_checkin_end');
+            $morning_checkout_start = $parseTime($timings['morning_checkout_start'] ?? $timings['morning_checkin_end'], 'morning_checkout_start');
+            $morning_checkout_end = $parseTime($timings['morning_checkout_end'] ?? $timings['morning_class_end'], 'morning_checkout_end');
+            $morning_class_end = $parseTime($timings['morning_class_end'], 'morning_class_end');
             
             // Parse evening timings with validation
-            $evening_start = $parseTime($timings['evening_checkin_start'] ?? '', 'evening_checkin_start', '15:00:00');
-            $evening_end = $parseTime($timings['evening_checkin_end'] ?? '', 'evening_checkin_end', '18:00:00');
-            $evening_checkout_start = $parseTime($timings['evening_checkout_start'] ?? '', 'evening_checkout_start', '15:00:00');
-            $evening_checkout_end = $parseTime($timings['evening_checkout_end'] ?? '', 'evening_checkout_end', '18:00:00');
-            $evening_class_end = $parseTime($timings['evening_class_end'] ?? '', 'evening_class_end', '18:00:00');
+            $evening_start = $parseTime($timings['evening_checkin_start'], 'evening_checkin_start');
+            $evening_end = $parseTime($timings['evening_checkin_end'], 'evening_checkin_end');
+            $evening_checkout_start = $parseTime($timings['evening_checkout_start'] ?? $timings['evening_checkin_start'], 'evening_checkout_start');
+            $evening_checkout_end = $parseTime($timings['evening_checkout_end'] ?? $timings['evening_class_end'], 'evening_checkout_end');
+            $evening_class_end = $parseTime($timings['evening_class_end'], 'evening_class_end');
             
             // Validate morning shift logic
             if ($morning_end <= $morning_start) {
@@ -1035,58 +1012,8 @@ class AdminSettingsAPI {
     }
     
     /**
-     * Write all settings to settings.json file for Python app
+     * Legacy sync functions removed - settings are now stored in database only
      */
-    private function writeSettingsToJson() {
-        // Suppress warnings for this function
-        $old_error_reporting = error_reporting(0);
-        
-        try {
-            // Get all settings from database
-            $stmt = $this->pdo->query("
-                SELECT setting_key, setting_value, setting_type 
-                FROM system_settings 
-                ORDER BY setting_key
-            ");
-            
-            $settings = [];
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $key = $row['setting_key'];
-                $value = $row['setting_value'];
-                $type = $row['setting_type'];
-                
-                // Convert value based on type
-                if ($type === 'integer') {
-                    $settings[$key] = (int)$value;
-                } elseif ($type === 'boolean') {
-                    $settings[$key] = $value === '1' || $value === 'true';
-                } elseif ($type === 'json') {
-                    $settings[$key] = json_decode($value, true);
-                } else {
-                    $settings[$key] = $value;
-                }
-            }
-            
-            // Create settings.json structure
-            $jsonData = [
-                'settings' => $settings,
-                'last_updated' => date('Y-m-d H:i:s'),
-                'updated_by' => 'admin_panel'
-            ];
-            
-            // For hosting setup, we don't write to local files
-            // Instead, we'll provide an API endpoint for Python app to fetch settings
-            error_log("Settings updated in database - Python app should fetch via API");
-            return true;
-            
-        } catch (Exception $e) {
-            error_log("Error writing settings.json: " . $e->getMessage());
-            return false;
-        } finally {
-            // Restore error reporting
-            error_reporting($old_error_reporting);
-        }
-    }
 }
 
 // Handle API requests

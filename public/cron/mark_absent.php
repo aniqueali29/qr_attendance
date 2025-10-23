@@ -47,8 +47,14 @@ try {
     $currentTimeOnly = $currentTime->format('H:i:s');
     
     // Get check-in end times for both shifts
-    $morningCheckinEnd = $timingSettings['morning_checkin_end'] ?? '11:00:00';
-    $eveningCheckinEnd = $timingSettings['evening_checkin_end'] ?? '17:00:00';
+    // All timing settings must be loaded from database
+    if (empty($timingSettings['morning_checkin_end']) || empty($timingSettings['evening_checkin_end'])) {
+        error_log('Timing settings not configured - cannot mark absent students');
+        return;
+    }
+    
+    $morningCheckinEnd = $timingSettings['morning_checkin_end'];
+    $eveningCheckinEnd = $timingSettings['evening_checkin_end'];
     
     $markedAbsent = 0;
     $errors = [];

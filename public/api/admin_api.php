@@ -355,7 +355,7 @@ function saveStudent($pdo) {
             ]);
         }
         
-        // Removed legacy Python sync: no students.json updates
+        // Legacy sync removed
         
         echo json_encode(['success' => true, 'message' => 'Student saved successfully']);
         
@@ -388,7 +388,7 @@ function deleteStudent($pdo) {
             
             $pdo->commit();
             
-            // Removed legacy Python sync: no students.json updates
+            // Legacy sync removed
             
             echo json_encode(['success' => true, 'message' => 'Student deleted successfully']);
             
@@ -536,7 +536,7 @@ function createStudentAccount($pdo) {
             
             $pdo->commit();
             
-            // Removed legacy Python sync and files; keep generated password in response
+            // Legacy sync removed; keep generated password in response
             $generated_password = $password;
             
             echo json_encode([
@@ -581,20 +581,7 @@ function generatePassword($length = 12) {
     return str_shuffle($password);
 }
 
-function saveToStudentsJson($student_id, $name, $email, $phone, $password = null) {
-    // Legacy no-op: Python integration removed
-    return $password ?? generatePassword();
-}
-
-function updateStudentsJson($student_id, $name, $email, $phone, $password = null) {
-    // Legacy no-op: Python integration removed
-        return true;
-}
-
-function removeFromStudentsJson($student_id) {
-    // Legacy no-op: Python integration removed
-        return true;
-}
+// Legacy sync functions removed - data is now stored in database only
 
 function saveToSyncData($student_id, $name, $email, $phone, $password = null) {
     try {
@@ -643,7 +630,7 @@ function saveToSyncData($student_id, $name, $email, $phone, $password = null) {
     }
 }
 
-// Removed triggerImmediateSync: Python integration removed
+// Legacy sync functions removed
 
 function getAttendance($pdo) {
     try {

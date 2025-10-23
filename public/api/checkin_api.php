@@ -275,19 +275,7 @@ function handleCheckOut($pdo) {
         $time_diff = $current_time_obj->diff($check_in_time);
         $total_minutes = ($time_diff->h * 60) + $time_diff->i;
         
-        // For morning shift, check minimum duration (2 hours)
-        // For evening shift, allow immediate checkout (free access)
-        if ($roll_data['shift'] === 'Morning') {
-            if ($total_minutes < 120) { // 2 hours = 120 minutes
-                $remaining_minutes = 120 - $total_minutes;
-                echo json_encode([
-                    'success' => false, 
-                    'message' => "Cannot check out yet. Please wait {$remaining_minutes} more minutes.",
-                    'remaining_minutes' => $remaining_minutes
-                ]);
-                return;
-            }
-        }
+        // No minimum duration requirement - checkout always allowed
         
         // Start transaction
         $pdo->beginTransaction();
@@ -388,12 +376,8 @@ function getStudentStatus($pdo) {
             $time_validator = new TimeValidator();
             $checkout_validation = $time_validator->validateCheckoutTime($student_id, $current_time, $session_shift);
 
-            // For morning shift, still check minimum duration (2 hours)
-            // For evening shift, allow immediate checkout (free access)
+            // No minimum duration requirement - checkout always allowed
             $can_checkout = $checkout_validation['valid'];
-            if ($session_shift === 'Morning') {
-                $can_checkout = $can_checkout && $total_minutes >= 120;
-            }
 
             echo json_encode([
                 'success' => true,
@@ -404,7 +388,7 @@ function getStudentStatus($pdo) {
                     'check_in_time' => $session['check_in_time'],
                     'time_elapsed' => $total_minutes,
                     'can_checkout' => $can_checkout,
-                    'remaining_minutes' => $can_checkout ? 0 : (120 - $total_minutes),
+                    'remaining_minutes' => 0,
                     'shift' => $session_shift,
                     'program' => $student['program'],
                     'current_year' => $student['current_year'],
@@ -453,7 +437,7 @@ function getStudentStatus($pdo) {
 }
 
 /**
- * Handle bulk check-in from Python app
+ * Handle bulk check-in from external systems
  */
 function handleBulkCheckIn($pdo) {
     try {

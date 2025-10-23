@@ -73,11 +73,6 @@ include 'partials/navbar.php';
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="integration-tab" data-bs-toggle="tab" data-bs-target="#integration" type="button" role="tab">
-                                    <i class="bx bx-plug me-1"></i>Integration
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab">
                                     <i class="bx bx-cog me-1"></i>Advanced
                                 </button>
@@ -105,27 +100,27 @@ include 'partials/navbar.php';
                                 <div class="row g-3">
                                     <div class="col-12">
                                         <label for="morning_checkin_start" class="form-label">Check-in Start Time</label>
-                                        <input type="time" class="form-control" id="morning_checkin_start" value="09:00">
+                                        <input type="time" class="form-control" id="morning_checkin_start" required>
                                         <div class="form-text">When students can start checking in</div>
                                     </div>
                                     <div class="col-12">
                                         <label for="morning_checkin_end" class="form-label">Check-in End Time</label>
-                                        <input type="time" class="form-control" id="morning_checkin_end" value="11:00">
+                                        <input type="time" class="form-control" id="morning_checkin_end" required>
                                         <div class="form-text">Last time students can check in</div>
                                     </div>
                                     <div class="col-12">
                                         <label for="morning_checkout_start" class="form-label">Check-out Start Time</label>
-                                        <input type="time" class="form-control" id="morning_checkout_start" value="12:00">
-                                        <div class="form-text">When students can start checking out</div>
+                                        <input type="time" class="form-control" id="morning_checkout_start">
+                                        <div class="form-text">When students can start checking out (optional - defaults to check-in end)</div>
                                     </div>
                                     <div class="col-12">
                                         <label for="morning_checkout_end" class="form-label">Check-out End Time</label>
-                                        <input type="time" class="form-control" id="morning_checkout_end" value="13:40">
-                                        <div class="form-text">Last time students can check out</div>
+                                        <input type="time" class="form-control" id="morning_checkout_end">
+                                        <div class="form-text">Last time students can check out (optional - defaults to class end)</div>
                                     </div>
                                     <div class="col-12">
                                         <label for="morning_class_end" class="form-label">Class End Time</label>
-                                        <input type="time" class="form-control" id="morning_class_end" value="13:40">
+                                        <input type="time" class="form-control" id="morning_class_end" required>
                                         <div class="form-text">When the class session ends</div>
                                     </div>
                                 </div>
@@ -145,27 +140,27 @@ include 'partials/navbar.php';
                                 <div class="row g-3">
                                     <div class="col-12">
                                         <label for="evening_checkin_start" class="form-label">Check-in Start Time</label>
-                                        <input type="time" class="form-control" id="evening_checkin_start" value="15:00">
+                                        <input type="time" class="form-control" id="evening_checkin_start" required>
                                         <div class="form-text">When students can start checking in</div>
                                     </div>
                                     <div class="col-12">
                                         <label for="evening_checkin_end" class="form-label">Check-in End Time</label>
-                                        <input type="time" class="form-control" id="evening_checkin_end" value="18:00">
+                                        <input type="time" class="form-control" id="evening_checkin_end" required>
                                         <div class="form-text">Last time students can check in</div>
                                     </div>
                                     <div class="col-12">
                                         <label for="evening_checkout_start" class="form-label">Check-out Start Time</label>
-                                        <input type="time" class="form-control" id="evening_checkout_start" value="15:00">
-                                        <div class="form-text">When students can start checking out</div>
+                                        <input type="time" class="form-control" id="evening_checkout_start">
+                                        <div class="form-text">When students can start checking out (optional - defaults to check-in start)</div>
                                     </div>
                                     <div class="col-12">
                                         <label for="evening_checkout_end" class="form-label">Check-out End Time</label>
-                                        <input type="time" class="form-control" id="evening_checkout_end" value="18:00">
-                                        <div class="form-text">Last time students can check out</div>
+                                        <input type="time" class="form-control" id="evening_checkout_end">
+                                        <div class="form-text">Last time students can check out (optional - defaults to class end)</div>
                                     </div>
                                     <div class="col-12">
                                         <label for="evening_class_end" class="form-label">Class End Time</label>
-                                        <input type="time" class="form-control" id="evening_class_end" value="18:00">
+                                        <input type="time" class="form-control" id="evening_class_end" required>
                                         <div class="form-text">When the class session ends</div>
                                     </div>
                                 </div>
@@ -219,11 +214,6 @@ include 'partials/navbar.php';
                                 <div class="row g-3">
                                     
                                     <div class="col-12">
-                                        <label for="sync_interval_seconds" class="form-label">Sync Interval (seconds)</label>
-                                        <input type="number" class="form-control" id="sync_interval_seconds" value="60" min="10" max="300">
-                                        <div class="form-text">How often to sync with web server</div>
-                                    </div>
-                                    <div class="col-12">
                                         <label for="timezone" class="form-label">Timezone</label>
                                         <select class="form-select" id="timezone">
                                             <option value="Asia/Karachi">Asia/Karachi</option>
@@ -276,121 +266,22 @@ include 'partials/navbar.php';
                                         <input type="number" class="form-control" id="auto_absent_evening_hour" value="17" min="14" max="20">
                                         <div class="form-text">Hour to mark evening shift absent (24h format)</div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Integration Tab -->
-            <div class="tab-pane fade" id="integration" role="tabpanel">
-                <div class="row">
-                    <!-- Website Integration -->
-                    <div class="col-lg-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="bx bx-link me-2"></i>Website Integration
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
                                     <div class="col-12">
-                                        <label for="website_url" class="form-label">Website URL</label>
-                                        <input type="url" class="form-control" id="website_url" value="http://localhost/qr_attendance/public">
-                                        <div class="form-text">Base URL of the web application</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_endpoint_attendance" class="form-label">Attendance API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_attendance" value="/api/api_attendance.php">
-                                        <div class="form-text">API endpoint for attendance data</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_endpoint_checkin" class="form-label">Check-in API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_checkin" value="/api/checkin_api.php">
-                                        <div class="form-text">API endpoint for check-in operations</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_endpoint_dashboard" class="form-label">Dashboard API Endpoint</label>
-                                        <input type="text" class="form-control" id="api_endpoint_dashboard" value="/api/dashboard_api.php">
-                                        <div class="form-text">API endpoint for dashboard data</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_timeout_seconds" class="form-label">API Timeout (seconds)</label>
-                                        <input type="number" class="form-control" id="api_timeout_seconds" value="30" min="5" max="120">
-                                        <div class="form-text">Timeout for API requests</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Security Settings -->
-                    <div class="col-lg-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="bx bx-key me-2"></i>Security Settings
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label for="api_key" class="form-label">API Key</label>
-                                        <div class="input-group">
-                                            <input type="password" class="form-control" id="api_key" value="attendance_2025_xyz789_secure">
-                                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('api_key')">
-                                                <i class="bx bx-show"></i>
-                                            </button>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enable_auto_absent" checked>
+                                            <label class="form-check-label" for="enable_auto_absent">
+                                                Enable Auto-Absent Feature
+                                            </label>
                                         </div>
-                                        <div class="form-text">API authentication key</div>
+                                        <div class="form-text">Automatically mark students as absent at specified times</div>
                                     </div>
-                                    <div class="col-12">
-                                        <label for="max_sync_records" class="form-label">Max Sync Records</label>
-                                        <input type="number" class="form-control" id="max_sync_records" value="1000" min="100" max="10000">
-                                        <div class="form-text">Maximum records per sync operation</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="api_rate_limit" class="form-label">API Rate Limit (per hour)</label>
-                                        <input type="number" class="form-control" id="api_rate_limit" value="100" min="10" max="1000">
-                                        <div class="form-text">Rate limit for API requests</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Connection Test -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="bx bx-wifi me-2"></i>Connection Test
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-flex flex-wrap gap-2 mb-3">
-                                    <button class="btn btn-outline-info" onclick="testConnection()">
-                                        <i class="bx bx-wifi me-1"></i>
-                                        <span class="btn-text">Test Website</span>
-                                    </button>
-                                    <button class="btn btn-outline-secondary" onclick="testAPI()">
-                                        <i class="bx bx-plug me-1"></i>
-                                        <span class="btn-text">Test API</span>
-                                    </button>
-                                </div>
-                                <div id="connectionResults" class="alert alert-info d-none">
-                                    <i class="bx bx-info-circle me-1"></i>
-                                    <span class="connection-message">Click a test button to check connectivity</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
 
             <!-- Advanced Tab -->
             <div class="tab-pane fade" id="advanced" role="tabpanel">
@@ -432,6 +323,20 @@ include 'partials/navbar.php';
                                         </div>
                                         <div class="form-text">Display errors in development mode</div>
                                     </div>
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enable_audit_log" checked>
+                                            <label class="form-check-label" for="enable_audit_log">
+                                                Enable Audit Logging
+                                            </label>
+                                        </div>
+                                        <div class="form-text">Log all user actions and system events</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="log_retention_days" class="form-label">Log Retention (days)</label>
+                                        <input type="number" class="form-control" id="log_retention_days" value="30" min="7" max="365">
+                                        <div class="form-text">How long to keep log files</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -467,6 +372,15 @@ include 'partials/navbar.php';
                                         <input type="number" class="form-control" id="password_min_length" value="8" min="6" max="32">
                                         <div class="form-text">Minimum required password length</div>
                                     </div>
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="require_password_change" checked>
+                                            <label class="form-check-label" for="require_password_change">
+                                                Require Password Change on First Login
+                                            </label>
+                                        </div>
+                                        <div class="form-text">Force users to change password on first login</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -501,6 +415,23 @@ include 'partials/navbar.php';
                                 <div class="alert alert-info">
                                     <i class="bx bx-info-circle me-1"></i>
                                     <strong>Backup & Restore:</strong> Export your settings to a JSON file for backup, or import previously exported settings. Use "Reset to Defaults" to restore all settings to their original values.
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label for="backup_frequency" class="form-label">Automatic Backup Frequency</label>
+                                        <select class="form-select" id="backup_frequency">
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly" selected>Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                            <option value="disabled">Disabled</option>
+                                        </select>
+                                        <div class="form-text">How often to create automatic backups</div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="backup_retention_days" class="form-label">Backup Retention (days)</label>
+                                        <input type="number" class="form-control" id="backup_retention_days" value="30" min="7" max="365">
+                                        <div class="form-text">How long to keep backup files</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

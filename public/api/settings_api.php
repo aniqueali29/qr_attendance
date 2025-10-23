@@ -266,7 +266,7 @@ class SettingsAPI {
     /**
      * Parse time string with support for both 12-hour and 24-hour formats
      */
-    private function parseTime($time_str, $default = '09:00:00') {
+    private function parseTime($time_str) {
         // Try 12-hour format with AM/PM first
         $time = DateTime::createFromFormat('g:i A', $time_str);
         if ($time !== false) {
@@ -291,8 +291,8 @@ class SettingsAPI {
             return $time;
         }
         
-        // Fallback to default
-        return DateTime::createFromFormat('H:i:s', $default);
+        // If all formats fail, throw exception
+        throw new Exception("Invalid time format: {$time_str}. Expected formats: HH:MM, HH:MM:SS, or h:mm AM/PM");
     }
 
     /**
@@ -304,18 +304,26 @@ class SettingsAPI {
         
         try {
             // Parse morning timings with flexible format support
-            $morning_start = $this->parseTime($timings['morning_checkin_start'] ?? '09:00:00', '09:00:00');
-            $morning_end = $this->parseTime($timings['morning_checkin_end'] ?? '11:00:00', '11:00:00');
-            $morning_checkout_start = $this->parseTime($timings['morning_checkout_start'] ?? '12:00:00', '12:00:00');
-            $morning_checkout_end = $this->parseTime($timings['morning_checkout_end'] ?? '13:40:00', '13:40:00');
-            $morning_class_end = $this->parseTime($timings['morning_class_end'] ?? '13:40:00', '13:40:00');
+            // All timing values are required - no defaults
+            if (empty($timings['morning_checkin_start']) || empty($timings['morning_checkin_end']) || 
+                empty($timings['morning_class_end']) || empty($timings['evening_checkin_start']) || 
+                empty($timings['evening_checkin_end']) || empty($timings['evening_class_end'])) {
+                $errors[] = "All timing settings are required. Please configure all check-in, check-out, and class end times.";
+                return ['valid' => false, 'errors' => $errors, 'warnings' => $warnings];
+            }
+            
+            $morning_start = $this->parseTime($timings['morning_checkin_start']);
+            $morning_end = $this->parseTime($timings['morning_checkin_end']);
+            $morning_checkout_start = $this->parseTime($timings['morning_checkout_start'] ?? $timings['morning_checkin_end']);
+            $morning_checkout_end = $this->parseTime($timings['morning_checkout_end'] ?? $timings['morning_class_end']);
+            $morning_class_end = $this->parseTime($timings['morning_class_end']);
             
             // Parse evening timings with flexible format support
-            $evening_start = $this->parseTime($timings['evening_checkin_start'] ?? '15:00:00', '15:00:00');
-            $evening_end = $this->parseTime($timings['evening_checkin_end'] ?? '18:00:00', '18:00:00');
-            $evening_checkout_start = $this->parseTime($timings['evening_checkout_start'] ?? '15:00:00', '15:00:00');
-            $evening_checkout_end = $this->parseTime($timings['evening_checkout_end'] ?? '18:00:00', '18:00:00');
-            $evening_class_end = $this->parseTime($timings['evening_class_end'] ?? '18:00:00', '18:00:00');
+            $evening_start = $this->parseTime($timings['evening_checkin_start']);
+            $evening_end = $this->parseTime($timings['evening_checkin_end']);
+            $evening_checkout_start = $this->parseTime($timings['evening_checkout_start'] ?? $timings['evening_checkin_start']);
+            $evening_checkout_end = $this->parseTime($timings['evening_checkout_end'] ?? $timings['evening_class_end']);
+            $evening_class_end = $this->parseTime($timings['evening_class_end']);
             
             // Validate morning shift
             if ($morning_end <= $morning_start) {
@@ -599,7 +607,7 @@ class SettingsAPI {
                     'evening_class_end'
                 ],
                 'system_config' => [
-                    'minimum_duration_minutes', 'sync_interval_seconds', 'timezone',
+                    'sync_interval_seconds', 'timezone',
                     'academic_year_start_month', 'auto_absent_morning_hour', 'auto_absent_evening_hour'
                 ],
                 'integration' => [
@@ -707,7 +715,6 @@ class SettingsAPI {
             'evening_class_end' => '18:00:00',
             
             // System Configuration
-            'minimum_duration_minutes' => 120,
             'sync_interval_seconds' => 30,
             'timezone' => 'Asia/Karachi',
             'academic_year_start_month' => 9,

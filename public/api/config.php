@@ -52,15 +52,9 @@ define('API_KEY', env_get('API_KEY', 'changeme_api_key'));
 define('API_RATE_LIMIT', 100); // requests per hour
 define('API_TIMEOUT', 30); // seconds
 
-// Shift Timing Configuration
-define('MORNING_CHECKIN_START', '09:00:00');
-define('MORNING_CHECKIN_END', '11:00:00');
-define('MORNING_CLASS_END', '13:40:00');
-define('EVENING_CHECKIN_START', '15:00:00');
-define('EVENING_CHECKIN_END', '16:00:00');
-define('EVENING_CLASS_END', '18:00:00');
+// Shift Timing Configuration - Now loaded dynamically from database
+// All timing constants removed - use database settings instead
 define('ACADEMIC_YEAR_START_MONTH', 9);
-define('MINIMUM_DURATION_MINUTES', 120);
 
 // Development/Production Settings
 define('DEBUG_MODE', env_bool('DEBUG_MODE', false)); // Set via env

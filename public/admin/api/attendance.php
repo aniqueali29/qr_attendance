@@ -1613,9 +1613,6 @@ function loadTimingSettings() {
                 if (strpos($row['setting_key'], 'time') === false && strpos($row['setting_key'], 'check') !== false) {
                     $val = normalizeTime($val);
                 }
-                if ($row['setting_key'] === 'minimum_duration_minutes') {
-                    $val = (int)$val;
-                }
                 $defaults[$row['setting_key']] = $val;
             }
         }

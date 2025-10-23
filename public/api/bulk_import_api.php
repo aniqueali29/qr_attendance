@@ -467,7 +467,7 @@ function createStudentFromImport($pdo, $student, $row_number) {
             $section_id, $admission_year, $roll_prefix, $username, $password
         ]);
         
-        // Removed legacy Python students.json sync
+        // Legacy sync removed
         
         return [
             'success' => true,
@@ -510,9 +510,8 @@ function generatePassword($length = 12) {
 }
 
 /**
- * Save to students.json file
+ * Legacy sync functions removed
  */
-// Removed legacy saveToStudentsJson: Python integration removed
 
 /**
  * Log import results

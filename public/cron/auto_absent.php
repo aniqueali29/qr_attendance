@@ -53,7 +53,7 @@ class AutoAbsentMarker {
     
     public function markAbsentForShift($shift) {
         $checkinEnd = $this->timingSettings[strtolower($shift) . '_checkin_end'] ?? 
-                      ($shift === 'Morning' ? '11:00:00' : '17:00:00');
+                      ($shift === 'Morning' ? $this->timingSettings['morning_checkin_end'] : $this->timingSettings['evening_checkin_end']);
         
         $currentTimeOnly = $this->currentTime->format('H:i:s');
         

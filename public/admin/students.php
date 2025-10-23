@@ -389,7 +389,7 @@ include 'partials/navbar.php';
                         <div class="col-12">
                             <div class="alert alert-info">
                                 <i class="bx bx-info-circle me-2"></i>
-                                <strong>Password:</strong> A secure password will be automatically generated and included in the students.json file.
+                                <strong>Password:</strong> A secure password will be automatically generated and stored in the database.
                             </div>
                         </div>
                     </div>

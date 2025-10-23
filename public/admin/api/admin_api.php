@@ -228,8 +228,7 @@ if (isset($action)) {
                 $stmt = $pdo->prepare("UPDATE students SET password = ? WHERE id = ?");
                 $stmt->execute([$hashed_password, $student_id]);
                 
-                // Also update students.json with the new password
-                saveToStudentsJson($student['student_id'], '', '', '', $new_password);
+                // Password updated in database
                 
                 // Log the password change
                 $log_message = "Password updated for student {$student['student_id']} (Type: {$password_type})";
@@ -341,8 +340,7 @@ if (isset($action)) {
                 ");
                 $updateStmt->execute([$rollNumber, $password, $rollNumber]);
                 
-                // Save to students.json
-                saveToStudentsJson($rollNumber, $name, $email, $phone, $rollNumber);
+                // Student created in database
                 
                 $response = ['success' => true, 'message' => 'Student created successfully.'];
                 break;
@@ -931,8 +929,7 @@ function createStudentFromImport($pdo, $student, $row_number) {
             ]);
         }
         
-        // Save to students.json
-        saveToStudentsJson($student_id, $name, $email, $phone, $password);
+        // Student data saved to database
         
         return [
             'success' => true,
@@ -975,86 +972,8 @@ function generatePassword($length = 12) {
 }
 
 /**
- * Save to students.json file
+ * Legacy sync functions removed - data is now stored in database only
  */
-function saveToStudentsJson($student_id, $name, $email, $phone, $password) {
-    try {
-        $possible_paths = [
-            '../../../python/students.json',
-            dirname(dirname(dirname(__DIR__))) . '/python/students.json',
-            '../python/students.json',
-            '../../python/students.json',
-            dirname(__DIR__) . '/python/students.json',
-            dirname(dirname(__DIR__)) . '/python/students.json'
-        ];
-        
-        $students_file = null;
-        foreach ($possible_paths as $path) {
-            if (file_exists($path)) {
-                $students_file = $path;
-                break;
-            }
-        }
-        
-        if (!$students_file) {
-            $students_file = '../../../python/students.json';
-        }
-        
-        $json_data = [
-            'students' => [],
-            'last_updated' => date('Y-m-d H:i:s'),
-            'updated_by' => 'admin_api',
-            'total_students' => 0
-        ];
-        
-        if (file_exists($students_file)) {
-            $content = file_get_contents($students_file);
-            if (!empty($content) && $content !== '[]') {
-                $decoded = json_decode($content, true);
-                if (is_array($decoded)) {
-                    // Handle the case where the JSON has a 'success' field at the top level
-                    if (isset($decoded['students'])) {
-                        $json_data = $decoded;
-                    } else {
-                        // If it's just an array of students, wrap it properly
-                        $json_data['students'] = $decoded;
-                    }
-                }
-            }
-        }
-        
-        // Ensure students key exists
-        if (!isset($json_data['students'])) {
-            $json_data['students'] = [];
-        }
-        
-        $json_data['students'][$student_id] = [
-            'name' => $name,
-            'email' => $email,
-            'phone' => $phone,
-            'password' => $password,
-            'is_active' => true,
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-            'created_by' => 'admin'
-        ];
-        
-        // Update metadata
-        $json_data['last_updated'] = date('Y-m-d H:i:s');
-        $json_data['updated_by'] = 'admin_api';
-        $json_data['total_students'] = count($json_data['students']);
-        
-        $dir = dirname($students_file);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        
-        file_put_contents($students_file, json_encode($json_data, JSON_PRETTY_PRINT));
-        
-    } catch (Exception $e) {
-        error_log("Error saving to students.json: " . $e->getMessage());
-    }
-}
 
 /**
  * Log import results

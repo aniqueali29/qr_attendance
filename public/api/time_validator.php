@@ -6,18 +6,9 @@
 
 class TimeValidator {
     
-    // Shift timing constants
-    const MORNING_CHECKIN_START = '09:00:00';    // 9:00 AM
-    const MORNING_CHECKIN_END = '11:00:00';     // 11:00 AM
-    const MORNING_CLASS_END = '13:40:00';       // 1:40 PM
-    const MORNING_CHECKOUT_START = '12:00:00';   // 12:00 PM (12pm)
-    const MORNING_CHECKOUT_END = '13:40:00';    // 1:40 PM
+    // Shift timing constants removed - now loaded dynamically from database
+    // All timing validation now uses database settings via time_validator_api.php
     
-    const EVENING_CHECKIN_START = '09:00:00';   // 9:00 AM
-    const EVENING_CHECKIN_END = '12:00:00';     // 12:00 PM (12 PM)
-    const EVENING_CLASS_END = '14:00:00';       // 2:00 PM
-    
-    const MINIMUM_DURATION_MINUTES = 120;  // 2 hours minimum
     
     private $timezone;
     
@@ -322,17 +313,13 @@ class TimeValidator {
                     'end' => $timings['class_end'],
                     'duration_hours' => $timings['total_class_hours']
                 ],
-                'minimum_duration' => [
-                    'minutes' => self::MINIMUM_DURATION_MINUTES,
-                    'hours' => self::MINIMUM_DURATION_MINUTES / 60
-                ]
             ],
             'description' => "{$shift} shift: Check-in {$timings['checkin_start']}-{$timings['checkin_end']}, Class until {$timings['class_end']}"
         ];
     }
     
     /**
-     * Check if a check-out is allowed (minimum duration met)
+     * Check if a check-out is allowed (no minimum duration requirement)
      * 
      * @param DateTime $checkin_time Time when student checked in
      * @param DateTime $checkout_time Time when student wants to check out
@@ -342,17 +329,13 @@ class TimeValidator {
         $duration = $checkout_time->diff($checkin_time);
         $total_minutes = ($duration->h * 60) + $duration->i;
         
-        $is_allowed = $total_minutes >= self::MINIMUM_DURATION_MINUTES;
-        $remaining_minutes = max(0, self::MINIMUM_DURATION_MINUTES - $total_minutes);
-        
+        // No minimum duration requirement - checkout always allowed
         return [
-            'valid' => $is_allowed,
+            'valid' => true,
             'checkin_time' => $checkin_time->format('Y-m-d H:i:s'),
             'checkout_time' => $checkout_time->format('Y-m-d H:i:s'),
             'duration_minutes' => $total_minutes,
-            'minimum_required' => self::MINIMUM_DURATION_MINUTES,
-            'remaining_minutes' => $remaining_minutes,
-            'error' => $is_allowed ? null : "Cannot check out yet. Please wait {$remaining_minutes} more minutes."
+            'error' => null
         ];
     }
     
@@ -451,7 +434,6 @@ if (basename(__FILE__) == basename($_SERVER['SCRIPT_NAME'])) {
         echo "{$shift} Shift:\n";
         echo "  Check-in: {$schedule['schedule']['checkin_window']['start']} - {$schedule['schedule']['checkin_window']['end']}\n";
         echo "  Class: {$schedule['schedule']['class_session']['start']} - {$schedule['schedule']['class_session']['end']}\n";
-        echo "  Min Duration: {$schedule['schedule']['minimum_duration']['minutes']} minutes\n";
         echo "\n";
     }
     
